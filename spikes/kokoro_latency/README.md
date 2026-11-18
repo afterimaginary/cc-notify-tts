@@ -1,6 +1,6 @@
 # Spike: Kokoro latency
 
-Answers the questions behind ADR-0003. How long does Kokoro-82M take through `kokoro-onnx` on this hardware, cold and warm, for notification-length sentences? How much memory does it hold once loaded? Does audio playing nearby slow it down?
+Answers the questions behind ADR-0005. How long does Kokoro-82M take through `kokoro-onnx` on this hardware, cold and warm, for notification-length sentences? How much memory does it hold once loaded? Does audio playing nearby slow it down?
 
 `kokoro_latency.py` is a self-contained [`uv` script](https://docs.astral.sh/uv/guides/scripts/): its dependencies (`kokoro-onnx` and what it pulls in) are declared inline, so it doesn't add anything to the project's environment. It isn't part of `make ready` or `make verify`.
 

@@ -3,7 +3,7 @@ description: The daemon loads Kokoro-82M (fp32, kokoro-onnx) once at start, warm
 status: accepted
 ---
 
-# ADR-0003: Kokoro latency and what follows for the speech pipeline
+# ADR-0005: Kokoro latency and what follows for the speech pipeline
 
 ## Context
 

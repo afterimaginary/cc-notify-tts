@@ -21,7 +21,7 @@ It is not part of `make ready` or `make verify`: it needs the model files (about
     uv run --script spikes/kokoro_latency/kokoro_latency.py --variant int8 --json out.json
 
 Model files go in ~/Library/Application Support/cc-notify-tts/models by default,
-never in the repository. Results are recorded in ADR-0003.
+never in the repository. Results are recorded in ADR-0005.
 """
 
 from __future__ import annotations
