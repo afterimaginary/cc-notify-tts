@@ -97,7 +97,7 @@ With `wording.ollama` on (the default, [config](config.md)), a local Ollama mode
 
 | Event | The model is shown | It writes |
 | - | - | - |
-| `finished` | The last 4000 characters of the turn's last message | What was done, one sentence |
+| `finished` | The last 4000 characters of the turn's last message | What was done, one sentence; for a turn that only answers a question, what it explained, starting with "Explained" (ADR-0036) |
 | `question` | Each question and its option labels | The question, asked again shortly |
 | `permission` | The tool name and each argument (up to 500 characters each) | What the call would do, as a verb phrase for the frame's slot |
 

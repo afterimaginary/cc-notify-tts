@@ -57,7 +57,10 @@ _FINISHED = (
     "The assistant finished its turn. Its last message is between the lines.\n"
     "---\n{material}\n---\n"
     "In one sentence of at most 15 words, say what was done. "
-    "Start with a past-tense verb and leave out the subject."
+    "Start with a past-tense verb and leave out the subject. "
+    # Without this, a turn that only answers a question is worded as work done
+    # ("Updated retry limit to 3") (ADR-0036).
+    "If nothing was changed and the message only answers a question, start with Explained."
 )
 _QUESTION = (
     "The assistant is asking the user a question. It is between the lines.\n"
