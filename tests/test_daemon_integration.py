@@ -1,6 +1,7 @@
 """The daemon end to end: hook fixtures sent through its socket, spoken by a fake speaker."""
 
 import json
+import logging
 import shutil
 import socket
 import tempfile
@@ -14,6 +15,7 @@ import pytest
 
 from cc_notify_tts.client import is_answering, request
 from cc_notify_tts.daemon import Daemon, Paths
+from cc_notify_tts.timeline import STAGES, Timeline, parse
 
 pytestmark = pytest.mark.integration
 
@@ -70,7 +72,8 @@ class FakeSpeaker:
         self.blocked = blocked
         self.started = threading.Event()
 
-    def speak(self, text: str, voice: str) -> bool:
+    def speak(self, text: str, voice: str, timeline: Timeline) -> bool:
+        timeline.mark("playing")
         self.started.set()
         if self.blocked is not None and not self.spoken:
             self.blocked.wait(5)
@@ -121,6 +124,27 @@ def running(root: Path) -> Iterator[tuple[Running, FakeSpeaker]]:
     wait_for(lambda: is_answering(daemon.daemon.paths.socket))
     yield daemon, speaker
     daemon.stop()
+
+
+def test_spoken_event_logs_every_stage_in_order(
+    running: tuple[Running, FakeSpeaker], caplog: pytest.LogCaptureFixture
+) -> None:
+    d, speaker = running
+    t = time.time()
+    with caplog.at_level(logging.INFO):
+        d.send("user_prompt_submit", t, prompt_id="p1")
+        message = {"type": "event", "fired_at": t + 0.01, "sent_at": t + 0.02, "host_app": TERMINAL}
+        payload = fixture("stop", prompt_id="p1")
+        assert request(d.daemon.paths.socket, {**message, "payload": payload}) == {"ok": True}
+        wait_for(lambda: any(r["outcome"] == "played" for r in parse(caplog.messages)))
+
+    [played] = [r for r in parse(caplog.messages) if r["outcome"] == "played"]
+    assert (played["hook"], played["kind"]) == ("Stop", "finished")
+    expected = [s for s in STAGES if s not in ("synthesized", "ended")]
+    assert list(played["marks"]) == expected
+    times = list(played["marks"].values())
+    assert times == sorted(times)
+    assert speaker.spoken
 
 
 def test_session_spoken_in_hook_order_then_idle_exit(root: Path) -> None:

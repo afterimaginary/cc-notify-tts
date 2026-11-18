@@ -30,13 +30,14 @@ Answered as soon as the daemon has bound its socket, before the speech model loa
 One hook event. The reply means it was queued, not that it was classified or spoken.
 
 ```json
-{"type": "event", "fired_at": 1763452800.125, "host_app": "com.apple.Terminal", "payload": {"session_id": "…", "hook_event_name": "Stop", "…": "…"}}
+{"type": "event", "fired_at": 1763452800.125, "sent_at": 1763452800.136, "host_app": "com.apple.Terminal", "payload": {"session_id": "…", "hook_event_name": "Stop", "…": "…"}}
 ```
 
 | Field | Required | Meaning |
 | - | - | - |
 | `payload` | yes | The hook's JSON input, unchanged. |
 | `fired_at` | no | Wall-clock time (Unix seconds) the hook started, read as the shim's first step. Events are classified in this order. Missing, not a number, or later than arrival: arrival time is used. |
+| `sent_at` | no | Wall-clock time (Unix seconds) the shim first sent the event, before any daemon start and retries, for the latency log only. Not a number, or later than arrival: arrival time is logged. |
 | `host_app` | no | Bundle id of the app the session runs in (ADR-0006). The shim sends it at `SessionStart`, and inside tmux on every hook that can announce something. When present and non-empty, it replaces the one on record for the session. |
 
 ```json
@@ -117,3 +118,4 @@ What the daemon is doing, for `cc-notify-tts status`.
 - **Idle exit:** once no event has arrived for `daemon.idle_timeout_minutes` (config, default 120) and nothing is waiting or playing, the daemon removes its socket and exits with status 0. A session ends with an event, and a session without `SessionEnd` counts as closed once the timeout has passed since its last event, so this is also "no session open for the timeout". `ping`, `status` and `fire` don't count as events.
 - **Signals:** `SIGTERM` and `SIGINT` stop it the same way.
 - **Log:** `~/Library/Logs/cc-notify-tts/daemon.log`, rotated at 1 MB with two old files kept. Each gate decision is logged with its reason.
+- **Latency log:** every event, and every `fire`, ends with one `timing` line in the same log: a JSON object with an `event` number, the `hook`, `session`, notification `kind`, how it ended (`outcome`: `no notification`, `silenced`, `replaced`, `dropped as stale`, `speech unavailable`, `speech failed`, `playback failed` or `played`), the synthesized `audio_seconds`, and `marks`, the wall-clock time of each stage it reached: `hook`, `sent`, `received`, `dequeued`, `gated`, `worded`, `synthesizing`, `synthesized`, `playing` and `ended`. `python -m bench.latency summarize` reads them back (ADR-0019).

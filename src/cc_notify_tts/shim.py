@@ -11,7 +11,8 @@ disturb Claude Code, so it:
   and nothing when all went well.
 
 What it sends is the protocol's `event` request (docs/specs/daemon-protocol.md):
-the payload unchanged, `fired_at` read first thing, and `host_app` at
+the payload unchanged, `fired_at` read first thing, `sent_at` just before
+sending (both for the latency log, ADR-0019), and `host_app` at
 `SessionStart` and, inside tmux, on every hook that can announce something.
 """
 
@@ -61,6 +62,7 @@ def handle(hook: str, raw: bytes, env: Mapping[str, str], fired_at: float) -> No
             message["host_app"] = host
 
     python = client.daemon_python()
+    message["sent_at"] = time.time()
     try:
         reply, started = client.deliver(message, client.socket_path(), python)
     except OSError as e:

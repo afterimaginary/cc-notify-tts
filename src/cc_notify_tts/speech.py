@@ -18,6 +18,7 @@ import numpy as np
 from kokoro_onnx import Kokoro
 
 from cc_notify_tts.models import MODEL, VOICES, default_models_dir
+from cc_notify_tts.timeline import Timeline
 
 log = logging.getLogger(__name__)
 
@@ -74,13 +75,24 @@ class Speaker:
         self._synthesizer = synthesizer
         self._player = player
 
-    def speak(self, text: str, voice: str = DEFAULT_VOICE) -> bool:
+    def speak(
+        self, text: str, voice: str = DEFAULT_VOICE, timeline: Timeline | None = None
+    ) -> bool:
         """Synthesize `text` in full, then play it. Returns when playback ends, with
-        whether it played."""
+        whether it played. Marks `synthesized` and `playing` on `timeline`."""
         with tempfile.TemporaryDirectory(prefix="cc-notify-tts-") as tmp:
             wav = Path(tmp) / "speech.wav"
             self._synthesizer.synthesize(text, voice, wav)
-            return self._player.play(wav)
+            if timeline is None:
+                return self._player.play(wav)
+            timeline.mark("synthesized")
+            timeline.audio_seconds = wav_seconds(wav)
+            # afplay's own start-up comes after this mark: `ended` less the audio's
+            # length bounds it (ADR-0019).
+            timeline.mark("playing")
+            played = self._player.play(wav)
+            timeline.mark("ended")
+            return played
 
 
 def write_wav(path: Path, samples: np.typing.NDArray[np.float32], rate: int) -> None:
@@ -91,3 +103,12 @@ def write_wav(path: Path, samples: np.typing.NDArray[np.float32], rate: int) -> 
         out.setsampwidth(2)
         out.setframerate(rate)
         out.writeframes(pcm.tobytes())
+
+
+def wav_seconds(path: Path) -> float | None:
+    """How long `path` plays, or None if it isn't a WAV file that can be read."""
+    try:
+        with wave.open(str(path), "rb") as wav:
+            return wav.getnframes() / wav.getframerate()
+    except (OSError, EOFError, wave.Error, ZeroDivisionError):
+        return None
