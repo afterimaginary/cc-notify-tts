@@ -20,13 +20,24 @@ uv run python -m evals.compare evals/results/2026-11-18.json evals/results/2026-
 
 ## Re-score a run
 
-The guards and the cases' lists change after a run is recorded, so its report can score answers the way the daemon no longer would. Re-score the recorded answers with the current code, without asking a model again:
+The guards and the cases' lists change after a run is recorded, so its report can score answers the way the daemon no longer would. `make ready` checks that every committed run in `results/` scores the same with the current guards and cases. When a change moves a score, re-score the recorded answers with the current code, without asking a model again:
 
 ```sh
-uv run python -m evals.rescore evals/results/2026-11-18-3.json
+uv run python -m evals.rescore evals/results/*.json
 ```
 
-It rewrites the run's `.json` and `.md` in place (git keeps the earlier scoring) and the report says when it was re-scored. The answers, latency and memory stay the run's own. A case's payload must not have changed since the run, since the answer was written for that prompt: add cases rather than edit them. A run whose report carries a hand-written note on how it was scored is skipped: `2026-11-18-5` stays scored with the guards of its day, as ADR-0021's "before" run, so `evals/results/*.json` is safe to pass.
+It rewrites each run's `.json` and `.md` in place (git keeps the earlier scoring) and the report says when it was re-scored. The answers, latency and memory stay the run's own. A case's payload must not have changed since the run, since the answer was written for that prompt: add cases rather than edit them.
+
+### Keep a "before" run
+
+A change that compares the guards before and after it, as ADR-0021 does, keeps its "before" run scored the old way. Mark it with a note on which guards scored it, finishing the sentence after "Kept as a "before" run:":
+
+```sh
+uv run python -m evals.rescore evals/results/2026-11-18-5.json \
+  --before "scored with the guards from before ADR-0021's failing-tests guard, as that ADR's comparison."
+```
+
+The note goes under the report's heading. From then on a re-score skips the run and `make ready` doesn't check it. Mark it before re-scoring the others, or the re-score overwrites it.
 
 ## What a run does
 

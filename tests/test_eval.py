@@ -16,9 +16,9 @@ from cc_notify_tts.ollama import NUM_CTX, OllamaError
 from evals.cases import CASES_DIR, Case, CaseError, load_cases
 from evals.compare import compare
 from evals.report import render
-from evals.rescore import rescore
+from evals.rescore import is_before, rescore
 from evals.results import Results, load_results
-from evals.run import run_model, write_results
+from evals.run import RESULTS_DIR, run_model, write_results
 from evals.score import (
     Score,
     contains,
@@ -427,12 +427,27 @@ def test_rescore_needs_every_case() -> None:
         rescore(results("Added backoff."), [case("question-retries")], "2026-11-19")
 
 
-def test_rescore_skips_a_run_kept_as_scored(tmp_path: Path) -> None:
-    kept = replace(results("Added backoff."), scoring="Kept as ADR-0021's before run.")
-    path = write_results(kept, tmp_path).with_suffix(".json")
-    before = path.read_text()
+def test_a_before_run_is_marked_and_then_skipped(tmp_path: Path) -> None:
+    path = write_results(results("Added backoff."), tmp_path).with_suffix(".json")
+    assert evals.rescore.main([str(path), "--before", "scored with old guards."]) == 0
+    marked = path.read_text()
+    assert load_results(path).scoring == 'Kept as a "before" run: scored with old guards.'
     assert evals.rescore.main([str(path)]) == 0
-    assert path.read_text() == before
+    assert path.read_text() == marked
+
+
+@pytest.mark.parametrize("path", sorted(RESULTS_DIR.glob("*.json")), ids=lambda p: p.stem)
+def test_committed_results_match_the_current_guards(path: Path) -> None:
+    recorded = load_results(path)
+    if is_before(recorded):
+        return
+    current = rescore(recorded, list(CASES.values()), "today")
+    for old, new in zip(recorded.runs, current.runs, strict=True):
+        assert old.scores == new.scores, (
+            f"{path.name} {old.model} is scored with older guards or cases: run "
+            f"`uv run python -m evals.rescore evals/results/{path.name}`, or mark it "
+            "as a before run with --before (evals/README.md)"
+        )
 
 
 def test_how_a_run_was_scored_is_in_the_report_and_the_json(tmp_path: Path) -> None:
