@@ -16,7 +16,7 @@ from evals.compare import compare
 from evals.report import render
 from evals.results import Results, load_results
 from evals.run import run_model, write_results
-from evals.score import Score, contains, percentile, rejection, score, summarize
+from evals.score import Score, contains, is_lead_in, percentile, rejection, score, summarize
 
 CASES = {case.id: case for case in load_cases()}
 
@@ -181,6 +181,20 @@ def test_a_lead_in_is_counted_even_when_the_guards_reject_the_answer() -> None:
 def test_a_question_that_echoes_its_lead_in_is_flagged() -> None:
     answer = "Before I continue: should the migration run on deploy or by hand?"
     assert score(case("question-lead-in"), answer).lead_in
+
+
+@pytest.mark.parametrize(
+    ("text", "lead_in"),
+    [
+        ("Here's what was done: renamed it.", True),
+        ("Update: added caching.", True),
+        ("I've made these changes: added caching.", True),
+        ("Update nginx.conf: add caching for map tiles", False),
+        ("Added caching for map tiles.", False),
+    ],
+)
+def test_lead_in_forms(text: str, lead_in: bool) -> None:
+    assert is_lead_in(text) is lead_in
 
 
 def test_an_accurate_answer_naming_the_old_value_isnt_invented() -> None:

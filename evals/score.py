@@ -22,11 +22,16 @@ PROMPT_WORDS = {EventKind.FINISHED: 15, EventKind.QUESTION: 15, EventKind.PERMIS
 # An answer that opens by introducing itself ("Here's what was done: …"),
 # whether or not anything follows the colon. Spoken, it's accurate but wordy;
 # the guards reject one with nothing after it, or one that's too long.
+# Phrases that open one, then up to a few words before the colon ("Here's what
+# was done:"), or a lone label word right before it ("Summary:", "Update:"), so
+# an action like "Update nginx.conf: add caching" isn't one.
 _LEAD_IN = re.compile(
-    r"^\W*(?:here(?:'s| is| are)|this is|these are|in summary|in short|to recap|summary|"
-    r"overall|so|okay|ok|sure|done|all set|result|changes|update|what was done|"
-    r"before i (?:continue|go on|proceed|start)|quick question|one question|first)\b"
-    r"[^:\n]{0,40}:",
+    r"^\W*(?:"
+    r"(?:here(?:'s| is| are)|this is|these are|in summary|in short|to recap|all set|so|"
+    r"okay|ok|sure|what was done|before i (?:continue|go on|proceed|start)|quick question|"
+    r"(?:i|we)(?:'ve| have)? (?:made|done|did|completed|changed|updated|fixed))\b[^:\n]{0,40}"
+    r"|(?:summary|overall|done|result|changes|update|first|note)\s*"
+    r"):",
     re.IGNORECASE,
 )
 _QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
@@ -85,7 +90,7 @@ def score(case: Case, answer: str) -> Score:
     checked = guard(answer, case.request, case.wording, case.project)
     if checked.detail is None:
         lines = [line for line in answer.splitlines() if line.strip()]
-        lead_in = bool(lines) and _is_lead_in(lines[0])
+        lead_in = bool(lines) and is_lead_in(lines[0])
         return Score(case.id, case.kind, answer, None, checked.reason, lead_in=lead_in)
     body = checked.detail
     if case.request.suffix:
@@ -99,11 +104,11 @@ def score(case: Case, answer: str) -> Score:
         missing=tuple(g[0] for g in case.required if not any(contains(body, a) for a in g)),
         invented=tuple(f for f in case.forbidden if contains(body, f)),
         words=len(body.split()),
-        lead_in=_is_lead_in(body),
+        lead_in=is_lead_in(body),
     )
 
 
-def _is_lead_in(text: str) -> bool:
+def is_lead_in(text: str) -> bool:
     return _LEAD_IN.match(text.translate(_QUOTES)) is not None
 
 
