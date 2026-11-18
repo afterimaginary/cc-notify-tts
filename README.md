@@ -65,7 +65,7 @@ Seven events, each worded from what Claude Code reports about it:
 | Event | Example |
 | - | - |
 | A turn finished | "Finished up in weather app. Added exponential backoff to the forecast fetcher and two tests for the retry path." |
-| Finished, with background work still running | "Done for now in weather app, but background work isn't finished. Still going: audit the forecast cache and run the integration test suite." |
+| Finished, with new background work still running (each item is mentioned once) | "Done for now in weather app, but background work isn't finished. Still going: audit the forecast cache and run the integration test suite." |
 | That background work is all done | "Background work's all done in weather app. The integration suite finished: 112 passed, 0 failed." |
 | A permission request | "Weather app needs your okay to force-push the rebased branch to main." |
 | A question or a plan to approve | "Weather app has a question for you. Should the retry give up after three attempts or five?" |
@@ -184,6 +184,7 @@ Orchestral turned the brief into GitHub issues and ran up to three Claude Code w
 - **Measured on one Mac.** The eval and the latency budget come from one Apple M3 Max; a slower Mac will be slower. From a clone, `make eval` and `make latency` measure your own.
 - **Tested in the Claude Code CLI.** The desktop app runs the same hooks, but its event coverage and closing a desktop session haven't been checked by hand ([ADR-0001](docs/decisions/0001-plugin-hook-events.md), [ADR-0002](docs/decisions/0002-on-demand-daemon-start.md)).
 - **Some sessions can't be tied to an app**, such as sessions over SSH and detached tmux sessions, and iTerm2 is untested. Those always count as away, so they're spoken even while you're typing ([ADR-0006](docs/decisions/0006-presence-from-a-hook.md)).
+- **A background command that runs all session holds up "background done".** A dev server is said to be still running once, but "Background work's all done" waits until it stops too, since it can't be told apart from a slow test run ([ADR-0023](docs/decisions/0023-long-running-background-work.md)).
 - **English only.** The templates and the wording prompt are English.
 
 ## Roadmap
@@ -191,7 +192,6 @@ Orchestral turned the brief into GitHub issues and ran up to three Claude Code w
 In no particular order, and without dates:
 
 - Report a turn that ends with failing tests as unfinished, measured with the eval ([#53](https://github.com/afterimaginary/cc-notify-tts/issues/53)).
-- Stop saying "still running" after every turn while a long background command runs ([#33](https://github.com/afterimaginary/cc-notify-tts/issues/33)).
 - Speak "background done" when the work finishes while "still running" is playing ([#42](https://github.com/afterimaginary/cc-notify-tts/issues/42)).
 - Keep the detail whole at abbreviations like "e.g." ([#36](https://github.com/afterimaginary/cc-notify-tts/issues/36)), and drop lead-ins like "Here's what was done:" from template wording ([#50](https://github.com/afterimaginary/cc-notify-tts/issues/50)).
 - Follow a detached tmux session to the app it's reattached in ([#47](https://github.com/afterimaginary/cc-notify-tts/issues/47)).

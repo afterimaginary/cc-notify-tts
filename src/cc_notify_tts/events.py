@@ -45,7 +45,7 @@ class Notification:
     payload: Mapping[str, Any]
     # Seconds since the user's latest prompt, if known.
     turn_seconds: float | None
-    # Background work still live (for STILL_RUNNING).
+    # Background work announced as still running: live and not announced before.
     background: tuple[BackgroundItem, ...]
     # Bundle id of the app the session runs in, or "" if it's unknown.
     host_app: str = ""
@@ -80,6 +80,7 @@ def classify(
         state.host_app = host_app
 
     kind: EventKind | None = None
+    announce: tuple[BackgroundItem, ...] = ()
     if event == "SessionStart":
         state.open = True
         state.closed_at = None
@@ -89,7 +90,7 @@ def classify(
     elif event == "UserPromptSubmit":
         _user_prompt(state, payload, now)
     elif event == "Stop":
-        kind = _stop(state, payload)
+        kind, announce = _stop(state, payload)
     elif event == "StopFailure":
         state.turn_open = False
         kind = EventKind.FAILED
@@ -113,7 +114,7 @@ def classify(
         cwd=state.cwd,
         payload=payload,
         turn_seconds=None if state.turn_started_at is None else now - state.turn_started_at,
-        background=tuple(state.background) if kind is EventKind.STILL_RUNNING else (),
+        background=announce,
         host_app=state.host_app,
     )
 
@@ -136,7 +137,10 @@ def _user_prompt(state: SessionState, payload: Mapping[str, Any], now: float) ->
     state.still_running_heard = False
 
 
-def _stop(state: SessionState, payload: Mapping[str, Any]) -> EventKind | None:
+def _stop(
+    state: SessionState, payload: Mapping[str, Any]
+) -> tuple[EventKind | None, tuple[BackgroundItem, ...]]:
+    """The Stop's notification, and for STILL_RUNNING the work it announces."""
     live = _live_background(payload)
     live_ids = {item.id for item in live}
     prompt_id = _str(payload, "prompt_id")
@@ -145,7 +149,7 @@ def _stop(state: SessionState, payload: Mapping[str, Any]) -> EventKind | None:
     else:
         own_turn = state.turn_open
     if _is_stale(state, prompt_id, live_ids, own_turn):
-        return None
+        return None, ()
 
     # A wake-up turn is known from its prompt, or, if that hasn't arrived yet,
     # from a Stop outside the user's turn while background work was live.
@@ -161,18 +165,24 @@ def _stop(state: SessionState, payload: Mapping[str, Any]) -> EventKind | None:
     state.last_stop_prompt_id = prompt_id
     if own_turn:
         state.turn_open = False
+    # Each item is announced as still running once, so a dev server doesn't
+    # turn every later turn end into "still running" (ADR-0023).
+    announced = [i for i in state.announced_background if i in live_ids]
+    unannounced = tuple(item for item in live if item.id not in announced)
+    state.announced_background = announced
 
     if wake_up:
         # A wake-up turn after background work: only the end of all of it matters,
         # and only if the user heard that it was still running.
         if live or not state.still_running_heard:
-            return None
+            return None, ()
         state.still_running_heard = False
-        return EventKind.BACKGROUND_DONE
-    if live:
-        return EventKind.STILL_RUNNING
+        return EventKind.BACKGROUND_DONE, ()
+    if unannounced:
+        state.announced_background = announced + [item.id for item in unannounced]
+        return EventKind.STILL_RUNNING, unannounced
     state.still_running_heard = False
-    return EventKind.FINISHED
+    return EventKind.FINISHED, ()
 
 
 def _is_stale(

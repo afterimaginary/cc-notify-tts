@@ -1,23 +1,23 @@
 # Event classification and session state
 
-How raw hook payloads become the seven notification events, and what each session keeps on disk. The decisions behind it are in ADR-0007; the hook list it reads is ADR-0001.
+How raw hook payloads become the seven notification events, and what each session keeps on disk. The decisions behind it are in ADR-0007 and ADR-0023 (long-running background work); the hook list it reads is ADR-0001.
 
 Code: `src/cc_notify_tts/events.py` (classification, dedupe) and `src/cc_notify_tts/sessions.py` (state files). Both use only the standard library. There is no file locking: only the daemon calls `classify` and `mark_still_running_heard`, and it must run both on the same queue, one at a time.
 
 ## Interface
 
 - `classify(store, payload, now, host_app=None) -> Notification | None` reads the session's state, applies the payload, writes the state back and returns at most one notification. `host_app` is the session's host app as the hook shim named it; when given, it replaces the one on record. The daemon feeds each session's events in the order their hooks fired (ADR-0013).
-- `Notification` carries the `kind`, `session_id`, `cwd`, `host_app`, the raw `payload` (for wording), `turn_seconds` (since the user's latest prompt, if known) and, for `still_running`, the live `background` items.
-- `SessionStore.mark_still_running_heard(session_id)`: the daemon calls it after a `still_running` utterance actually plays. It's ignored once no background work is live.
+- `Notification` carries the `kind`, `session_id`, `cwd`, `host_app`, the raw `payload` (for wording), `turn_seconds` (since the user's latest prompt, if known) and, for `still_running`, the live `background` items not announced before.
+- `SessionStore.mark_still_running_heard(session_id)`: the daemon calls it after a `still_running` or `finished` utterance actually plays. It's ignored once no background work is live.
 - `SessionStore.open_sessions(now)` lists sessions that are open and have had an event in the last 24 hours. `SessionStore.prune(now)` deletes closed and stale sessions; `classify` runs it on every `SessionEnd`.
 
 ## Events
 
 | Kind | From |
 | - | - |
-| `finished` | `Stop` ending the user's turn with no live background work |
-| `still_running` | `Stop` ending the user's turn with live background work |
-| `background_done` | `Stop` of a wake-up turn that leaves no live background work, if `still_running` was heard |
+| `finished` | `Stop` ending the user's turn with no live background work, or only work already announced |
+| `still_running` | `Stop` ending the user's turn with live background work not announced before |
+| `background_done` | `Stop` of a wake-up turn that leaves no live background work, if `still_running`, or a `finished` while it ran, was heard |
 | `permission` | `PermissionRequest` for any tool except the two below |
 | `question` | `PermissionRequest` for `AskUserQuestion` or `ExitPlanMode` |
 | `denied` | `PermissionDenied` |
@@ -30,7 +30,8 @@ Code: `src/cc_notify_tts/events.py` (classification, dedupe) and `src/cc_notify_
 - A `UserPromptSubmit` whose prompt starts with `<task-notification>` or `<agent-message` is a wake-up Claude Code sends when background work finishes, not a user turn. Any other prompt starts a user turn: it records the time and `prompt_id`, and clears "still running heard", since the user is back.
 - A `Stop` belongs to the user's turn when its `prompt_id` matches the turn's. Without prompt ids, the first `Stop` after a user prompt does.
 - Live background work is the `background_tasks` list of the latest `Stop`, minus items whose `status` says they ended. Items live at one `Stop` and absent from a later one are remembered as finished (the latest 64).
-- A `Stop` is a wake-up turn's when its `prompt_id` is a recorded wake-up prompt's or, if that prompt hasn't arrived yet, when it doesn't belong to the user's turn and follows a `Stop` that had live work. A wake-up turn is never `finished`. It says nothing while work is still live. When the list is empty, it gives `background_done` if "still running" was heard, and nothing otherwise.
+- Each live item is announced as `still_running` once (ADR-0023). Its id is kept as announced while it stays live; one that disappears and comes back is new again. A user turn ending with only announced items live is `finished`, and one that also has new items announces just those.
+- A `Stop` is a wake-up turn's when its `prompt_id` is a recorded wake-up prompt's or, if that prompt hasn't arrived yet, when it doesn't belong to the user's turn and follows a `Stop` that had live work. A wake-up turn is never `finished`. It says nothing while work is still live, including a dev server announced turns ago. When the list is empty, it gives `background_done` if "still running" was heard, and nothing otherwise. A `finished` that plays while work is live counts as heard, so a follow-up turn doesn't silence the work's end.
 
 ## Out-of-order events
 
@@ -61,7 +62,8 @@ One JSON file per session, `<session_id>.json` under `~/Library/Application Supp
 | `prompt_ids` | `prompt_id`s of recent prompts, user and wake-up, in arrival order (the latest 64) |
 | `wake_prompt_ids` | `prompt_id`s of recent wake-up prompts (the latest 64) |
 | `finished_background` | Ids known to have finished |
-| `still_running_heard` | A `still_running` announcement played and no `background_done` or new user turn has followed |
+| `announced_background` | Live ids already announced as `still_running` |
+| `still_running_heard` | A `still_running`, or a `finished` while background work was live, played and no `background_done` or new user turn has followed |
 | `last_emitted` | Kind to time last emitted, for dedupe |
 
 Any event for a session without a file creates it as open, so sessions that started before the plugin was installed still work. `SessionEnd` for an unknown session writes nothing.
