@@ -1,6 +1,6 @@
 # hook-shim-bench (spike, not shipped)
 
-Measures what a standard-library Python hook shim costs per Claude Code event, and how long Claude Code waits on it with and without `async: true`. Results and the chosen launch method are in ADR-0003 (`docs/decisions/`).
+Measures what a standard-library Python hook shim costs per Claude Code event, and how long Claude Code waits on it with and without `async: true`. Results and the chosen launch method are in ADR-0004 (`docs/decisions/`).
 
 | File | What it does |
 | - | - |

@@ -3,7 +3,7 @@ description: Hooks launch the shim as a script with a uv-managed Python by absol
 status: accepted
 ---
 
-# ADR-0003: How hooks launch the shim
+# ADR-0004: How hooks launch the shim
 
 ## Context
 
