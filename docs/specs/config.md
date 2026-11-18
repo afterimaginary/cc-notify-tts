@@ -39,8 +39,8 @@ Each problem is a one-line message naming the key, for example `presence.idle_se
 | Event | Spoken when |
 | - | - |
 | `finished` | A turn finished. |
-| `still_running` | A turn finished with background agents or commands still running. |
-| `background_done` | All that background work finished, if you heard `still_running`. |
+| `still_running` | A turn finished with background agents or commands still running. Each is announced once; later turns while it runs are `finished`. |
+| `background_done` | All background work finished, if you heard `still_running` or a `finished` while it ran. |
 | `permission` | Claude asks permission for an action. |
 | `question` | Claude asks you a question or presents a plan. |
 | `denied` | An action was denied. |

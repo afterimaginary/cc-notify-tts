@@ -65,8 +65,6 @@ class SessionState:
     # Live ids already announced as still running, so a long-lived one (a dev
     # server) is announced once, not at every turn end.
     announced_background: list[str] = field(default_factory=list[str])
-    # Ids the latest "still running" announced, which "background done" waits on.
-    awaited_background: list[str] = field(default_factory=list[str])
     still_running_heard: bool = False
     # Notification kind -> when it was last emitted, for dedupe.
     last_emitted: dict[str, float] = field(default_factory=dict[str, float])
@@ -127,13 +125,11 @@ class SessionStore:
     def mark_still_running_heard(self, session_id: str) -> None:
         """Record that a "still running" or "finished" announcement actually played.
 
-        It counts only while work the latest "still running" announced is live: a
-        turn that ends "finished" while that work runs keeps "background done" armed.
+        It counts only while background work is live: a turn that ends "finished"
+        while announced work runs keeps "background done" armed.
         """
         state = self.load(session_id)
-        if state is not None and any(
-            item.id in state.awaited_background for item in state.background
-        ):
+        if state is not None and state.background:
             state.still_running_heard = True
             self.save(state)
 

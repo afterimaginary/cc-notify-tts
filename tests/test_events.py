@@ -169,20 +169,34 @@ def test_dev_server_outliving_several_turns_is_announced_once(s: Session) -> Non
     assert [b.id for b in note.background] == ["b7k2m9q4x"]
     s.store.mark_still_running_heard(SESSION)
 
-    # When that work finishes, it's all done, though the dev server runs on.
+    # When that work finishes the dev server still runs, so nothing is all done yet.
     s.send("user_prompt_submit_task_notification", prompt_id="p6", after=30.0)
-    assert s.kind("stop", prompt_id="p6", background_tasks=dev_server) is (
-        EventKind.BACKGROUND_DONE
-    )
+    assert s.kind("stop", prompt_id="p6", background_tasks=dev_server) is None
     s.send("user_prompt_submit", prompt_id="p7", after=30.0)
     assert s.kind("stop_dev_server_running", prompt_id="p7") is EventKind.FINISHED
-    # That "finished" plays, but the dev server isn't what the latest
-    # "still running" announced, so it doesn't arm "background done".
-    s.store.mark_still_running_heard(SESSION)
+    s.store.mark_still_running_heard(SESSION)  # That "finished" plays.
 
-    # The dev server stopping later, after the user came back, says nothing.
+    # The dev server stopping is the end of all background work.
     s.send("user_prompt_submit_task_notification", prompt_id="p8", after=30.0)
-    assert s.kind("stop", prompt_id="p8") is None
+    assert s.kind("stop", prompt_id="p8") is EventKind.BACKGROUND_DONE
+
+
+def test_background_done_waits_for_work_announced_in_earlier_turns(s: Session) -> None:
+    agent, tests = fixture("stop_background_running")["background_tasks"]
+    s.send("user_prompt_submit", prompt_id="p1")
+    assert s.kind("stop", prompt_id="p1", background_tasks=[tests]) is EventKind.STILL_RUNNING
+    s.store.mark_still_running_heard(SESSION)
+    s.send("user_prompt_submit", prompt_id="p2", after=10.0)
+    note = s.send("stop", prompt_id="p2", background_tasks=[tests, agent])
+    assert note is not None
+    assert note.kind is EventKind.STILL_RUNNING
+    assert [b.id for b in note.background] == [agent["id"]]
+    s.store.mark_still_running_heard(SESSION)
+    # The agent finishes first: the tests still run, so not all done.
+    s.send("user_prompt_submit_agent_message", prompt_id="p3", after=30.0)
+    assert s.kind("stop", prompt_id="p3", background_tasks=[tests]) is None
+    s.send("user_prompt_submit_task_notification", prompt_id="p4", after=30.0)
+    assert s.kind("stop_background_done", prompt_id="p4") is EventKind.BACKGROUND_DONE
 
 
 def test_finished_turn_while_announced_work_runs_keeps_background_done_armed(
