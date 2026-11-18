@@ -61,7 +61,8 @@ def classify(store: SessionStore, payload: Mapping[str, Any], now: float) -> Not
             return None
         state = SessionState(session_id=session_id)
     state.last_event_at = now
-    if cwd := _str(payload, "cwd"):
+    # The folder the session started in names the project; a later `cd` doesn't.
+    if not state.cwd and (cwd := _str(payload, "cwd")):
         state.cwd = cwd
 
     kind: EventKind | None = None
