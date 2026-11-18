@@ -92,7 +92,7 @@ Not registered:
 
 - "Background work done" depends on Claude Code waking the main agent when background work finishes. It did for both a background agent and a background shell command. If a future version stops doing that, `SubagentStop` would be the fallback for agents, and shell commands would have no signal at all.
 - A denial the user makes by answering "No", or that a deny rule makes, is silent. That's acceptable: the user was there to answer, or chose the rule.
-- `PermissionDenied` and the whole desktop app are untested. The manual checks below confirm them (#89); if it shows a gap, the hook list is revisited in a new decision.
+- `PermissionDenied` and the whole desktop app are untested. The manual checks below confirm them (#89); if they show a gap, the hook list is revisited in a new decision.
 
 ## Manual checks not yet run (#89)
 

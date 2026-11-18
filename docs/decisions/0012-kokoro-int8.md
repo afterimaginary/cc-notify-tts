@@ -1,5 +1,5 @@
 ---
-description: Ship Kokoro's int8 model (kokoro-v1.0.int8.onnx) instead of fp32, for 1.65× faster synthesis, about 300 MB less memory and a quarter of the download, until a listening check confirms it (manual check not yet run, #88).
+description: Ship Kokoro's int8 model (kokoro-v1.0.int8.onnx) instead of fp32, for 1.65× faster synthesis, about 300 MB less memory and a quarter of the download, pending a listening check (manual check not yet run, #88).
 status: accepted
 ---
 

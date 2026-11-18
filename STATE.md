@@ -24,10 +24,10 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); decision
 ## Recently Done
 
 - The public docs agree with each other, and the manual checks are tracked as issues (#85)
+- A choice is kept through a sub-label under an option (#84)
 - A choice is kept when Claude labels each option (#81)
 - A turn that only answers a question is no longer worded as work done; `granite4:micro` 46 to 47 of 60 (ADR-0036) (#78)
 - A lead-in that introduces a one-line choice is kept (#79)
-- The failing-tests check reads more phrasings (ADR-0033) (#77)
 
 ## Up Next
 
