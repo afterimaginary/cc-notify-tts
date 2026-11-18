@@ -88,12 +88,15 @@ _CHECK_WORDS = r"(?:tests?|specs?|suite|ci|build)"
 _CHECKS = rf"(?:{_CHECK_WORDS}|test_\w+|\w+_test)"
 # A test summary with failures: "2 failed, 41 passed" or "41 passed, 2 failed".
 _SUMMARY = r"\b[1-9]\d*\s+failed\W+\d+\s+passed\b|\b\d+\s+passed\W+[1-9]\d*\s+failed\b"
+# Up to six words within one clause, so "now pass but CI is still red" is read clause by clause.
+_SAME_CLAUSE = r"(?:\s+(?!(?:but|although|though|while|whereas)\b)[\w.'/-]+){0,6}?\s+"
 # Words that start a clause about something else ("a test for when login fails").
 _NOT_THE_TEST = r"(?:when|where|if|that|which|so|until|after|before|because)\b"
 _TESTS_FAILING = re.compile(
     r"\bstill\s+fail\w*\b"
-    # "Broken", "red" and "N failures" only about tests: "the suite is still red".
-    rf"|\b{_CHECKS}\b[^,;]*?\b(?:still\s+(?:broken|red)|(?:is|are)\s+red|{_SOME}\s+failures)\b"
+    # "Broken", "red" and "has N failures" only about tests: "the suite is still red".
+    rf"|\b{_CHECKS}\b(?:{_SAME_CLAUSE}|\s+)"
+    rf"(?:still\s+(?:broken|red)|(?:is|are)\s+red|(?:still\s+)?(?:has|have)\s+{_SOME}\s+failures)\b"
     rf"|\b{_TESTS}\s+(?:are|is|remain)\s+(?:still\s+)?failing\b"
     rf"|\b{_TESTS}\s+(?:do|does|are|is)\s*(?:not|n't)\s+(?:yet\s+)?pass"
     rf"|\b{_COUNT}\s+(?:of\s+(?:the\s+)?\d+\s+)?(?:\w+\s+)?{_TESTS}\s+(?:are\s+)?fail(?:s|ed|ing)?\b"
@@ -338,6 +341,9 @@ def _naming_clause_start(sentence: str, start: int, end: int) -> int:
     """
     earlier = [s for s in _clause_starts(sentence) if s <= start]
     for candidate in reversed(earlier):
+        # Never so far back that the word cap would cut the failure off.
+        if len(sentence[candidate:end].split()) > MESSAGE_WORDS:
+            break
         if _NAMES_TESTS.search(sentence[candidate:end]):
             return candidate
     return start

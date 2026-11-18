@@ -418,6 +418,9 @@ def test_model_detail_replaces_the_template_detail() -> None:
         "The test for leap years fails.",
         "The tests in test_dates.py are failing.",
         "Three tests, e.g. test_a and test_b, still fail.",
+        "The tests now pass locally but CI is still red.",
+        "Fixed the failing unit test but CI is still red.",
+        "All tests now pass locally but the build still has 2 failures on Linux.",
     ],
 )
 def test_failing_tests_are_found(message: str) -> None:
@@ -440,6 +443,7 @@ def test_failing_tests_are_found(message: str) -> None:
         "Added a test for when login fails.",
         "Added a test for the case where the upload fails.",
         "Made the error banner red.",
+        "Added regression tests for the two failures reported in the issue.",
     ],
 )
 def test_passing_tests_arent_failing(message: str) -> None:
@@ -665,6 +669,15 @@ LONG_START = (
 )
 def test_a_failure_cut_from_a_long_sentence_says_what_failed(end: str, spoken: str) -> None:
     assert finished_text(LONG_START + end) == f"Finished up in weather app. {spoken}"
+
+
+def test_a_cut_failure_doesnt_reach_back_past_the_word_cap() -> None:
+    message = (
+        "Moved the retry logic, updated every import across the unit tests and integration"
+        " tests and the generated API docs for the client library, and the billing check"
+        " still fails."
+    )
+    assert finished_text(message) == "Finished up in weather app. The billing check still fails."
 
 
 def test_a_failing_sentence_isnt_split_at_an_abbreviation() -> None:
