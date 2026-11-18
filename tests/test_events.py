@@ -476,3 +476,16 @@ def test_host_app_from_the_shim_is_kept_and_replaced(s: Session) -> None:
     )
     assert note is not None
     assert note.host_app == "com.mitchellh.ghostty"
+
+
+def test_session_that_detaches_after_its_host_was_recorded_has_no_host(s: Session) -> None:
+    # Inside tmux, attached from Ghostty: the shim names it at SessionStart.
+    classify(s.store, fixture("session_start"), 1.0, host_app="com.mitchellh.ghostty")
+    classify(s.store, fixture("user_prompt_submit", prompt_id="p1"), 2.0)
+    # Detached: no client names an app, so the shim sends the host as unknown.
+    note = classify(s.store, fixture("stop", prompt_id="p1"), 3.0, host_app="")
+    assert note is not None
+    assert note.host_app == ""
+    state = s.store.load(note.session_id)
+    assert state is not None
+    assert state.host_app == ""
