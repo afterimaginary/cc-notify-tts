@@ -257,17 +257,25 @@ def host_from_ancestry(pid: int) -> tuple[str | None, str | None]:
 
 
 def tmux_client_pid() -> int | None:
-    """The pid of the tmux client showing this pane, if any."""
+    """The pid of a tmux client attached to this pane's session, if any.
+
+    `list-clients -t` lists only that session's clients. `display-message` would fall
+    back to the most recently active client of any session.
+    """
+    pane = os.environ.get("TMUX_PANE")
+    if not pane:
+        return None
     try:
         out = subprocess.run(
-            ["tmux", "display-message", "-p", "#{client_pid}"],
+            ["tmux", "list-clients", "-t", pane, "-F", "#{client_pid}"],
             capture_output=True,
             text=True,
             timeout=2,
         ).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return None
-    return int(out) if out.isdigit() else None
+    first = out.splitlines()[0] if out else ""
+    return int(first) if first.isdigit() else None
 
 
 def identify_host(env: dict[str, str], pid: int) -> dict[str, Any]:
