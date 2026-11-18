@@ -30,6 +30,10 @@ BACKGROUND_DONE = (
     "Background work's all done in weather app. "
     "The integration suite finished: 112 passed, 0 failed."
 )
+DEV_SERVER_RUNNING = (
+    "Done for now in weather app, but background work isn't finished. "
+    "Still going: run the dev server."
+)
 PERMISSION = "Weather app needs your okay to force-push the rebased branch to main."
 QUESTION = (
     "Weather app has a question for you. Should the retry give up after three attempts or five?"
@@ -154,16 +158,16 @@ def test_session_spoken_in_hook_order_then_idle_exit(root: Path) -> None:
     wait_for(lambda: is_answering(d.daemon.paths.socket))
     sock = d.daemon.paths.socket
 
-    # A turn that leaves background work running, 10 s ago (past the 5 s dedupe).
+    # A turn that leaves a dev server running, 10 s ago (past the 5 s dedupe).
     t = time.time() - 10
     d.send("session_start", t)
     d.send("user_prompt_submit", t + 0.01, prompt_id="p1")
-    d.send("stop_background_running", t + 0.02, prompt_id="p1")
+    d.send("stop_dev_server_running", t + 0.02, prompt_id="p1")
     wait_for(lambda: len(speaker.spoken) == 1)
 
-    # The next turn's Stop reaches the socket before its prompt. The daemon must
-    # classify them in the order the hooks fired, or the Stop is taken for a
-    # wake-up turn while work is live and the user's turn goes silent.
+    # The next turn starts more work, and its Stop reaches the socket before its
+    # prompt. The daemon must classify them in the order the hooks fired, or the
+    # Stop is taken for a wake-up turn while work is live and the turn goes silent.
     t = time.time()
     d.send("stop_background_running", t, prompt_id="p2")
     d.send("user_prompt_submit", t - 0.01, prompt_id="p2")
@@ -194,7 +198,7 @@ def test_session_spoken_in_hook_order_then_idle_exit(root: Path) -> None:
     assert not d.thread.is_alive()
     assert d.exit_code == 0
     assert not sock.exists()
-    assert speaker.spoken == [STILL_RUNNING, STILL_RUNNING, BACKGROUND_DONE, PERMISSION]
+    assert speaker.spoken == [DEV_SERVER_RUNNING, STILL_RUNNING, BACKGROUND_DONE, PERMISSION]
 
 
 def test_newer_message_replaces_the_pending_one(root: Path) -> None:
