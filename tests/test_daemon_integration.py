@@ -15,12 +15,14 @@ import pytest
 
 from cc_notify_tts.client import is_answering, request
 from cc_notify_tts.daemon import Daemon, Paths
+from cc_notify_tts.sessions import SessionStore
 from cc_notify_tts.timeline import STAGES, Timeline, parse
 
 pytestmark = pytest.mark.integration
 
 FIXTURES = Path(__file__).parent / "fixtures" / "hooks"
 TERMINAL = "com.apple.Terminal"
+SESSION = "5f0c2d1e-8a7b-4c3d-9e2f-1a2b3c4d5e6f"
 
 STILL_RUNNING = (
     "Done for now in weather app, but background work isn't finished. "
@@ -200,6 +202,98 @@ def test_session_spoken_in_hook_order_then_idle_exit(root: Path) -> None:
     assert d.exit_code == 0
     assert not sock.exists()
     assert speaker.spoken == [STILL_RUNNING, FINISHED_WHILE_RUNNING, BACKGROUND_DONE, PERMISSION]
+
+
+def blocked_daemon(root: Path) -> tuple[Running, FakeSpeaker, threading.Event]:
+    release = threading.Event()
+    speaker = FakeSpeaker(blocked=release)
+    d = Running(paths(root), lambda: speaker)
+    wait_for(lambda: is_answering(d.daemon.paths.socket))
+    return d, speaker, release
+
+
+def wake_up_ends_the_work(d: Running, root: Path) -> None:
+    """The wake-up turn after the work, once its Stop has been classified."""
+    d.send("user_prompt_submit_task_notification", prompt_id="w1")
+    d.send("stop_background_done", prompt_id="w1")
+    store = SessionStore(root / "state")
+
+    def classified() -> bool:
+        state = store.load(SESSION)
+        return state is not None and state.background == []
+
+    wait_for(classified)
+
+
+def test_background_done_when_work_ends_while_still_running_is_queued(root: Path) -> None:
+    d, speaker, release = blocked_daemon(root)
+    try:
+        d.send("permission_request_bash", session_id="other")
+        assert speaker.started.wait(5)
+        d.send("user_prompt_submit", prompt_id="p1")
+        d.send("stop_background_running", prompt_id="p1")
+        wait_for(lambda: request(d.daemon.paths.socket, {"type": "status"})["pending"] is not None)
+        wake_up_ends_the_work(d, root)
+        release.set()
+        wait_for(lambda: len(speaker.spoken) == 3)
+        time.sleep(0.2)
+        assert speaker.spoken == [PERMISSION, STILL_RUNNING, BACKGROUND_DONE]
+    finally:
+        release.set()
+        d.stop()
+
+
+def test_background_done_when_work_ends_while_still_running_plays(root: Path) -> None:
+    d, speaker, release = blocked_daemon(root)
+    try:
+        d.send("user_prompt_submit", prompt_id="p1")
+        d.send("stop_background_running", prompt_id="p1")
+        assert speaker.started.wait(5)
+        wake_up_ends_the_work(d, root)
+        release.set()
+        wait_for(lambda: len(speaker.spoken) == 2)
+        time.sleep(0.2)
+        assert speaker.spoken == [STILL_RUNNING, BACKGROUND_DONE]
+    finally:
+        release.set()
+        d.stop()
+
+
+@pytest.mark.parametrize("dropped_by", ["stale", "replaced"])
+def test_still_running_dropped_from_the_queue_is_not_heard(
+    root: Path, caplog: pytest.LogCaptureFixture, dropped_by: str
+) -> None:
+    d, speaker, release = blocked_daemon(root)
+    try:
+        with caplog.at_level(logging.INFO):
+            d.send("permission_request_bash", session_id="other")
+            assert speaker.started.wait(5)
+            # A stale one is dropped when its turn to play comes.
+            t = time.time() - (31 if dropped_by == "stale" else 0)
+            d.send("user_prompt_submit", t - 0.01, prompt_id="p1")
+            d.send("stop_background_running", t, prompt_id="p1")
+            wait_for(
+                lambda: request(d.daemon.paths.socket, {"type": "status"})["pending"] is not None
+            )
+            wake_up_ends_the_work(d, root)
+            expected = [PERMISSION]
+            if dropped_by == "replaced":
+                d.send("stop_failure", session_id="other")
+                wait_for(
+                    lambda: request(d.daemon.paths.socket, {"type": "status"})["pending"] == FAILED
+                )
+                expected.append(FAILED)
+            release.set()
+            wait_for(lambda: "no longer due" in timing_outcomes(caplog))
+        time.sleep(0.2)
+        assert speaker.spoken == expected
+    finally:
+        release.set()
+        d.stop()
+
+
+def timing_outcomes(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [r["outcome"] for r in parse(caplog.messages)]
 
 
 def test_newer_message_replaces_the_pending_one(root: Path) -> None:

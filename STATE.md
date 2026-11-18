@@ -6,7 +6,7 @@
 
 Milestones 1 and 2 are built: on templates alone, the plugin's hooks reach a local daemon that classifies each event, decides whether to speak from the config and live presence, words it and speaks it with Kokoro, and the README covers install, `status`, `fire`, mute and uninstall. An end-to-end test runs the real hook commands, shim and daemon (with fake speech and presence) through a whole session in `verify`. Ollama wording with guards (ADR-0015) and the wording eval (ADR-0016) are in, and ten models were compared on it: `granite4:micro` is the default wording model, with `phi4-mini:3.8b` the runner-up (ADR-0018). Every event's stages are now logged and measured: the first sound comes about 0.75 s after the hook with templates and 1.0 s with `granite4:micro` (p95), and hooks stay under 60 ms p95 (ADR-0019). A turn that ends with failing tests is never worded as a success, whichever model writes it (ADR-0021). A scripted demo video, rebuilt by `make demo`, shows it working (ADR-0020), and the README carries the eval and latency evidence, how the project was built, its limitations and a roadmap. What's left is the launch.
 
-How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured results and decisions are ADR-0001 to ADR-0023 in [docs/decisions/](docs/decisions/).
+How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured results and decisions are ADR-0001 to ADR-0023 and ADR-0026 in [docs/decisions/](docs/decisions/).
 
 ## Features
 
@@ -23,6 +23,7 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured
 ## Recently Done
 
 - A turn that ends with failing tests is never spoken as a success: a guard rejects model wording that leaves the failure out, and the template adds it; five eval cases, ten models measured before and after (ADR-0021) (#53)
+- Background work that ends while its "still running" is still queued or playing gets "background done" once that has played (ADR-0026) (#42)
 - A background command that runs all session, such as a dev server, is announced as still running once, not at every turn end (ADR-0023) (#33)
 - README: three-command try-it, the eval and latency evidence linked to their ADRs, "How this was built" (run numbers filled in at release), limitations and roadmap (#22)
 - Demo: `make demo` records scripted scenes against the real hooks, daemon, wording model and Kokoro, without playing anything aloud (ADR-0020) (#21)

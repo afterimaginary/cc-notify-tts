@@ -66,6 +66,9 @@ class SessionState:
     # server) is announced once, not at every turn end.
     announced_background: list[str] = field(default_factory=list[str])
     still_running_heard: bool = False
+    # A wake-up Stop ended the work while its "still running" or "finished" was
+    # queued or playing: "background done" is due once that plays (ADR-0026).
+    background_done_owed: bool = False
     # Notification kind -> when it was last emitted, for dedupe.
     last_emitted: dict[str, float] = field(default_factory=dict[str, float])
 
