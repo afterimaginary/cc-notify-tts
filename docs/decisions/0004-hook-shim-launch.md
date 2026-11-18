@@ -71,7 +71,7 @@ ms, 50 runs per variant. "Added" is the variant's p50 minus the no-hook floor.
 - The plugin's hook commands run the shim as a **script file with a uv-managed Python 3.13 by absolute path, with `-I -S`**: `<python> -I -S <shim script>`. The installer (#7) decides which uv-managed interpreter that is. `-I -S` gains little speed on this interpreter, but it keeps a user's `PYTHONPATH`, `PYTHONSTARTUP` and user site-packages out of the hook.
 - **Not `uv run`** (13 ms more per event, plus a project check), and **not the system Python** (may be missing, and slow with `-I`).
 - **Every handler stays `async: true`** (ADR-0001), so the shim's 24 ms p50 and 35 ms p95 never hold up the session. Sync would still have been under budget.
-- The shim's own work stays as measured here: one state-file write and one socket round trip, `subprocess` imported only when the daemon has to start.
+- These numbers cover the shim's core per event: read the payload, one small file write and one socket round trip, with `subprocess` imported only when the daemon has to start. Later decisions add to it, such as the host-app lookup at `SessionStart` and, inside tmux, `tmux list-clients` (ADR-0006); hooks are async, so that doesn't hold up the session either. The spike's file write is only a stand-in: the per-session state files are written by the daemon alone (ADR-0007), so the shipped shim passes what it learns to the daemon rather than writing them.
 
 ## Consequences
 
