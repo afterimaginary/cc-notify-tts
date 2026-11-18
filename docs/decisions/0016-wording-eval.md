@@ -16,7 +16,7 @@ The daemon may let a local Ollama model write a notification's detail behind gua
 - **Four deterministic checks per answer:** spoken (passes the guards), detail kept, nothing invented, and within the length the prompt asks for (15 words, or 10 for a permission). An answer passes when all four hold. Lead-ins ("Here's what was done: …") are counted separately, spoken and rejected, so the guard can be tightened from evidence.
 - **One warm-up request, recorded but not scored, then every case once.** Each case's prompt differs, so the prompt cache only helps the shared system prompt, as it does in use (ADR-0003). Latency is the client's wall time per request; p50 and p95 are nearest-rank over all cases.
 - **Record what the numbers depend on:** model digest, Ollama version, date, machine class (chip, memory, macOS version; never a host name), the load average when each model's run started, and a hash of the case files. Resident memory is `size` from `/api/ps` while the model is loaded.
-- **Results are dated Markdown with raw JSON beside it**, in `evals/results/`, never overwritten; `evals.compare` diffs two runs model by model.
+- **Results are dated Markdown with raw JSON beside it**, in `evals/results/`, never overwritten; `evals.compare` diffs two runs model by model. *Updated 2026-11-18:* the guards change after a run is recorded, so `evals.rescore` scores a run's recorded answers again with the current guards and cases, in place, and the report says when. A run kept as a change's "before" (`--before`) says which guards scored it instead. `make ready` fails when any other committed run scores differently with the current guards, so a guard change re-scores them in the same PR. The answers, latency and memory are never rewritten.
 - **Model runs stay out of `ready` and `verify`.** Those test the scoring, the case files and the report with a stand-in client.
 
 ## Noise band
@@ -26,11 +26,13 @@ The daemon may let a local Ollama model write a notification's detail behind gua
 | | Spread over six runs |
 | --- | --- |
 | Answers that differ between any two runs | 0 of 48 |
-| Pass, spoken, kept, invented, over length, lead-ins | identical in runs scored with the same lists (40, 48, 42, 2, 0, 0 in the committed two) |
+| Pass, spoken, kept, invented, over length, lead-ins | identical in runs scored with the same lists (40, 47, 42, 2, 0, 0 in the committed two) |
 | p50 latency | 162–168 ms (±2% around the middle) |
 | p95 latency | 214–218 ms (±1%) |
 | Warm-up | 210–230 ms |
 | Resident memory | 2.16 GiB every time |
+
+*Updated 2026-11-18:* both committed runs were re-scored with ADR-0021's failing-tests guard, which rejects their answer to `finished-tests-still-fail`, so spoken is 47 where the runs first scored 48. The answer had already failed the `required` check, so no other count changed.
 
 - **At temperature 0 the answers repeat exactly**, through a fresh load each time. A difference in pass counts between two models is therefore a real difference on this case set, not run noise. It is still a difference on 48 cases: one or two cases either way says less than it seems, and #19 should read the failing answers, not only the counts.
 - **Latency noise is about ±5% at a similar load**, allowing some margin over the ±2% seen. ADR-0003 found it moves much more with load: `llama3.2:1b`'s short-input p50 was 69 ms at a load average of 4–8 and 144 ms at about 10. So compare latency only between models in the same run, or between runs whose load averages are close, and treat differences inside ±5% as equal.

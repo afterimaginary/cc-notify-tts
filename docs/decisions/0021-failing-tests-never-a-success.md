@@ -53,6 +53,6 @@ So the template rules are the fragile part, and they're now pinned by an invaria
 ## Consequences
 
 - A turn that ends with failing tests is spoken as such whichever model writes the detail, at the cost of the template's wording for models that leave it out. On these cases that's most of them, `granite4:micro` included.
-- The check reads English phrasing. A message that reports failing tests in other words ("the suite is red", "CI is broken") isn't caught, and neither is one whose failing-tests sentence falls outside the 4000 characters the model is shown. New phrasings found in use are added to `failing_tests` with a test and, if they matter, an eval case.
+- The check reads English phrasing. A message that reports failing tests in other words ("CI won't go green") isn't caught. ADR-0033 adds phrasings such as "the suite is red", and makes the guard read the whole message, not only the 4000 characters the model is shown. New phrasings found in use are added to `failing_tests` with a test and, if they matter, an eval case.
 - A sentence such as "Fixed the bug that made tests fail on CI" doesn't count, because no count or "still" says the failure is current. A message that mentions an old failure with a count ("3 tests failed before the fix") would count; the template then adds that sentence, and model wording must mention the failure. That's a wordier notification, not a wrong one.
 - A prompt change that asks for the failure explicitly is still open, and would be measured with this eval against the counts above.

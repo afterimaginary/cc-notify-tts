@@ -112,6 +112,8 @@ class Request:
     source: str
     # Code's own words after the model's detail ("And one more question.").
     suffix: str = ""
+    # Whether the whole message says tests are still failing, not just `source`.
+    tests_failing: bool = False
 
 
 @dataclass(frozen=True)
@@ -134,11 +136,13 @@ def request_for(note: Notification) -> Request | None:
     """The model request for a notification, or None if this one keeps the template."""
     payload = note.payload
     suffix = ""
+    tests_failing = False
     match note.kind:
         case EventKind.FINISHED:
             message = _text(payload, "last_assistant_message").strip()
             material = message[-INPUT_CHARS:]
             template = _FINISHED
+            tests_failing = failing_tests(message) is not None
         case EventKind.QUESTION:
             if _text(payload, "tool_name") == "ExitPlanMode":
                 return None
@@ -152,7 +156,8 @@ def request_for(note: Notification) -> Request | None:
             return None
     if not material:
         return None
-    return Request(note.kind, SYSTEM_PROMPT, template.format(material=material), material, suffix)
+    user = template.format(material=material)
+    return Request(note.kind, SYSTEM_PROMPT, user, material, suffix, tests_failing)
 
 
 def guard(raw: str, request: Request, wording: Wording, project: str) -> Checked:
@@ -181,12 +186,9 @@ def guard(raw: str, request: Request, wording: Wording, project: str) -> Checked
         return Checked(None, f"{len(words)} words, not {MIN_WORDS} to {limit}")
     if invented := _not_in_source(text, request.source):
         return Checked(None, f"{invented!r} isn't in the input")
-    # A turn that ends with tests failing is never reported as a success (ADR-0021).
-    if (
-        request.kind is EventKind.FINISHED
-        and failing_tests(request.source)
-        and not admits_failure(text)
-    ):
+    # A turn that ends with tests failing is never reported as a success (ADR-0021),
+    # even when the sentence that says so is before the part the model was shown.
+    if request.tests_failing and not admits_failure(text):
         return Checked(None, "leaves out that tests still fail")
     finished = _finish(text, request.kind)
     return Checked(f"{finished} {request.suffix}" if request.suffix else finished, "ok")
