@@ -13,9 +13,11 @@ watching), and does everything on your machine.
 
 ## MVP
 
-- A Claude Code plugin. Its hooks send events to a small local daemon. Installing
-  or removing the plugin is the whole install; the user's settings.json is never
-  edited.
+- A Claude Code plugin. Its hooks send events to a small local daemon. Install is
+  three commands: `brew install uv`, `uv tool install` of the package, then
+  `cc-notify-tts setup`, which installs the plugin through Claude Code's own
+  plugin command. The user's settings.json is changed only by Claude Code
+  (ADR-0011).
 - Events: turn finished; turn finished with background agents or tasks still
   running; background work all done (only if the "still running" message was
   heard); permission request, naming the action; question for the user; action
@@ -33,7 +35,8 @@ watching), and does everything on your machine.
   whenever Ollama is missing, slow, or fails a guard.
 - The daemon starts on demand from a hook and exits after an idle timeout.
 - CLI: `cc-notify-tts status` (would it speak now, and why), `fire <event>`,
-  `mute` / `unmute`, `doctor`, `setup` (downloads the speech model).
+  `mute` / `unmute`, `doctor`, `setup` (downloads the speech model, links the
+  interpreters and installs the plugin).
 - One TOML config file, defaults in code, re-read on every event.
 - `make eval`: a reproducible eval of local wording models over synthetic hook
   payloads: guard pass rate, required detail kept, nothing invented, latency,
