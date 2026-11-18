@@ -108,6 +108,8 @@ uv tool uninstall cc-notify-tts
 rm -rf ~/Library/Application\ Support/cc-notify-tts ~/Library/Logs/cc-notify-tts
 ```
 
+With only the desktop app, the first two steps are `/plugin uninstall cc-notify-tts@cc-notify-tts` and `/plugin marketplace remove cc-notify-tts` in Claude Code.
+
 The `PATH` line `setup` may have added to the shell profile can stay: other uv tools and Claude Code's native install use the same folder. Uninstalling the plugin stops the hooks at the next session. A running daemon exits after its idle timeout. The CLI could do the first, third and fourth steps in an `uninstall` command, but that isn't part of the agreed CLI.
 
 ## Alternatives
@@ -126,6 +128,6 @@ The `PATH` line `setup` may have added to the shell profile can stay: other uv t
 - `setup` does more than download the model: it links the two interpreters and installs the plugin. Rerunning it repairs both links, such as after uv's tool folder moves.
 - The plugin and the package can drift apart, because Claude Code updates the plugin and uv updates the package. Both come from the same repository, so the shim's message to the daemon should carry the plugin's version, and `doctor` compares the plugin's version with the CLI's.
 - `doctor` checks that `bin/python` and `venv` resolve and that the CLI's folder is on `PATH`.
-- `setup` edits the shell profile, through uv, only when `~/.local/bin` isn't on `PATH`, and says so.
+- `setup` edits the shell profile, through uv, only when `~/.local/bin` isn't on `PATH`, and says so. Rerun in the same terminal, `uv tool update-shell` exits 2 with "already up-to-date" (uv 0.11.10); `setup` treats that as done and says to open a new terminal, not to edit `PATH` by hand.
 - If uv removes the Python patch the tool's environment is pinned to, the daemon fails to start until `uv tool upgrade --reinstall cc-notify-tts` or `setup` runs again. The hooks keep working through the minor-version link, so the shim can log why.
 - The README's install section uses the three commands and the uninstall steps above.

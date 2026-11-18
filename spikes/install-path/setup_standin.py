@@ -81,7 +81,11 @@ def main() -> int:
         # uv's own way of adding its folder to the shell profile. It picks the
         # profile from $SHELL and says which file it changed.
         done = subprocess.run(["uv", "tool", "update-shell"], capture_output=True, text=True)
-        if done.returncode == 0:
+        if "already up-to-date" in done.stdout + done.stderr:
+            # A rerun in the same terminal: the profile already has it.
+            print(f"Your shell profile already adds {tool_bin} to PATH.")
+            print("Open a new terminal to use `cc-notify-tts`.")
+        elif done.returncode == 0:
             print(f"Changed your shell profile to add {tool_bin} to PATH (uv tool update-shell):")
             print("  " + (done.stdout + done.stderr).strip().replace("\n", "\n  "))
             print("Open a new terminal to use `cc-notify-tts`.")
