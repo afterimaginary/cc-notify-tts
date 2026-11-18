@@ -163,8 +163,19 @@ def test_thresholds_come_from_config() -> None:
 
 
 def test_zero_threshold_always_counts_as_away() -> None:
-    assert check(present(idle=0, out=0), Config(presence=Presence(idle_seconds=0))).speak
-    assert check(present(idle=0, out=0), Config(presence=Presence(away_seconds=0))).speak
+    d = check(present(idle=0.2, out=0), Config(presence=Presence(idle_seconds=0)))
+    assert d == Decision(True, "speaking: idle_seconds is 0, so you always count as idle")
+    d = check(present(idle=1, out=0), Config(presence=Presence(away_seconds=0)))
+    assert d == Decision(
+        True, "speaking: away_seconds is 0, so the app always counts as out of front"
+    )
+
+
+def test_seconds_just_under_a_threshold_never_print_as_the_threshold() -> None:
+    d = check(present(idle=19.6, out=9.7))
+    assert d == Decision(
+        False, "silent: you were active 19 s ago and Terminal has been out of front for only 9 s"
+    )
 
 
 def test_unknown_app_is_named_by_bundle_id() -> None:

@@ -7,6 +7,7 @@ never silences by itself, and a presence reading that's missing speaks.
 See docs/designs/when-to-speak.md.
 """
 
+import math
 from dataclasses import dataclass
 from datetime import time
 from typing import Protocol
@@ -81,6 +82,8 @@ def _away(config: Config, presence: Readings) -> Decision:
     idle = presence.idle_seconds
     if idle is None:
         return _speak("can't read keyboard and mouse idle time")
+    if config.presence.idle_seconds == 0:
+        return _speak("idle_seconds is 0, so you always count as idle")
     if idle >= config.presence.idle_seconds:
         return _speak(f"no keyboard or mouse input for {_seconds(idle)}")
     host = presence.host_app
@@ -90,6 +93,8 @@ def _away(config: Config, presence: Readings) -> Decision:
     name = app_name(host)
     if out is None:
         return _speak("can't follow the frontmost app")
+    if config.presence.away_seconds == 0:
+        return _speak("away_seconds is 0, so the app always counts as out of front")
     if out >= config.presence.away_seconds:
         return _speak(f"{name} has been out of front for {_seconds(out)}")
     active = f"you were active {_seconds(idle)} ago"
@@ -114,7 +119,8 @@ def _silent(why: str) -> Decision:
 
 
 def _seconds(value: float) -> str:
-    return f"{value:.0f} s"
+    # Rounded down, so a reading just under a threshold never prints as the threshold.
+    return f"{math.floor(value)} s"
 
 
 def _clock(value: time) -> str:

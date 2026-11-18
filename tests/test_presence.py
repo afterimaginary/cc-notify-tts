@@ -184,14 +184,19 @@ def test_watcher_is_not_following_after_the_listener_dies(
         return TERMINAL
 
     tracker = FrontTracker(started_at=time.monotonic())
+    # Each listener runs briefly, well under MIN_HEALTHY_RUN_SECONDS, then exits.
     watcher = FrontmostWatcher(
-        tracker, read_front=read_front, command=fake_listener([], then_sleep=0)
+        tracker, read_front=read_front, command=fake_listener([], then_sleep=0.3)
     )
     watcher.start()
     try:
-        assert wait_for(lambda: len(reads) >= 1)
-        # The listener exits at once, so the watcher stops following and backs off.
+        assert wait_for(lambda: tracker.front() == TERMINAL)
+        # Once it exits, the watcher stops following while it backs off (1 s)...
         assert wait_for(lambda: tracker.front() is None)
+        assert len(reads) == 1
+        # ...then reads the front again and starts a new listener.
+        assert wait_for(lambda: len(reads) >= 2)
+        assert wait_for(lambda: tracker.front() == TERMINAL)
     finally:
         watcher.stop()
 
