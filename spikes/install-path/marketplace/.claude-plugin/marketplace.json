@@ -1,0 +1,6 @@
+{
+  "name": "cc-notify-tts",
+  "description": "Stand-in marketplace for the install-path spike.",
+  "owner": { "name": "afterimaginary" },
+  "plugins": [{ "name": "cc-notify-tts", "source": "./plugin" }]
+}
