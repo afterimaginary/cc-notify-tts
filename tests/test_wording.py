@@ -339,6 +339,45 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
             "Here are two options:\n\nKeep the cache or drop it.",
             "Here are two options: keep the cache or drop it.",
         ),
+        # A label naming each option counts as the first option, like a list item.
+        (
+            "Here are two options:\n\n**Option A: Keep the cache**\nThis is faster.\n\n"
+            "**Option B: Drop it**\nThis is safer.",
+            "Here are two options: keep the cache.",
+        ),
+        ("Two options:\n\n### Option 1: keep the cache\nFaster.", "Two options: keep the cache."),
+        (
+            "Here are two ways to fix it:\n\n### Option A (recommended) - Retry the request\n"
+            "Cheap.\n\n### Option B - Raise the timeout\nSafer.",
+            "Here are two ways to fix it: retry the request.",
+        ),
+        # Without a lead-in to a choice, the label is spoken whole, so it's still heard as one.
+        ("### Option 1: Keep the cache\nFaster.", "Option 1: Keep the cache."),
+        (
+            "Here's what I'd suggest:\n\n**Option A — keep the cache**\nThis is faster.",
+            "Option A: keep the cache.",
+        ),
+        ("### Option 1. Keep the cache\nFaster.", "Option 1: Keep the cache."),
+        # A label that only names an option keeps the lead-in for what follows it...
+        (
+            "Here are two options:\n\n### Option A\nKeep the cache.\n\n### Option B\nDrop it.",
+            "Here are two options: keep the cache.",
+        ),
+        ("Two options:\n\n**Option A**\nKeep the cache.", "Two options: keep the cache."),
+        # ...and without one, goes in front of it.
+        ("**Option A**\nKeep the cache, it's faster.", "Option A: keep the cache, it's faster."),
+        ("## Options\n\n### Option A\nKeep the cache.", "Option A: keep the cache."),
+        # ...but not in front of anything after a code block that is the option itself.
+        (
+            "### Option A\n```py\ncache = True\n```\n### Option B\n```py\ncache = False\n```\n"
+            "Which do you prefer?",
+            "Which do you prefer?",
+        ),
+        (
+            "**Option A**\n```py\ncache = True\n```\n\nOption B drops it. Which do you prefer?",
+            "Option B drops it.",
+        ),
+        ("## Optional: cleanup\n\nRemoved the old flag.", "Removed the old flag."),
         # A long one is left out, so the option isn't cut off.
         (
             "Looking at how the cache behaves under load and what the logs show, "

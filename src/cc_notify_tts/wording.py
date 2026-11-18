@@ -67,6 +67,15 @@ _LEAD_IN = re.compile(
 # A lead-in that introduces a choice ("Here are two options:") stays, so what follows
 # isn't heard as an instruction.
 _CHOICE = re.compile(r"\b(?:options?|choices?|alternatives?|ways|approaches)\b", re.IGNORECASE)
+# A label line, in plain text, that names one option and maybe what it is ("**Option
+# A: Keep the cache**", "### Option 1 (recommended) - drop it", "### Option B").
+_OPTION_LABEL = re.compile(
+    r"(?P<name>option\s+(?:[a-z]|\d+))(?:\s*\([^)]*\))?"
+    r"(?:\s*(?:[:.)\u2013\u2014]|\s-)\s*(?P<title>\S.*))?",
+    re.IGNORECASE,
+)
+# Where `_opening` found a code block: a line that no message has.
+_CODE_BLOCK = "\x00"
 # A mark that may end a sentence: one followed by a space or the end, so decimals
 # and versions ("3.5", "v1.2.3") never do.
 _SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
@@ -368,11 +377,24 @@ def _opening(message: str) -> str:
 
     A label line that introduces a choice ("Here are two options:") is kept in
     front of what follows it, so the first option isn't heard as an instruction.
+    A label that names an option ("**Option A: Keep the cache**") counts as the
+    first option, like a list item, and is kept as "Option A: ..." without such a
+    lead-in. One that only names it ("### Option A") goes in front of its own
+    description, unless a lead-in to the choice already does; if a code block
+    follows it instead, it goes no further.
     """
     paragraph: list[str] = []
     choice = ""
-    for line in _CODE_FENCE.sub("\n\n", message).splitlines():
+    # Whether `choice` is a bare option label's name, which only its description takes.
+    named = False
+    for line in _CODE_FENCE.sub(f"\n\n{_CODE_BLOCK}\n\n", message).splitlines():
         line = line.strip()
+        if line == _CODE_BLOCK:
+            if paragraph:
+                break
+            if named:
+                choice, named = "", False
+            continue
         if _LIST_ITEM.match(line):
             if paragraph:
                 break
@@ -381,8 +403,18 @@ def _opening(message: str) -> str:
         if not line or (not paragraph and _LABEL.fullmatch(line)):
             if paragraph:
                 break
+            option = _OPTION_LABEL.fullmatch(plain(line).rstrip(":"))
+            if option and option["title"]:
+                if choice:
+                    return f"{choice} {lower_first(option['title'])}"
+                return f"{option['name']}: {option['title']}"
+            if option:
+                if not choice or named:
+                    choice, named = f"{option['name']}:", True
+                continue
             if line:
                 choice = line if _introduces_choice(line) else ""
+                named = False
             continue
         if not paragraph and choice:
             paragraph.append(choice)
