@@ -295,5 +295,60 @@
     },
     "required": [["flag*"]],
     "forbidden": ["twelve", "12", "four", "added"]
+  },
+  {
+    "id": "finished-tests-fail-second-sentence",
+    "traps": ["partial success", "multi-sentence", "names"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/booking-app",
+      "last_assistant_message": "Fixed the timezone handling in the booking calendar. Three tests in test_slots.py still fail because they expect UTC times, so I left them for you to check."
+    },
+    "required": [["timezone*", "time zone*", "calendar"], ["fail*"]],
+    "forbidden": ["all tests pass", "tests pass", "fixed the tests", "two tests", "four tests"]
+  },
+  {
+    "id": "finished-tests-not-passing-yet",
+    "traps": ["partial success", "no fail word"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/invoice-tool",
+      "last_assistant_message": "Added the CSV export endpoint, but its tests aren't passing yet: the serializer writes dates as strings instead of ISO timestamps."
+    },
+    "required": [["export*"], ["fail*", "not passing", "aren't passing", "not yet passing", "don't pass", "do not pass"]],
+    "forbidden": ["tests pass", "all tests", "fixed the serializer"]
+  },
+  {
+    "id": "finished-test-summary-failed",
+    "traps": ["partial success", "numbers"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/shop-api",
+      "last_assistant_message": "Moved the payment retry logic into its own module and updated the imports. Test run: 2 failed, 41 passed (test_refund_partial and test_refund_currency)."
+    },
+    "required": [["retr*", "payment*"], ["fail*"]],
+    "forbidden": ["all tests pass", "all passed", "43 passed", "3 failed", "tests pass"]
+  },
+  {
+    "id": "finished-failing-tests-fixed",
+    "traps": ["fail word in a success", "numbers"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/weather-app",
+      "last_assistant_message": "Fixed the 2 failing tests in test_parser.py by trimming whitespace before parsing dates; all 33 tests pass now."
+    },
+    "required": [["fix*"], ["pars*", "date*", "whitespace"]],
+    "forbidden": ["still fail*", "3 failing", "three failing", "32 tests"]
+  },
+  {
+    "id": "finished-tests-now-pass",
+    "traps": ["fail word in a success"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/photo-share",
+      "last_assistant_message": "The two upload tests that were still failing now pass, after making them wait for the mock storage server to start."
+    },
+    "required": [["upload*"], ["pass*", "fix*", "wait*"]],
+    "forbidden": ["still fail*", "three", "removed the tests"]
   }
 ]

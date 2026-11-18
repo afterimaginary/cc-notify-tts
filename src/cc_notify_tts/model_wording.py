@@ -24,8 +24,10 @@ from cc_notify_tts.wording import (
     QUESTION_WORDS,
     SLOT,
     Wording,
+    admits_failure,
     capitalize,
     end_sentence,
+    failing_tests,
     first_sentence,
     lower_first,
     more_questions,
@@ -158,7 +160,8 @@ def guard(raw: str, request: Request, wording: Wording, project: str) -> Checked
 
     In order: the first line, without reasoning or a label; frame echoes
     stripped; the first sentence; then the checks for a leading subject
-    pronoun, length, and names and numbers not in the input.
+    pronoun, length, names and numbers not in the input, and a finished turn
+    worded as a success when its message says tests still fail.
     """
     text = _first_line(_THINK.sub(" ", raw)).translate(_STRAIGHT_QUOTES)
     text = plain(_LABEL.sub("", text).strip().strip("\"'"))
@@ -178,6 +181,13 @@ def guard(raw: str, request: Request, wording: Wording, project: str) -> Checked
         return Checked(None, f"{len(words)} words, not {MIN_WORDS} to {limit}")
     if invented := _not_in_source(text, request.source):
         return Checked(None, f"{invented!r} isn't in the input")
+    # A turn that ends with tests failing is never reported as a success (ADR-0021).
+    if (
+        request.kind is EventKind.FINISHED
+        and failing_tests(request.source)
+        and not admits_failure(text)
+    ):
+        return Checked(None, "leaves out that tests still fail")
     finished = _finish(text, request.kind)
     return Checked(f"{finished} {request.suffix}" if request.suffix else finished, "ok")
 

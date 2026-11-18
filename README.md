@@ -180,7 +180,7 @@ Orchestral turned the brief into GitHub issues and ran up to three Claude Code w
 
 - **macOS only.** Presence comes from CoreGraphics and `lsappinfo`, and playback from `afplay`.
 - **Local downloads, local memory.** The speech model is about 120 MB, and the daemon holds about 450 MiB while it runs (it exits two hours after the last event). Model wording needs Ollama and a 2.1 GB model that holds about 2.2 GiB while a session is open.
-- **Model wording can be wrong in ways the guards can't see.** The guards reject names and numbers that aren't in Claude's reply, but not a wrong claim made of the right words. The default model passed 42 of 48 eval cases. Nearly every model tested reports a turn that ended with tests still failing as a plain success ([#53](https://github.com/afterimaginary/cc-notify-tts/issues/53)).
+- **Model wording can be wrong in ways the guards can't see.** The guards reject names and numbers that aren't in Claude's reply, but not a wrong claim made of the right words. The default model passed 42 of 48 eval cases. One wrong claim does have its own guard: when Claude's reply says tests still fail, wording that leaves that out is rejected and the template, which says so, is spoken instead. It reads English phrasing, so a failure put another way ("the suite is red") isn't caught ([ADR-0021](docs/decisions/0021-failing-tests-never-a-success.md)).
 - **Measured on one Mac.** The eval and the latency budget come from one Apple M3 Max; a slower Mac will be slower. From a clone, `make eval` and `make latency` measure your own.
 - **Tested in the Claude Code CLI.** The desktop app runs the same hooks, but its event coverage and closing a desktop session haven't been checked by hand ([ADR-0001](docs/decisions/0001-plugin-hook-events.md), [ADR-0002](docs/decisions/0002-on-demand-daemon-start.md)).
 - **Some sessions can't be tied to an app**, such as sessions over SSH and detached tmux sessions, and iTerm2 is untested. Those always count as away, so they're spoken even while you're typing ([ADR-0006](docs/decisions/0006-presence-from-a-hook.md)).
@@ -191,7 +191,6 @@ Orchestral turned the brief into GitHub issues and ran up to three Claude Code w
 
 In no particular order, and without dates:
 
-- Report a turn that ends with failing tests as unfinished, measured with the eval ([#53](https://github.com/afterimaginary/cc-notify-tts/issues/53)).
 - Speak "background done" when the work finishes while "still running" is playing ([#42](https://github.com/afterimaginary/cc-notify-tts/issues/42)).
 - Keep the detail whole at abbreviations like "e.g." ([#36](https://github.com/afterimaginary/cc-notify-tts/issues/36)), and drop lead-ins like "Here's what was done:" from template wording ([#50](https://github.com/afterimaginary/cc-notify-tts/issues/50)).
 - Follow a detached tmux session to the app it's reattached in ([#47](https://github.com/afterimaginary/cc-notify-tts/issues/47)).
