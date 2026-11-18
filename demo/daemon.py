@@ -10,18 +10,23 @@ the real daemon except:
 - **Presence:** `<home>/presence.json` holds `{"idle_seconds": <number>, "front":
   <bundle id>}`, so the demo decides whether the viewer is away, not the real
   keyboard and screen.
-- **Wording:** templates only, so every run says the same sentences.
+
+Wording is the real thing: the default Ollama model when it's loaded, which at
+temperature 0 says the same sentences every run, and templates otherwise.
 """
 
 import json
 import logging
+import signal
 import sys
 import time
 from pathlib import Path
 
 from cc_notify_tts.daemon import Daemon, Paths, default_log_path
+from cc_notify_tts.ollama import Ollama
 from cc_notify_tts.presence import FrontTracker
 from cc_notify_tts.speech import KokoroSynthesizer
+from cc_notify_tts.timeline import Timeline
 
 
 class SpeechToFiles:
@@ -32,10 +37,12 @@ class SpeechToFiles:
         self.record = home / "spoken.jsonl"
         self.synthesizer = synthesizer
 
-    def speak(self, text: str, voice: str) -> bool:
+    def speak(self, text: str, voice: str, timeline: Timeline) -> bool:
         self.folder.mkdir(exist_ok=True)
         wav = self.folder / f"{len(list(self.folder.glob('*.wav'))) + 1:02d}.wav"
         self.synthesizer.synthesize(text, voice, wav)
+        timeline.mark("synthesized")
+        timeline.mark("playing")
         with self.record.open("a") as f:
             f.write(json.dumps({"text": text, "wav": str(wav), "at": time.time()}) + "\n")
         return True
@@ -62,7 +69,16 @@ def main() -> int:
     def speaker() -> SpeechToFiles:
         return SpeechToFiles(home, KokoroSynthesizer(models))
 
-    daemon = Daemon(Paths.default(), speaker, read_idle=read_idle, follow_front=False, front=front)
+    daemon = Daemon(
+        Paths.default(),
+        speaker,
+        read_idle=read_idle,
+        follow_front=False,
+        front=front,
+        ollama=Ollama(),
+    )
+    # Stopping cleanly unloads the wording model, as the real daemon does.
+    signal.signal(signal.SIGTERM, lambda _signum, _frame: daemon.stop())
     return daemon.run()
 
 

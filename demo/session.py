@@ -13,7 +13,7 @@ the build to mix in.
 """
 
 import json
-import subprocess
+import os
 import sys
 import textwrap
 import time
@@ -22,12 +22,14 @@ from pathlib import Path
 from typing import Any
 
 from cc_notify_tts.client import request, socket_path
+from cc_notify_tts.config import Config
+from cc_notify_tts.ollama import Ollama, OllamaError
 
 REPO = Path(__file__).resolve().parents[1]
 HOOKS: dict[str, Any] = json.loads((REPO / "hooks" / "hooks.json").read_text())["hooks"]
 TERMINAL = "com.apple.Terminal"
 BROWSER = "com.apple.Safari"
-WAIT_TIMEOUT = 30.0
+WAIT_TIMEOUT = 60.0
 WIDTH = 96
 HEADER = "a simulated Claude Code session; its hooks, daemon and voice are real"
 
@@ -37,6 +39,15 @@ SESSION: dict[str, Any] = {
     "cwd": "/Users/dev/src/weather-app",
     "permission_mode": "default",
 }
+
+# Long enough that a one-sentence summary is worth having.
+FINISHED_REPLY = (
+    "I added a retry with exponential backoff to the forecast fetcher: it now retries up to "
+    "three times on timeouts and server errors, waiting half a second, then one, then two, "
+    "and re-raises the last error if every attempt fails. I also added two tests, one where "
+    "the second attempt succeeds and one where it gives up after three. The full suite "
+    "passes, 48 tests. I left the cache alone."
+)
 
 DIM, BOLD, GREEN, CYAN, YELLOW, RESET = (
     "\x1b[2m",
@@ -49,21 +60,57 @@ DIM, BOLD, GREEN, CYAN, YELLOW, RESET = (
 
 
 def hook(event: str, **fields: Any) -> None:
-    """Run the plugin's hook command for `event`, as Claude Code would."""
-    payload = {**SESSION, "hook_event_name": event, **fields}
+    """Run the plugin's hook command for `event`, as Claude Code would.
+
+    The shim names the session's host app from its ancestor processes first, and
+    the build's own ancestors include whatever app started it (a terminal, or
+    Xcode behind `make`). So the hook runs outside that tree, and the shim falls
+    back to `__CFBundleIdentifier`, which names Terminal on every machine.
+    """
+    payload = Path.home() / "payload.json"
+    payload.write_text(json.dumps({**SESSION, "hook_event_name": event, **fields}))
     env = {
         "HOME": str(Path.home()),
         "PATH": "/usr/bin:/bin",
         "CLAUDE_PLUGIN_ROOT": str(REPO),
         "__CFBundleIdentifier": TERMINAL,
     }
-    subprocess.run(
-        ["/bin/sh", "-c", HOOKS[event][0]["hooks"][0]["command"]],
-        input=json.dumps(payload).encode(),
-        env=env,
-        timeout=10,
-        check=True,
-    )
+    run_outside_app(HOOKS[event][0]["hooks"][0]["command"], payload, env)
+
+
+def run_outside_app(command: str, stdin: Path, env: dict[str, str]) -> None:
+    """Run `command` with `stdin`, after reparenting it to launchd, and wait for it."""
+    read_end, write_end = os.pipe()
+    child = os.fork()
+    if child == 0:
+        os.close(read_end)
+        grandchild = os.fork()
+        if grandchild == 0:
+            os.close(write_end)
+            # Its parent exits next; start only once launchd has adopted it.
+            while os.getppid() != 1:
+                time.sleep(0.001)
+            os.dup2(os.open(stdin, os.O_RDONLY), 0)
+            os.execve("/bin/sh", ["/bin/sh", "-c", command], env)
+        os.write(write_end, str(grandchild).encode())
+        os._exit(0)
+    os.close(write_end)
+    with os.fdopen(read_end) as f:
+        grandchild = int(f.read())
+    os.waitpid(child, 0)
+    deadline = time.monotonic() + WAIT_TIMEOUT
+    while _alive(grandchild):
+        if time.monotonic() > deadline:
+            raise SystemExit(f"the {command!r} hook didn't finish")
+        time.sleep(0.005)
+
+
+def _alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
 
 
 def set_presence(idle_seconds: float, front: str) -> None:
@@ -153,35 +200,33 @@ def finished() -> None:
     tool("Edit", "src/weather/forecast.py", "+18 -3")
     tool("Edit", "tests/test_forecast.py", "+41")
     tool("Bash", "pytest -q", "48 passed")
-    message = (
-        "Added exponential backoff to the forecast fetcher and two tests for the retry "
-        "path. All 48 tests pass."
-    )
-    reply(message)
+    reply(FINISHED_REPLY)
     before = spoken_count()
-    hook("Stop", stop_hook_active=False, last_assistant_message=message, background_tasks=[])
+    hook(
+        "Stop",
+        stop_hook_active=False,
+        last_assistant_message=FINISHED_REPLY,
+        background_tasks=[],
+    )
     speak_and_show("finished", before)
 
 
 def permission() -> None:
     set_presence(600, BROWSER)
     header()
-    type_prompt("Rebase onto main and push it.")
-    hook("UserPromptSubmit", prompt="Rebase onto main and push it.")
+    type_prompt("Bump the version to 2.4.0 and publish it.")
+    hook("UserPromptSubmit", prompt="Bump the version to 2.4.0 and publish it.")
     say()
-    tool("Bash", "git fetch origin && git rebase origin/main", "rebased 3 commits")
+    tool("Bash", "npm version 2.4.0", "v2.4.0")
     say()
-    say(f"  {BOLD}Allow this command?{RESET}  {CYAN}git push --force origin main{RESET}", 0.2)
+    say(f"  {BOLD}Allow this command?{RESET}  {CYAN}npm publish{RESET}", 0.2)
     say(f"  {DIM}1. Yes   2. No{RESET}", 0.2)
     say()
     before = spoken_count()
     hook(
         "PermissionRequest",
         tool_name="Bash",
-        tool_input={
-            "command": "git push --force origin main",
-            "description": "Force-push the rebased branch to main",
-        },
+        tool_input={"command": "npm publish", "description": "Publish weather-app 2.4.0 to npm"},
     )
     speak_and_show("permission", before)
 
@@ -203,14 +248,24 @@ def silent() -> None:
 
 
 def start() -> None:
-    """Open the session before recording, so the speech model is loaded and warm."""
+    """Open the session before recording, so the speech and wording models are loaded."""
     set_presence(600, BROWSER)
     hook("SessionStart", source="startup", model="claude-sonnet-5-5")
-    wait_for(lambda: _speech_ready())
+    wait_for(_speech_ready)
+    model = Config().wording.model
+    if _model_pulled(model):
+        wait_for(lambda: Ollama().running(model) is not None)
 
 
 def end() -> None:
     hook("SessionEnd", reason="other")
+
+
+def _model_pulled(model: str) -> bool:
+    try:
+        return Ollama().installed(model)
+    except OllamaError:
+        return False
 
 
 def _speech_ready() -> bool:

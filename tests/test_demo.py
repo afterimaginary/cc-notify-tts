@@ -2,7 +2,7 @@
 
 import pytest
 
-from demo.build import TAIL_SECONDS, Shot, last_freeze_start, timeline
+from demo.build import TAIL_SECONDS, Shot, last_freeze_start, parse_duration, timeline
 
 
 def test_a_scene_holds_its_last_frame_until_the_sentence_has_been_said() -> None:
@@ -44,3 +44,8 @@ def test_the_spoken_frame_is_the_start_of_the_last_still_stretch() -> None:
 def test_a_clip_that_never_settles_is_an_error() -> None:
     with pytest.raises(ValueError):
         last_freeze_start("frame=  300 fps=0.0")
+
+
+def test_a_duration_is_read_from_ffmpegs_description_of_its_input() -> None:
+    log = "Input #0, wav, from 'a.wav':\n  Duration: 00:01:06.59, bitrate: 384 kb/s\n"
+    assert parse_duration(log) == pytest.approx(66.59)

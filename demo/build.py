@@ -1,8 +1,9 @@
 """Builds the demo video from scratch: `make demo`.
 
 1. Lays out a throwaway home under /tmp as `setup` would, with the plugin's
-   hooks pointing at the real shim and a daemon that is the real one except that
-   Kokoro's audio goes to files and presence comes from a file (`demo/daemon.py`).
+   hooks pointing at the real shim and a daemon that is the real one, model
+   wording included, except that Kokoro's audio goes to files and presence comes
+   from a file (`demo/daemon.py`).
 2. Records each scene with VHS, in a clean shell inside that home, so no real
    path, user name, host name, notification or other app can appear.
 3. Finds the frame where each spoken sentence appears on screen (the scene's
@@ -11,11 +12,12 @@
    ffmpeg's text filters aren't in every build), then writes the full cut to
    `build/demo/` and a short silent GIF to `docs/demo.gif`.
 
-Needs `vhs`, `ffmpeg` and `magick` on PATH, and the speech model (`cc-notify-tts
-setup` fetches it; otherwise this does).
+Needs `vhs`, `ffmpeg` and `magick` on PATH and the speech model (`cc-notify-tts
+setup` fetches it; otherwise this does). With Ollama running and the default
+wording model pulled, the daemon words with it as usual, and it's unloaded when
+the build ends; without, it uses templates.
 """
 
-import contextlib
 import json
 import os
 import re
@@ -24,11 +26,14 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 from cc_notify_tts.client import request
+from cc_notify_tts.config import Config
 from cc_notify_tts.models import FILES, default_models_dir, fetch_all, is_present
+from cc_notify_tts.ollama import Ollama, OllamaError
 
 REPO = Path(__file__).resolve().parents[1]
 OUT = REPO / "build" / "demo"
@@ -50,7 +55,9 @@ TEXT = "#cdd6f4"
 MUTED = "#a6adc8"
 FONT = "/System/Library/Fonts/Helvetica.ttc"
 
-TOOLS = ("vhs", "ffmpeg", "ffprobe", "magick")
+TOOLS = ("vhs", "ffmpeg", "magick")
+# A daemon stopping unloads the wording model first, which can take a few seconds.
+STOP_TIMEOUT = 15.0
 
 
 @dataclass(frozen=True)
@@ -180,6 +187,20 @@ def check_tools() -> None:
     missing = [t for t in TOOLS if shutil.which(t) is None]
     if missing:
         raise SystemExit(f"missing {', '.join(missing)}: brew install vhs ffmpeg imagemagick")
+    if subprocess.run(["ffmpeg", "-version"], capture_output=True, check=False).returncode != 0:
+        raise SystemExit("ffmpeg on PATH doesn't run: reinstall it or put a working one first")
+
+
+def wording_model_ready() -> bool:
+    """Whether the daemon can word with the default model; otherwise it uses templates."""
+    model = Config().wording.model
+    try:
+        if Ollama().installed(model):
+            return True
+        print(f"The wording model isn't pulled, so this uses templates: ollama pull {model}")
+    except OllamaError:
+        print("Ollama isn't running, so this uses templates.")
+    return False
 
 
 def models_dir() -> Path:
@@ -226,13 +247,22 @@ def record(scene: Scene, home: Path, work: Path) -> Path:
 
 
 def seconds(media: Path) -> float:
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", media],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    return float(out.strip())
+    # Without an output ffmpeg exits non-zero, but it has printed the input's duration.
+    done = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-i", media], capture_output=True, text=True, check=False
+    )
+    return parse_duration(done.stderr)
+
+
+_DURATION = re.compile(r"Duration: (\d+):(\d+):([0-9.]+)")
+
+
+def parse_duration(ffmpeg_log: str) -> float:
+    match = _DURATION.search(ffmpeg_log)
+    if match is None:
+        raise ValueError("ffmpeg reported no duration")
+    hours, minutes, secs = match.groups()
+    return int(hours) * 3600 + int(minutes) * 60 + float(secs)
 
 
 def speech_frame(clip: Path) -> float:
@@ -457,12 +487,25 @@ def silent_gif(plan: Timeline) -> None:
 
 def stop_daemon(home: Path) -> None:
     socket = home / "Library" / "Application Support" / "cc-notify-tts" / "daemon.sock"
-    with contextlib.suppress(OSError, ValueError, KeyError):
-        os.kill(int(request(socket, {"type": "ping"}, 1.0)["pid"]), signal.SIGTERM)
+    try:
+        pid = int(request(socket, {"type": "ping"}, 1.0)["pid"])
+        os.kill(pid, signal.SIGTERM)
+    except (OSError, ValueError, KeyError):
+        return
+    # Wait for it to exit, so the wording model is unloaded before the build ends.
+    deadline = time.monotonic() + STOP_TIMEOUT
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(0.1)
+    print(f"the demo daemon (pid {pid}) didn't stop within {STOP_TIMEOUT:g} s")
 
 
 def main() -> int:
     check_tools()
+    wording_model_ready()
     models = models_dir()
     work = OUT / "work"
     shutil.rmtree(work, ignore_errors=True)
