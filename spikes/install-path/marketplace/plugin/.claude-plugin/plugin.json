@@ -1,0 +1,5 @@
+{
+  "name": "cc-notify-tts",
+  "version": "0.0.1",
+  "description": "Stand-in plugin for the install-path spike: one async SessionStart hook that runs the shim."
+}
