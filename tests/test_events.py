@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from cc_notify_tts.events import EventKind, Notification, classify
+from cc_notify_tts.events import EventKind, Notification, announcement_ended, classify
 from cc_notify_tts.sessions import CLOSED_GRACE_SECONDS, STALE_OPEN_SECONDS, SessionStore
 
 FIXTURES = Path(__file__).parent / "fixtures" / "hooks"
@@ -27,9 +27,11 @@ class Session:
         self.store = SessionStore(root)
         self.now = 1_000.0
 
-    def send(self, name: str, after: float = 1.0, **overrides: Any) -> Notification | None:
+    def send(
+        self, name: str, after: float = 1.0, announcing: bool = False, **overrides: Any
+    ) -> Notification | None:
         self.now += after
-        return classify(self.store, fixture(name, **overrides), self.now)
+        return classify(self.store, fixture(name, **overrides), self.now, announcing=announcing)
 
     def kind(self, name: str, after: float = 1.0, **overrides: Any) -> EventKind | None:
         note = self.send(name, after, **overrides)
@@ -119,6 +121,65 @@ def test_background_done_is_silent_when_still_running_was_not_heard(s: Session) 
     assert s.kind("stop_background_running", prompt_id="p1") is EventKind.STILL_RUNNING
     s.send("user_prompt_submit_task_notification", prompt_id="p2")
     assert s.kind("stop_background_done", prompt_id="p2") is None
+
+
+def wake_up_while_announcing(s: Session) -> Notification | None:
+    """Still running is queued or playing when the wake-up turn ends all the work."""
+    s.send("user_prompt_submit", prompt_id="p1")
+    assert s.kind("stop_background_running", prompt_id="p1") is EventKind.STILL_RUNNING
+    s.send("user_prompt_submit_task_notification", prompt_id="p2")
+    return s.send("stop_background_done", prompt_id="p2", announcing=True)
+
+
+def test_background_done_waits_for_an_announcement_still_queued_or_playing(s: Session) -> None:
+    note = wake_up_while_announcing(s)
+    assert note is not None
+    assert (note.kind, note.after_announcement) == (EventKind.BACKGROUND_DONE, True)
+    assert announcement_ended(s.store, SESSION, played=True, more_coming=False)
+    state = s.store.load(SESSION)
+    assert state is not None
+    assert not state.background_done_owed
+    assert not state.still_running_heard
+
+
+def test_dropped_announcement_does_not_count_as_heard(s: Session) -> None:
+    assert wake_up_while_announcing(s) is not None
+    assert not announcement_ended(s.store, SESSION, played=False, more_coming=False)
+    # Nothing is left waiting for a later announcement to set off.
+    assert not announcement_ended(s.store, SESSION, played=True, more_coming=False)
+
+
+def test_dropped_announcement_leaves_the_wait_to_one_still_coming(s: Session) -> None:
+    assert wake_up_while_announcing(s) is not None
+    assert not announcement_ended(s.store, SESSION, played=False, more_coming=True)
+    assert announcement_ended(s.store, SESSION, played=True, more_coming=False)
+
+
+def test_second_wake_up_with_nothing_live_keeps_the_wait(s: Session) -> None:
+    assert wake_up_while_announcing(s) is not None
+    s.send("user_prompt_submit_agent_message", prompt_id="p3")
+    assert s.send("stop_background_done", prompt_id="p3", announcing=True) is None
+    assert announcement_ended(s.store, SESSION, played=True, more_coming=False)
+
+
+def test_new_user_prompt_cancels_a_waiting_background_done(s: Session) -> None:
+    assert wake_up_while_announcing(s) is not None
+    s.send("user_prompt_submit", prompt_id="p3")
+    assert not announcement_ended(s.store, SESSION, played=True, more_coming=False)
+
+
+def test_wake_up_with_work_left_does_not_wait_on_the_announcement(s: Session) -> None:
+    s.send("user_prompt_submit", prompt_id="p1")
+    s.send("stop_background_running", prompt_id="p1")
+    s.send("user_prompt_submit_agent_message", prompt_id="p2")
+    shell_only = fixture("stop_background_running")["background_tasks"][1:]
+    assert s.send("stop", prompt_id="p2", background_tasks=shell_only, announcing=True) is None
+    # The announcement plays while that work runs: heard as before.
+    assert not announcement_ended(s.store, SESSION, played=True, more_coming=False)
+    s.send("user_prompt_submit_task_notification", prompt_id="p3")
+    note = s.send("stop_background_done", prompt_id="p3")
+    assert note is not None
+    assert (note.kind, note.after_announcement) == (EventKind.BACKGROUND_DONE, False)
 
 
 def test_heard_is_only_recorded_while_background_work_is_live(s: Session) -> None:

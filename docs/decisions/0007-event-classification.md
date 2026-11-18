@@ -23,7 +23,7 @@ The rules and the file format are in [the event classification design](../design
 
 ## Consequences
 
-- If "still running" is still queued or playing when the last background item finishes, "heard" isn't recorded yet and "background done" is skipped. That needs work to finish within seconds of the turn ending, when the user has just heard about it anyway.
+- If "still running" is still queued or playing when the last background item finishes, "heard" isn't recorded yet. ADR-0026 holds "background done" until it plays.
 - A wake-up turn that does substantial new work after a background result is not announced as finished.
 - Two different permission requests within 5 s collapse into one announcement.
 - If another plugin's `Stop` hook makes Claude continue, the turn's second `Stop` more than 5 s later is announced as finished again; the first one can't be told apart from a real end.
