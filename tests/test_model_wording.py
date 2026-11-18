@@ -314,6 +314,28 @@ def test_wording_that_admits_the_failure_is_spoken(raw: str) -> None:
     assert detail(raw, TESTS_FAIL) is not None
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Fixed the failing auth tests.",
+        "Fixed the auth test failures.",
+        "Resolved the failing tests in auth.",
+    ],
+)
+def test_a_fixed_failure_isnt_admitting_the_one_left(raw: str) -> None:
+    n = note(
+        EventKind.FINISHED,
+        {
+            "last_assistant_message": (
+                "Fixed the failing auth tests. The 2 billing tests still fail because they"
+                " need a database."
+            )
+        },
+    )
+    assert detail(raw, n) is None
+    assert detail("Fixed the auth tests; 2 billing tests still fail.", n) is not None
+
+
 def test_a_turn_without_failing_tests_isnt_checked_for_them() -> None:
     assert detail("Added backoff to the fetcher.") == "Added backoff to the fetcher."
 

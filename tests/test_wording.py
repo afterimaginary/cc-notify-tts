@@ -307,6 +307,9 @@ def test_model_detail_replaces_the_template_detail() -> None:
         "Two integration tests fail on the new schema.",
         "Some failing tests remain in the parser.",
         "Refactored the module.\n\n- test_refund still fails",
+        "31 of 33 tests now pass; the other 2 still fail on leap years.",
+        "Most tests now pass, but 3 still fail.",
+        "It no longer crashes on empty input, but 2 tests still fail.",
     ],
 )
 def test_failing_tests_are_found(message: str) -> None:
@@ -341,6 +344,14 @@ def test_failing_tests_already_in_the_first_sentence_stay_as_they_are() -> None:
 def test_failing_tests_in_a_later_sentence_are_added() -> None:
     assert finished_text("Fixed the timezone handling. Three tests still fail. Sorry.") == (
         "Finished up in weather app. Fixed the timezone handling. Three tests still fail."
+    )
+
+
+def test_a_fixed_failure_doesnt_count_as_admitting_one() -> None:
+    message = "Fixed the failing auth tests. The 2 billing tests still fail without a database."
+    assert finished_text(message) == (
+        "Finished up in weather app. Fixed the failing auth tests."
+        " The 2 billing tests still fail without a database."
     )
 
 

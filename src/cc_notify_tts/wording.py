@@ -71,10 +71,16 @@ _TESTS_FAILING = re.compile(
     r"|\b(?:failing\s+tests?|test\s+failures?)\s+remains?\b",
     re.IGNORECASE,
 )
-# ...unless the same sentence says the failure is over ("no longer fails", "now pass").
-_FAILURE_OVER = re.compile(r"\bno\s+longer\b|\bnow\b[^.!?]*\bpass", re.IGNORECASE)
-# A detail that admits a failure, in any words a model or a message might use.
+# ...unless the same clause says that failure is over ("no longer fails", "now pass").
+# Checked clause by clause, so "31 now pass, but 2 still fail" still counts.
+_FAILURE_OVER = re.compile(r"\bno\s+longer\b|\bnow\b.*\bpass", re.IGNORECASE)
+_CLAUSES = re.compile(r"[;,]|\s(?:but|although|though|while|whereas)\s", re.IGNORECASE)
+# A detail that admits a failure, in any words a model or a message might use...
 _ADMITS_FAILURE = re.compile(r"\bfail|\bbroken\b|(?:\bnot|n't)\s+(?:yet\s+)?pass", re.IGNORECASE)
+# ...other than a failure that was fixed ("Fixed the failing auth tests").
+_FIXED_FAILURE = re.compile(
+    r"\b(?:fix|resolv|repair)\w*\s+(?:[\w'-]+\s+){0,3}?fail\w*", re.IGNORECASE
+)
 
 
 @dataclass(frozen=True)
@@ -216,14 +222,17 @@ def failing_tests(message: str) -> str | None:
     # Line by line, so a list item or heading isn't run into the next one.
     for line in _CODE_FENCE.sub("\n", message).splitlines():
         for sentence in _SENTENCES.findall(plain(line)):
-            if _TESTS_FAILING.search(sentence) and not _FAILURE_OVER.search(sentence):
+            if any(
+                _TESTS_FAILING.search(clause) and not _FAILURE_OVER.search(clause)
+                for clause in _CLAUSES.split(sentence)
+            ):
                 return sentence.rstrip(",;: ")
     return None
 
 
 def admits_failure(text: str) -> bool:
-    """Whether a detail says something failed or isn't passing."""
-    return _ADMITS_FAILURE.search(text) is not None
+    """Whether a detail says something failed or isn't passing, not that a failure was fixed."""
+    return _ADMITS_FAILURE.search(_FIXED_FAILURE.sub("", text)) is not None
 
 
 def _opening(message: str) -> str:
