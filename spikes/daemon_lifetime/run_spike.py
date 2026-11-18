@@ -259,6 +259,8 @@ def summarize(out_dir: Path, events: dict[str, float]) -> str:
 
 def main() -> int:
     out_dir = Path(sys.argv[1]).resolve()
+    if out_dir.exists() and any(out_dir.iterdir()):
+        sys.exit(f"{out_dir} is not empty; probes append, so use a fresh directory per run")
     out_dir.mkdir(parents=True, exist_ok=True)
     project = out_dir / "project"
     project.mkdir(exist_ok=True)
@@ -285,10 +287,14 @@ def main() -> int:
         hook_labels = ["hook-headless", "hook-terminal-close", "hook-app-close-sim"]
         for label in hook_labels:
             wait_for(lambda label=label: lines(out_dir / f"{label}.jsonl"), 60, f"{label} probe")
+        # The interactive sessions must still be running to be ended; `claude -p`
+        # may already have answered, which is its ending.
         claude_pids = {label: claude_pid_on(ttys[label]) for label in hook_labels}
         print("claude pids:", claude_pids, flush=True)
+        for label in ("hook-terminal-close", "hook-app-close-sim"):
+            if claude_pids[label] is None:
+                raise RuntimeError(f"no claude process found for {label}")
 
-        # hook-headless ends by itself once `claude -p` has answered.
         headless = claude_pids["hook-headless"]
         if headless is not None:
             wait_for(lambda: not alive(headless), 120, "claude -p to exit")
@@ -296,18 +302,16 @@ def main() -> int:
 
         time.sleep(EVENT_AFTER)
         close_terminal_window(ttys["hook-terminal-close"], "settings-hook-terminal-close")
+        closed = claude_pids["hook-terminal-close"]
+        assert closed is not None
+        wait_for(lambda: not alive(closed), 10, "claude to end when its window closed")
         events["hook-terminal-close"] = time.time()
 
         sim = claude_pids["hook-app-close-sim"]
-        if sim is not None:
-            victims = kill_like_an_app(sim)
-            print("killed:", victims, flush=True)
+        assert sim is not None
+        print("killed:", kill_like_an_app(sim), flush=True)
+        wait_for(lambda: not alive(sim), 10, "claude to end when killed")
         events["hook-app-close-sim"] = time.time()
-
-        time.sleep(2)
-        for label in ("hook-terminal-close", "hook-app-close-sim"):
-            pid = claude_pids[label]
-            print(f"{label}: claude {pid} alive after event: {pid is not None and alive(pid)}")
 
         all_labels = ["shell", *hook_labels, *AGENTS]
         wait_for(
@@ -319,16 +323,15 @@ def main() -> int:
         for label, path in agents:
             remove_agent(label, path)
         for label, tty in ttys.items():
-            if label != "hook-terminal-close":
-                # Closing with Terminate also ends a claude a failed run left behind.
-                with contextlib.suppress(subprocess.CalledProcessError):
-                    title = "--label shell" if label == "shell" else f"settings-{label}"
-                    close_terminal_window(tty, title)
+            # Closing with Terminate also ends a claude a failed run left behind.
+            with contextlib.suppress(subprocess.CalledProcessError):
+                title = "--label shell" if label == "shell" else f"settings-{label}"
+                close_terminal_window(tty, title)
         (out_dir / "events.json").write_text(json.dumps(events, indent=2))
-
-    summary = summarize(out_dir, events)
-    (out_dir / "summary.md").write_text(summary + "\n")
-    print(summary)
+        # Written even after a failure: partial data is still worth reading.
+        summary = summarize(out_dir, events)
+        (out_dir / "summary.md").write_text(summary + "\n")
+        print(summary)
     return 0
 
 

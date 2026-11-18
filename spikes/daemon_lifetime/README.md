@@ -14,12 +14,14 @@ Answers two questions behind ADR-0001. Does a process started from a Claude Code
 uv run python spikes/daemon_lifetime/run_spike.py /tmp/cc-notify-tts-spike
 ```
 
-It needs Terminal.app, a logged-in `claude`, and Accessibility permission for the app running the command, which it uses to answer Terminal's "terminate running processes?" sheet. `claude -p` sends one short prompt. It opens three Terminal windows and closes them again.
+The output directory must be new or empty, because probes append to their result files.
+
+It needs Terminal.app, a logged-in `claude`, and Accessibility permission for the app running the command, which it uses to answer Terminal's "terminate running processes?" sheet. `claude -p` sends one short prompt. It opens four Terminal windows and closes them again.
 
 The three LaunchAgents are loaded with `launchctl bootstrap` from plists in the output directory. Every one is booted out and its plist deleted before the script exits, even on failure. To check that nothing is left:
 
 ```sh
-launchctl list | grep cc-notify-tts.spike   # prints nothing
+launchctl list | grep afterimaginary.cc-notify-tts.spike   # prints nothing
 ```
 
 ## Scenarios
