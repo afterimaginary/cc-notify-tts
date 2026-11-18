@@ -34,7 +34,7 @@ STAGES = (
     "synthesizing",  # the speech worker took it from the queue
     "synthesized",  # the whole sentence is synthesized to a WAV file
     "playing",  # `afplay` started
-    "ended",  # `afplay` exited
+    "ended",  # the sound has finished (`afplay` may still be exiting, ADR-0022)
 )
 LOG_MARKER = "timing "
 
@@ -104,8 +104,8 @@ def summarize(records: Iterable[Mapping[str, Any]]) -> list[Span]:
     A stage's time runs from the stage before it, so the rows of an event that
     went through every stage add up to its total. Records without the earlier
     mark (a `fire`, which has no hook) leave that row out. afplay's overhead is
-    `playing` to `ended` less the audio's length: its start-up and exit together,
-    an upper bound on how long after `playing` the sound starts.
+    `playing` to `ended` less the audio's length: the allowance for its start-up
+    (ADR-0022), or more if it took longer than that to finish.
     """
     samples: dict[str, list[float]] = {}
     for record in records:

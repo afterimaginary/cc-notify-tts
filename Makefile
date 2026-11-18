@@ -24,8 +24,14 @@ eval:
 latency:
 	$(UV) run --frozen python -m bench.latency run $(if $(MODEL),--model $(MODEL))
 
+# Records the demo from scratch: build/demo/cc-notify-tts-demo.mp4 (1080p, with
+# Kokoro's real audio) and docs/demo.gif (the first scene, short and silent). Needs vhs, ffmpeg and
+# ImageMagick; plays nothing out loud. See demo/README.md.
+demo:
+	$(UV) run --frozen python demo/build.py
+
 # Installs a git pre-push hook that runs `make ready`.
 hooks:
 	./scripts/install-pre-push.sh
 
-.PHONY: ready verify eval latency hooks
+.PHONY: ready verify eval latency demo hooks

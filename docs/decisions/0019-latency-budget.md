@@ -26,9 +26,9 @@ The brief sets two latency targets: a finished turn is spoken within 3 s of the 
 | `synthesizing` | the speech worker took it from the queue | speech worker |
 | `synthesized` | the whole sentence is synthesized to a WAV file | speech worker |
 | `playing` | `afplay` spawned | speech worker |
-| `ended` | `afplay` exited | speech worker |
+| `ended` | `afplay` exited (the sound finished, since ADR-0022) | speech worker |
 
-- `dequeued` and `synthesizing` go beyond the issue's list so that the ordering hold and any wait behind earlier speech show up as their own stages rather than inside the gate and synthesis. `ended`, with the synthesized length, bounds how long `afplay` takes to start.
+- `dequeued` and `synthesizing` go beyond the issue's list so that the ordering hold and any wait behind earlier speech show up as their own stages rather than inside the gate and synthesis. `ended`, with the synthesized length, bounds how long `afplay` takes to start. Since ADR-0022, `ended` comes once the sound has finished, so it no longer does.
 - The shim stamps `sent` before it tries the socket, so when nothing answers and it starts the daemon, `sent → received` includes the daemon's start-up. In an everyday `daemon.log` that shows as a large maximum in that row.
 - All marks are wall-clock `time.time()`, the clock the shim already uses for `fired_at`, so marks from the hook process and the daemon compare directly.
 - The log is always on. A line is under 500 bytes per event, against the log's 1 MB rotation.
@@ -90,6 +90,6 @@ The daemon's resident memory was 250–263 MiB once the speech model had loaded 
 ## Consequences
 
 - Synthesis is most of the budget, about 0.5 s; then the model's wording, about 0.2 s; then the 100 ms ordering hold and `afplay`'s 0.1 s start-up. Everything else is a few milliseconds.
-- `afplay` lingers about 0.75 s after each sentence, and the speech worker waits for it, so a second sentence queued behind a first starts that much later than it could. It doesn't affect a single notification.
+- `afplay` lingers about 0.75 s after each sentence, and the speech worker waits for it, so a second sentence queued behind a first starts that much later than it could. It doesn't affect a single notification. ADR-0022 stops waiting for it, and `ended` now marks the end of the sound rather than `afplay`'s exit.
 - The daemon's idle cost is about 450 MiB of resident memory, plus 2.2 GiB in Ollama while a session is open with model wording.
 - Anyone can measure their own machine: `uv run python -m bench.latency summarize` on their `daemon.log`, or `make latency [MODEL=…]`.

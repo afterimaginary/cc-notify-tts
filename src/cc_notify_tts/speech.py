@@ -9,6 +9,7 @@ compute runs while audio plays and there's never a gap mid-sentence.
 import logging
 import subprocess
 import tempfile
+import threading
 import time
 import wave
 from pathlib import Path
@@ -24,6 +25,8 @@ log = logging.getLogger(__name__)
 
 DEFAULT_VOICE = "af_heart"
 AFPLAY = "/usr/bin/afplay"
+# How long `afplay` takes from spawn to sound: 103 ms p95 (ADR-0019), with margin.
+AFPLAY_START_SECONDS = 0.15
 
 
 class Synthesizer(Protocol):
@@ -63,11 +66,39 @@ class KokoroSynthesizer:
 
 
 class AfplayPlayer:
+    """Plays with `afplay`, returning once the sound has had time to finish.
+
+    `afplay` starts sound about 0.1 s after it's spawned and exits about 0.75 s
+    after the sound ends (ADR-0019). Waiting for it to exit would hold the next
+    queued sentence back by that much, so `play` waits for its start-up plus the
+    audio's length instead and leaves the process to exit on its own (ADR-0022).
+    `afplay` fails at start-up, so a failure still shows before `play` returns.
+    """
+
     def play(self, wav: Path) -> bool:
-        done = subprocess.run([AFPLAY, str(wav)], capture_output=True, text=True, check=False)
-        if done.returncode != 0:
-            log.warning("afplay exited %d: %s", done.returncode, done.stderr.strip())
-        return done.returncode == 0
+        audio = wav_seconds(wav)
+        proc = subprocess.Popen(
+            [AFPLAY, str(wav)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if audio is not None:
+            try:
+                proc.wait(timeout=AFPLAY_START_SECONDS + audio)
+            except subprocess.TimeoutExpired:
+                # Still running past its start-up and the whole sound: it played.
+                threading.Thread(target=_reap, args=(proc,), daemon=True).start()
+                return True
+        return _reap(proc)
+
+
+def _reap(proc: subprocess.Popen[str]) -> bool:
+    """Wait for `afplay` to exit, logging a failure. Returns whether it succeeded."""
+    _, stderr = proc.communicate()
+    if proc.returncode != 0:
+        log.warning("afplay exited %d: %s", proc.returncode, stderr.strip())
+    return proc.returncode == 0
 
 
 class Speaker:
@@ -87,8 +118,7 @@ class Speaker:
                 return self._player.play(wav)
             timeline.mark("synthesized")
             timeline.audio_seconds = wav_seconds(wav)
-            # afplay's own start-up comes after this mark: `ended` less the audio's
-            # length bounds it (ADR-0019).
+            # afplay's own start-up comes after this mark (ADR-0019).
             timeline.mark("playing")
             played = self._player.play(wav)
             timeline.mark("ended")
