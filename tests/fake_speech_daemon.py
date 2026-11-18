@@ -19,13 +19,14 @@ from pathlib import Path
 
 from cc_notify_tts.daemon import Daemon, Paths, default_log_path
 from cc_notify_tts.presence import FrontTracker
+from cc_notify_tts.timeline import Timeline
 
 
 class RecordingSpeaker:
     def __init__(self, record: Path) -> None:
         self.record = record
 
-    def speak(self, text: str, voice: str) -> bool:
+    def speak(self, text: str, voice: str, timeline: Timeline) -> bool:
         with self.record.open("a") as f:
             f.write(json.dumps({"text": text, "voice": voice, "at": time.time()}) + "\n")
         return True

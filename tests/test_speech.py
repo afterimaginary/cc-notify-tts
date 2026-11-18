@@ -3,7 +3,8 @@ from pathlib import Path
 
 import numpy as np
 
-from cc_notify_tts.speech import Speaker, write_wav
+from cc_notify_tts.speech import Speaker, wav_seconds, write_wav
+from cc_notify_tts.timeline import Timeline
 
 
 class FakeSynthesizer:
@@ -58,3 +59,20 @@ def test_write_wav_is_16_bit_mono_and_clips(tmp_path: Path) -> None:
         assert (w.getnchannels(), w.getsampwidth(), w.getframerate()) == (1, 2, 24000)
         frames = np.frombuffer(w.readframes(4), dtype="<i2")
     assert frames.tolist() == [0, 16383, 32767, -32767]
+
+
+def test_speaking_marks_synthesis_and_playback_on_the_timeline() -> None:
+    log: list[str] = []
+    timeline = Timeline("Stop", "s1")
+    Speaker(FakeSynthesizer(log), FakePlayer(log)).speak("Done.", "af_heart", timeline)
+
+    assert list(timeline.marks) == ["synthesized", "playing", "ended"]
+    assert timeline.marks["synthesized"] <= timeline.marks["playing"] <= timeline.marks["ended"]
+    assert timeline.audio_seconds == 0.1  # 2400 frames at 24 kHz
+
+
+def test_wav_seconds_of_a_file_that_isnt_a_wav(tmp_path: Path) -> None:
+    junk = tmp_path / "junk.wav"
+    junk.write_bytes(b"not a wav")
+    assert wav_seconds(junk) is None
+    assert wav_seconds(tmp_path / "missing.wav") is None

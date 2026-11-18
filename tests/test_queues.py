@@ -5,12 +5,13 @@ import time
 
 from cc_notify_tts.events import EventKind
 from cc_notify_tts.queues import EventInbox, Heard, PendingSlot, Received, Utterance
+from cc_notify_tts.timeline import Timeline
 
 HOLD = 0.05
 
 
 def event(name: str, fired_at: float) -> Received:
-    return Received(payload={"name": name}, fired_at=fired_at, host_app=None)
+    return Received({"name": name}, fired_at, None, Timeline("Stop", "s1"))
 
 
 def names(inbox: EventInbox, count: int) -> list[str]:
@@ -67,7 +68,7 @@ def test_get_wakes_for_an_event_put_while_waiting() -> None:
 
 
 def utterance(text: str) -> Utterance:
-    return Utterance(text, "af_heart", "s1", EventKind.FINISHED, 0.0)
+    return Utterance(text, "af_heart", "s1", EventKind.FINISHED, 0.0, Timeline("Stop", "s1"))
 
 
 def test_newer_utterance_replaces_the_pending_one() -> None:

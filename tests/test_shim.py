@@ -6,6 +6,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -116,8 +117,12 @@ def test_refused_event_is_logged(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 
     monkeypatch.setattr(client, "log_dir", lambda: tmp_path)
     monkeypatch.setattr(client, "deliver", deliver)
+    before = time.time()
     shim.main(["Stop"], b'{"hook_event_name": "Stop"}', {}, 12.5)
-    assert sent == [{"type": "event", "fired_at": 12.5, "payload": {"hook_event_name": "Stop"}}]
+    [message] = sent
+    sent_at = message.pop("sent_at")
+    assert message == {"type": "event", "fired_at": 12.5, "payload": {"hook_event_name": "Stop"}}
+    assert before <= sent_at <= time.time()
     assert "refused the event" in (tmp_path / "shim.log").read_text()
 
 

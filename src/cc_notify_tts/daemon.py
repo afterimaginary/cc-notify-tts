@@ -15,6 +15,9 @@ Run as `python -m cc_notify_tts.daemon`; the hook shim starts it on demand
 - **Speech worker:** loads the speech model, then speaks pending utterances one
   at a time, dropping any more than 30 s old.
 
+Each event carries a `Timeline` of when it reached each stage, logged as one
+`timing` line when the event is done (ADR-0019).
+
 Only one daemon runs: it holds an exclusive lock on a file next to the socket
 for its whole life. Decisions: ADR-0013.
 """
@@ -51,6 +54,7 @@ from cc_notify_tts.ollama import Client, KeepWarm, Ollama
 from cc_notify_tts.presence import FrontmostWatcher, FrontTracker, read_idle_seconds
 from cc_notify_tts.queues import EventInbox, Heard, PendingSlot, Received, Utterance
 from cc_notify_tts.sessions import SessionStore, default_state_dir
+from cc_notify_tts.timeline import Timeline
 from cc_notify_tts.wording import Wording, project_name, word
 
 # Named, not __name__, which is "__main__" when run with -m.
@@ -75,8 +79,11 @@ def default_log_path() -> Path:
 
 
 class Speaker(Protocol):
-    def speak(self, text: str, voice: str) -> bool:
-        """Speak `text`; return when playback ends, with whether it played."""
+    def speak(self, text: str, voice: str, timeline: Timeline) -> bool:
+        """Speak `text`; return when playback ends, with whether it played.
+
+        Marks `synthesized` and `playing` on `timeline` as it gets there.
+        """
         ...
 
 
@@ -228,18 +235,27 @@ class Daemon:
         payload = message.get("payload")
         if not isinstance(payload, dict):
             return _error("event needs a payload object")
+        fields: dict[str, Any] = payload  # pyright: ignore[reportUnknownVariableType]
         now = self._clock()
-        fired_at = message.get("fired_at")
-        if not isinstance(fired_at, int | float) or not math.isfinite(fired_at):
-            fired_at = now
+        # A clock can't make an event newer than its arrival.
+        fired_at = min(_seconds(message.get("fired_at"), now), now)
+        hook, session_id = fields.get("hook_event_name"), fields.get("session_id")
+        timeline = Timeline(
+            hook if isinstance(hook, str) else "?",
+            session_id if isinstance(session_id, str) else "",
+        )
+        timeline.mark("hook", fired_at)
+        if "sent_at" in message:
+            timeline.mark("sent", min(_seconds(message["sent_at"], now), now))
+        timeline.mark("received", now)
         host_app = message.get("host_app")
         self._last_event_at = now
         self._inbox.put(
             Received(
-                payload=payload,  # pyright: ignore[reportUnknownArgumentType]
-                # A clock can't make an event newer than its arrival.
-                fired_at=min(float(fired_at), now),
+                payload=fields,
+                fired_at=fired_at,
                 host_app=host_app if isinstance(host_app, str) and host_app else None,
+                timeline=timeline,
             )
         )
         return {"ok": True}
@@ -262,12 +278,14 @@ class Daemon:
             cwd if isinstance(cwd, str) else "",
             host_app if isinstance(host_app, str) else "",
         )
+        timeline = Timeline("fire", "fire")
+        timeline.mark("received")
         cfg = config.load(self.paths.config).config
         if message.get("always") is True:
             decision = Decision(True, "speaking: fired with --always")
         else:
             decision = self._decide(note, cfg)
-        text = self._speak_if_allowed(note, cfg, decision, self._clock())
+        text = self._speak_if_allowed(note, cfg, decision, self._clock(), timeline)
         return {
             "ok": True,
             "speak": decision.speak,
@@ -338,23 +356,33 @@ class Daemon:
                 self._stop.set()
 
     def _handle_event(self, event: Received) -> None:
+        event.timeline.mark("dequeued")
         note = classify(self._store, event.payload, event.fired_at, event.host_app)
         if note is None:
+            event.timeline.finish("no notification")
             return
         cfg = config.load(self.paths.config).config
-        self._speak_if_allowed(note, cfg, self._decide(note, cfg), event.fired_at)
+        decision = self._decide(note, cfg)
+        self._speak_if_allowed(note, cfg, decision, event.fired_at, event.timeline)
 
     def _decide(self, note: Notification, cfg: config.Config) -> Decision:
         presence = read_presence(note.host_app, self._read_idle(), self._tracker, time.monotonic())
         return decide(note.kind, cfg, self._mute, datetime.now().time(), presence)
 
     def _speak_if_allowed(
-        self, note: Notification, cfg: config.Config, decision: Decision, fired_at: float
+        self,
+        note: Notification,
+        cfg: config.Config,
+        decision: Decision,
+        fired_at: float,
+        timeline: Timeline,
     ) -> str | None:
         """Record the decision and, if it speaks, word the notification and queue it.
 
         Returns the sentence queued, or None when the decision was silent.
         """
+        timeline.kind = str(note.kind)
+        timeline.mark("gated")
         project = project_name(note.cwd)
         log.info("%s, %s: %s", project, note.kind, decision.reason)
         self._recent.append(
@@ -363,6 +391,7 @@ class Daemon:
             )
         )
         if not decision.speak:
+            timeline.finish("silenced")
             return None
         wording = word(note)
         utterance = Utterance(
@@ -371,10 +400,13 @@ class Daemon:
             session_id=note.session_id,
             kind=note.kind,
             fired_at=fired_at,
+            timeline=timeline,
         )
+        timeline.mark("worded")
         replaced = self._slot.put(utterance)
         if replaced is not None:
             log.info("replaced pending %r with a newer message", replaced.text)
+            replaced.timeline.finish("replaced")
         return utterance.text
 
     def _model_detail(
@@ -440,22 +472,36 @@ class Daemon:
                 self._inbox.put_heard(Heard(utterance.session_id))
 
     def _say(self, speaker: Speaker | None, utterance: Utterance) -> bool:
+        timeline = utterance.timeline
+        timeline.mark("synthesizing")
         age = self._clock() - utterance.fired_at
         if age > STALE_SECONDS:
             log.info("dropped %r: %d s old", utterance.text, age)
+            timeline.finish("dropped as stale")
             return False
         if speaker is None:
             log.warning("not spoken, speech unavailable: %r", utterance.text)
+            timeline.finish("speech unavailable")
             return False
         try:
-            return speaker.speak(utterance.text, utterance.voice)
+            played = speaker.speak(utterance.text, utterance.voice, timeline)
         except Exception:
             log.exception("speaking %r failed", utterance.text)
+            timeline.finish("speech failed")
             return False
+        timeline.finish("played" if played else "playback failed")
+        return played
 
 
 def _error(why: str) -> dict[str, Any]:
     return {"ok": False, "error": why}
+
+
+def _seconds(value: Any, default: float) -> float:
+    """A finite number of seconds from a request, or `default`."""
+    if isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value):
+        return float(value)
+    return default
 
 
 class _Server(socketserver.ThreadingUnixStreamServer):
