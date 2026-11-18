@@ -73,7 +73,7 @@ Speaking: "Weather app needs your okay to run npm test."
 ## `mute` and `unmute`
 
 - `mute` silences every notification until `unmute`.
-- `mute --for DURATION` silences them until that much time has passed. A duration is hours, minutes and seconds in that order, each optional: `30m`, `2h`, `90s`, `1h30m`.
+- `mute --for DURATION` silences them until that much time has passed. The end is shown as a clock time, with the date when it isn't today. A duration is hours, minutes and seconds in that order, each optional: `30m`, `2h`, `90s`, `1h30m`.
 - A new `mute` replaces the one before it.
 - `unmute` ends any mute. It's fine to run when nothing is muted.
 
@@ -95,7 +95,7 @@ Checks everything a notification needs, one line each, marked `ok`, `warn` or `F
 | Config | each unknown key or invalid value, one line each | edit the file |
 | Ollama (optional) | never fails. Warns when wording is on but Ollama isn't running or the model isn't pulled. | start Ollama, `ollama pull <model>`, or `wording.ollama = false` |
 
-When the daemon isn't running, `doctor` starts it with the interpreter `setup` linked for the hooks (`<data>/venv/bin/python`), so the check covers the path hooks use. It exits on its own after the idle timeout.
+When the daemon isn't running, `doctor` starts it with the interpreter `setup` linked for the hooks (`<data>/venv/bin/python`), so the check covers the path hooks use. It exits on its own after the idle timeout. While the speech model is loading, `doctor` waits up to 20 s for it to load or fail, and warns if it's still loading then.
 
 It ends with `All checks passed.` or a count of problems and warnings. Exit code 1 when any check failed, otherwise 0.
 

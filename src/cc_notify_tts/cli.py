@@ -7,7 +7,7 @@ import argparse
 import logging
 import os
 import sys
-from datetime import datetime
+import time
 from pathlib import Path
 
 from cc_notify_tts import __version__, client, config
@@ -142,10 +142,7 @@ def mute(duration: str | None, file: MuteFile | None = None) -> int:
         print(f"cc-notify-tts mute: {e}", file=sys.stderr)
         return USAGE
     muted = file.mute(seconds)
-    if muted.until is None:
-        print("Muted until `cc-notify-tts unmute`.")
-    else:
-        print(f"Muted until {datetime.fromtimestamp(muted.until).strftime('%H:%M')}.")
+    print(f"Muted until {muted.ends(time.time())}.")
     return OK
 
 

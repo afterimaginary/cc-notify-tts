@@ -87,16 +87,21 @@ def test_models(tmp_path: Path) -> None:
 class FakeDaemon:
     """Stands in for client.request and client.deliver."""
 
-    def __init__(self, running: bool, reply: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, running: bool, reply: dict[str, Any] | None = None, speech: list[str] | None = None
+    ) -> None:
         self.running = running
         self.reply = {"ok": True, "pid": 7, "version": __version__, "speech": "ready"}
         self.reply.update(reply or {})
+        # Speech states for successive status replies; the last one repeats.
+        self.speech = speech or [str(self.reply["speech"])]
         self.started = False
 
     def request(self, path: Path, message: dict[str, Any], timeout: float) -> dict[str, Any]:
         if not self.running:
             raise ConnectionRefusedError("nothing listening")
-        return self.reply
+        speech = self.speech.pop(0) if len(self.speech) > 1 else self.speech[0]
+        return {**self.reply, "speech": speech}
 
     def deliver(
         self, message: dict[str, Any], path: Path, python: Path
@@ -109,7 +114,14 @@ def daemon_check(tmp_path: Path, fake: FakeDaemon, python_exists: bool = True) -
     python = tmp_path / "python"
     if python_exists:
         python.touch()
-    return doctor.check_daemon(tmp_path / "d.sock", python, fake.request, fake.deliver)
+    return doctor.check_daemon(
+        tmp_path / "d.sock",
+        python,
+        fake.request,
+        fake.deliver,
+        speech_wait=1.0,
+        sleep=lambda _: None,
+    )
 
 
 def test_running_daemon(tmp_path: Path) -> None:
@@ -117,11 +129,24 @@ def test_running_daemon(tmp_path: Path) -> None:
     assert check == Check(Level.OK, "Daemon", "running, pid 7, speech ready")
 
 
-def test_stopped_daemon_is_started_to_check(tmp_path: Path) -> None:
-    fake = FakeDaemon(running=False, reply={"speech": "loading"})
+def test_stopped_daemon_is_started_and_its_speech_waited_for(tmp_path: Path) -> None:
+    fake = FakeDaemon(running=False, speech=["loading", "loading", "ready"])
     check = daemon_check(tmp_path, fake)
     assert fake.started
-    assert check == Check(Level.OK, "Daemon", "running, pid 7, started it to check; speech loading")
+    assert check == Check(Level.OK, "Daemon", "running, pid 7, started it to check; speech ready")
+
+
+def test_speech_that_fails_to_load_after_starting_fails(tmp_path: Path) -> None:
+    fake = FakeDaemon(running=False, speech=["loading", "unavailable"])
+    check = daemon_check(tmp_path, fake)
+    assert check.level is Level.FAIL
+    assert "the speech model didn't load" in check.detail
+
+
+def test_speech_still_loading_at_the_deadline_warns(tmp_path: Path) -> None:
+    check = daemon_check(tmp_path, FakeDaemon(running=False, speech=["loading"]))
+    assert check.level is Level.WARN
+    assert "still loading after 1 s" in check.detail
 
 
 def test_daemon_that_cant_start(tmp_path: Path) -> None:

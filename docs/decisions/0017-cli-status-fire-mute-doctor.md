@@ -42,7 +42,7 @@ The CLI's commands are fixed by the brief and the plan: `status` (would it speak
 
 - Each check is `ok`, `warn` or `fail`, and every warning and failure carries a fix. It exits 1 on any failure.
 - A failure is anything that stops a notification or changes when one is spoken: a missing hook Python, model file or plugin, a daemon that can't start or load speech, an unreadable presence signal (so `away` always speaks), or a config problem (so a setting isn't applied). Ollama is optional, so it only ever warns, as do checks it can't run (`claude` not on PATH) and a daemon of another version.
-- If the daemon isn't running, `doctor` starts it with `<data>/venv/bin/python`, the interpreter hooks use, so the check proves the path hooks take rather than the CLI's own. A daemon started this way exits after the idle timeout, like any other.
+- If the daemon isn't running, `doctor` starts it with `<data>/venv/bin/python`, the interpreter hooks use, so the check proves the path hooks take rather than the CLI's own. A daemon that just started is still loading the speech model, so `doctor` waits up to 20 s for it to load or fail: otherwise a model that can't load would pass. A daemon started this way exits after the idle timeout, like any other.
 - The plugin is checked with `claude plugin list --json`: an enabled `cc-notify-tts@cc-notify-tts` entry whose `hooks/hooks.json` exists. There's no plugin version to compare yet (ADR-0014), so a stale plugin isn't detected.
 
 ## Consequences

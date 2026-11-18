@@ -13,6 +13,7 @@ import json
 import platform
 import shutil
 import subprocess
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -27,6 +28,10 @@ PLUGIN_ID = "cc-notify-tts@cc-notify-tts"
 SETUP = "Run `cc-notify-tts setup`."
 SEE_LOG = "See ~/Library/Logs/cc-notify-tts/daemon.log, then run `cc-notify-tts setup`."
 LIST_TIMEOUT = 30.0
+# How long to wait for a starting daemon's speech model to load or fail. It loads
+# in a few seconds once warm; the first load after an install takes longer.
+SPEECH_WAIT_SECONDS = 20.0
+SPEECH_POLL_SECONDS = 0.25
 
 
 class Level(StrEnum):
@@ -155,7 +160,14 @@ def check_daemon(
     deliver: Callable[
         [dict[str, Any], Path, Path], tuple[dict[str, Any] | None, bool]
     ] = client.deliver,
+    speech_wait: float = SPEECH_WAIT_SECONDS,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> Check:
+    """The daemon answers and its speech model loads, starting it if it isn't running.
+
+    A daemon that has just started is still loading the model, so wait up to
+    `speech_wait` seconds for the load to finish or fail.
+    """
     name = "Daemon"
     started = False
     try:
@@ -179,8 +191,23 @@ def check_daemon(
             reply = request(socket, {"type": "status"}, 1.0)
         except (OSError, ValueError) as e:
             return fail(name, f"started, but it didn't answer: {e}", SETUP)
+    waited = 0.0
+    while reply.get("speech") == "loading" and waited < speech_wait:
+        sleep(SPEECH_POLL_SECONDS)
+        waited += SPEECH_POLL_SECONDS
+        try:
+            reply = request(socket, {"type": "status"}, 1.0)
+        except (OSError, ValueError) as e:
+            return fail(name, f"stopped answering while the speech model loaded: {e}", SEE_LOG)
     pid = reply.get("pid")
     speech = reply.get("speech")
+    if speech == "loading":
+        return warn(
+            name,
+            f"running (pid {pid}), but the speech model was still loading after {speech_wait:g} s",
+            "Run `cc-notify-tts doctor` again in a minute. If it's still loading, "
+            "see ~/Library/Logs/cc-notify-tts/daemon.log.",
+        )
     if speech == "unavailable":
         return fail(
             name,

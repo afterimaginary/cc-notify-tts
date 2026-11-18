@@ -1,6 +1,7 @@
 """The mute file: durations, expiry, and surviving a restart."""
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,13 @@ def test_bad_durations_are_refused(text: str) -> None:
 
 def at(path: Path, now: float) -> MuteFile:
     return MuteFile(path, clock=lambda: now)
+
+
+def test_end_time_has_a_date_unless_it_is_today() -> None:
+    now = datetime(2026, 11, 18, 9, 0).timestamp()
+    assert Muted(None).ends(now) == "`cc-notify-tts unmute`"
+    assert Muted(now + 1800).ends(now) == "09:30"
+    assert Muted(now + 24 * 3600).ends(now) == "Nov 19, 09:00"
 
 
 def test_not_muted_without_a_file(tmp_path: Path) -> None:

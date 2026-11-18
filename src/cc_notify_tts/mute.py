@@ -18,6 +18,7 @@ import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,15 @@ def parse_duration(text: str) -> float:
 class Muted:
     # Wall-clock time the mute ends, or None for "until unmute".
     until: float | None
+
+    def ends(self, now: float) -> str:
+        """When it ends, for people: a clock time today, with the date on any other day."""
+        if self.until is None:
+            return "`cc-notify-tts unmute`"
+        end = datetime.fromtimestamp(self.until)
+        if end.date() == datetime.fromtimestamp(now).date():
+            return end.strftime("%H:%M")
+        return f"{end.strftime('%b')} {end.day}, {end.strftime('%H:%M')}"
 
 
 class MuteFile:

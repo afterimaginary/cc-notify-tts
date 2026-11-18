@@ -179,9 +179,8 @@ def _mute_line(muted: Muted | None, now: datetime) -> str:
         return "off"
     if muted.until is None:
         return "on, until `cc-notify-tts unmute`"
-    until = datetime.fromtimestamp(muted.until)
     left = _duration(muted.until - now.timestamp())
-    return f"on, until {until.strftime('%H:%M')} ({left} left)"
+    return f"on, until {muted.ends(now.timestamp())} ({left} left)"
 
 
 def _config_line(facts: Facts) -> str:
