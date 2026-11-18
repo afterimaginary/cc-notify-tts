@@ -40,11 +40,13 @@ from pathlib import Path
 from types import FrameType
 from typing import Any, Protocol
 
-from cc_notify_tts import __version__, config
+from cc_notify_tts import __version__, config, fire
 from cc_notify_tts.client import MAX_MESSAGE_BYTES, is_answering, socket_path
 from cc_notify_tts.events import EventKind, Notification, classify
-from cc_notify_tts.gate import MuteState, NeverMuted, decide, read_presence
+from cc_notify_tts.gate import Decision, MuteState, decide, read_presence
 from cc_notify_tts.model_wording import MODEL_EVENTS, write_detail
+from cc_notify_tts.mute import FILE_NAME as MUTE_FILE_NAME
+from cc_notify_tts.mute import MuteFile
 from cc_notify_tts.ollama import Client, KeepWarm, Ollama
 from cc_notify_tts.presence import FrontmostWatcher, FrontTracker, read_idle_seconds
 from cc_notify_tts.queues import EventInbox, Heard, PendingSlot, Received, Utterance
@@ -115,10 +117,13 @@ class Daemon:
         clock: Callable[[], float] = time.time,
         ollama: Client | None = None,
     ) -> None:
-        """`ollama` is None for template wording only, whatever the config says."""
+        """`ollama` is None for template wording only, whatever the config says.
+
+        `mute` defaults to the mute file in the state folder.
+        """
         self.paths = paths
         self._make_speaker = make_speaker
-        self._mute = mute if mute is not None else NeverMuted()
+        self._mute = mute if mute is not None else MuteFile(paths.state / MUTE_FILE_NAME)
         self._read_idle = read_idle
         self._follow_front = follow_front
         self._clock = clock
@@ -212,6 +217,8 @@ class Daemon:
             return self.status()
         if kind == "event":
             return self._accept_event(fields)
+        if kind == "fire":
+            return self._fire(fields)
         return _error(f"unknown type: {kind!r}")
 
     def _accept_event(self, message: dict[str, Any]) -> dict[str, Any]:
@@ -233,6 +240,38 @@ class Daemon:
             )
         )
         return {"ok": True}
+
+    def _fire(self, message: dict[str, Any]) -> dict[str, Any]:
+        """A synthetic notification for `cc-notify-tts fire`, gated, worded and queued.
+
+        It runs on the socket thread and never touches session state, so it
+        doesn't wait behind held events. The reply comes once it's queued (or
+        silenced), not once it's spoken.
+        """
+        try:
+            kind = EventKind(message.get("event"))
+        except ValueError:
+            return _error(f"unknown event: {message.get('event')!r}")
+        cwd = message.get("cwd")
+        host_app = message.get("host_app")
+        note = fire.notification(
+            kind,
+            cwd if isinstance(cwd, str) else "",
+            host_app if isinstance(host_app, str) else "",
+        )
+        cfg = config.load(self.paths.config).config
+        if message.get("always") is True:
+            decision = Decision(True, "speaking: fired with --always")
+        else:
+            decision = self._decide(note, cfg)
+        text = self._speak_if_allowed(note, cfg, decision, self._clock())
+        return {
+            "ok": True,
+            "speak": decision.speak,
+            "reason": decision.reason,
+            "text": text,
+            "speech": self._speech,
+        }
 
     def status(self) -> dict[str, Any]:
         now = self._clock()
@@ -300,8 +339,19 @@ class Daemon:
         if note is None:
             return
         cfg = config.load(self.paths.config).config
+        self._speak_if_allowed(note, cfg, self._decide(note, cfg), event.fired_at)
+
+    def _decide(self, note: Notification, cfg: config.Config) -> Decision:
         presence = read_presence(note.host_app, self._read_idle(), self._tracker, time.monotonic())
-        decision = decide(note.kind, cfg, self._mute, datetime.now().time(), presence)
+        return decide(note.kind, cfg, self._mute, datetime.now().time(), presence)
+
+    def _speak_if_allowed(
+        self, note: Notification, cfg: config.Config, decision: Decision, fired_at: float
+    ) -> str | None:
+        """Record the decision and, if it speaks, word the notification and queue it.
+
+        Returns the sentence queued, or None when the decision was silent.
+        """
         project = project_name(note.cwd)
         log.info("%s, %s: %s", project, note.kind, decision.reason)
         self._recent.append(
@@ -310,18 +360,19 @@ class Daemon:
             )
         )
         if not decision.speak:
-            return
+            return None
         wording = word(note)
         utterance = Utterance(
             text=wording.text(self._model_detail(note, wording, cfg.wording)),
             voice=cfg.speech.voice,
             session_id=note.session_id,
             kind=note.kind,
-            fired_at=event.fired_at,
+            fired_at=fired_at,
         )
         replaced = self._slot.put(utterance)
         if replaced is not None:
             log.info("replaced pending %r with a newer message", replaced.text)
+        return utterance.text
 
     def _model_detail(
         self, note: Notification, wording: Wording, cfg: config.Wording
