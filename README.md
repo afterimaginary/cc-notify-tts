@@ -32,12 +32,19 @@ uv tool install --managed-python --python 3.13 git+https://github.com/afterimagi
 ~/.local/bin/cc-notify-tts setup
 ```
 
-`setup` links Python for the hooks, downloads the speech model (about 340 MB), installs the Claude Code plugin and, if needed, adds `~/.local/bin` to your shell's `PATH`. Open a new terminal afterwards. Running `setup` again repairs the install.
+`setup` links Python for the hooks, downloads the speech model (about 120 MB), installs the Claude Code plugin and, if needed, adds `~/.local/bin` to your shell's `PATH`. Open a new terminal afterwards. Running `setup` again repairs the install.
 
-If `claude` isn't on your `PATH`, as with only the desktop app, `setup` says so and skips the plugin. Install it from Claude Code instead:
+If `claude` isn't on your `PATH`, as with only the desktop app, `setup` says so and skips the plugin. Install it from Claude Code instead. On Claude Code 2.1.275 or later that's one command:
 
 ```
 /plugin install cc-notify-tts --marketplace afterimaginary/cc-notify-tts
+```
+
+On earlier versions, add the marketplace first:
+
+```
+/plugin marketplace add afterimaginary/cc-notify-tts
+/plugin install cc-notify-tts@cc-notify-tts
 ```
 
 Then run `cc-notify-tts doctor` to check that everything a notification needs is in place. Each problem it finds comes with a fix.
