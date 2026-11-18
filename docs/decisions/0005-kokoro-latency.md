@@ -1,5 +1,5 @@
 ---
-description: The daemon loads Kokoro-82M (fp32, kokoro-onnx) once at start, warms it with one synthesis and keeps it loaded until it exits, synthesizes each sentence whole before playing it, and may synthesize the next sentence while one plays, because nearby playback costs at most 5% on this hardware.
+description: The daemon loads Kokoro-82M (fp32, kokoro-onnx) once at start, warms it with one synthesis and keeps it loaded until it exits, and synthesizes each sentence whole before any audio plays; nearby playback cost at most 5% on this hardware.
 status: accepted
 ---
 
@@ -40,7 +40,7 @@ The main runs were started from a shell. ADR-0002 found that a daemon started fr
 | `voices-v1.0.bin` | 28,214,398 | `bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d` |
 | `kokoro-v1.0.int8.onnx` (measured for comparison) | 92,361,271 | `6e742170d309016e5891a994e1ce1559c702a2ccd0075e67ef7157974f6406cb` |
 
-The URL must name the release tag. A later release, `model-files-v1.1`, ships files with the same names but different sizes. The release also has an fp16 file (177 MB), which wasn't measured: fp16 rarely helps on onnxruntime's CPU provider.
+The URL must name the release tag. A later release, `model-files-v1.1`, ships a `kokoro-v1.0.onnx` with a different size. The release also has an fp16 file (177 MB), which wasn't measured: fp16 rarely helps on onnxruntime's CPU provider.
 
 ### Cold start (fp32, fresh process)
 
@@ -55,7 +55,7 @@ A cold daemon needs about 1.0–1.3 s from start to its first finished sentence.
 
 ### Warm synthesis (fp32)
 
-Milliseconds, p50 / p95. Slowdown is the p50 over all 15 sentences, against the baseline.
+Milliseconds, p50 / p95. Slowdown is the p50 over all 15 sentences, against the baseline. The baselines have 21 samples per length; the other phases have 9, so their p95 is in effect the maximum.
 
 | Phase | 5 words | 8 words | 12 words | 16 words | 20 words | Slowdown |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -69,7 +69,7 @@ Latency grows linearly with length, at about 43 ms per word on top of about 50 m
 
 **Playback doesn't slow synthesis here.** Every playback phase is within 5% of the baseline, which is about the run-to-run noise. Nothing lingers after playback stops.
 
-**A throttled process behaves the opposite way.** In the run started as a `launchctl submit` job, the baseline was 2.8× slower (1538 ms p50 over all sentences) and very noisy. It got faster while audio played (0.75–0.79× its own baseline), and straight after a clip finished it ran at full speed (599 ms). So for a process launchd schedules at a low priority, playback lifts it rather than demotes it. That doesn't affect the daemon, which ADR-0002 shows runs at the default priority.
+**A throttled process behaves the opposite way.** In the run started as a `launchctl submit` job, the baseline was 2.8× slower (1538 ms p50 over all sentences) and very noisy. It got faster while audio played (0.75–0.79× its own baseline), and straight after a clip finished it ran at near full speed (599 ms, 1.1× the shell baseline). So for a process launchd schedules at a low priority, playback lifts it rather than demotes it. That doesn't affect the daemon, which ADR-0002 shows runs at the default priority.
 
 ### Resident memory
 
@@ -91,9 +91,8 @@ From a shell, the int8 model was 1.65× faster than fp32 (329 ms p50 over all se
 
 1. **Ship fp32 `kokoro-v1.0.onnx` and `voices-v1.0.bin`,** downloaded by `setup` from the `model-files-v1.0` URL above and checked against these SHA-256 sums. Whether int8 sounds good enough to replace it is a listening question for the speech module.
 2. **Keep the model loaded for the daemon's whole life,** and warm it with one throwaway synthesis right after loading. Loading per message would add about 0.5 s (the load plus the slower first synthesis) to every notification, and more in a fresh process. Because `SessionStart` starts the daemon early (ADR-0001), the load and warm-up happen before the first turn ends. The cost is 0.5–0.9 GB of resident memory, but only while Claude Code is in use, because the daemon exits when idle (ADR-0002).
-3. **Synthesize each sentence whole, then play it.** No streaming, and the chime, if any, plays after synthesis finishes. Playback didn't slow synthesis, so this isn't forced by a measured slowdown on this machine. It still costs nothing, because a sentence takes well under a second to synthesize, and it removes any chance of a gap mid-sentence on a slower Mac.
-4. **The next queued sentence may be synthesized while the current one plays.** That overlap cost at most 5% here, and it keeps the pending slot ready to play.
-5. **Keep spoken sentences short.** At about 43 ms per word, a 20-word sentence costs 0.9 s of the 3 s budget before Ollama's share. The wording length cap should keep sentences near 20 words.
+3. **Keep the brief's rule: all compute finishes before any audio plays.** Each sentence is synthesized whole, then played, with no streaming. Playback didn't slow synthesis here, so the rule isn't forced by a measured slowdown on this machine. It still costs nothing, because a sentence takes well under a second to synthesize, and it removes any chance of a gap mid-sentence on a slower Mac. Synthesizing the next queued sentence while one plays cost at most 5% here, but it would also run the next message's wording, which wasn't measured, so it isn't adopted.
+4. **Keep spoken sentences short.** At about 43 ms per word, a 20-word sentence costs 0.9 s of the 3 s budget before Ollama's share. The wording length cap should keep sentences near 20 words.
 
 ## Consequences
 
