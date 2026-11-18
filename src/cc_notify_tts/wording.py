@@ -67,12 +67,15 @@ _TESTS_FAILING = re.compile(
     rf"|\b{_TESTS}\s+(?:are|is|remain)\s+(?:still\s+)?failing\b"
     rf"|\b{_TESTS}\s+(?:do|does|are|is)\s*(?:not|n't)\s+(?:yet\s+)?pass"
     rf"|\b{_COUNT}\s+(?:of\s+(?:the\s+)?\d+\s+)?(?:\w+\s+)?{_TESTS}\s+(?:are\s+)?fail(?:s|ed|ing)?\b"
-    r"|\b[1-9]\d*\s+failed\b"
+    # "N failed" only about tests: "tests: 2 failed" or a summary, "2 failed, 41 passed".
+    rf"|\b{_TESTS}\W+[1-9]\d*\s+failed\b"
+    r"|\b[1-9]\d*\s+failed\W+\d+\s+passed\b|\b\d+\s+passed\W+[1-9]\d*\s+failed\b"
     r"|\b(?:failing\s+tests?|test\s+failures?)\s+remains?\b",
     re.IGNORECASE,
 )
-# ...unless the same clause says that failure is over ("no longer fails", "now pass").
-# Checked clause by clause, so "31 now pass, but 2 still fail" still counts.
+# ...unless the clause it's in says that failure is over ("no longer fails", "now pass")
+# or was fixed ("Fixed 2 tests failing on CI"). Checked clause by clause, so "31 now
+# pass, but 2 still fail" still counts.
 _FAILURE_OVER = re.compile(r"\bno\s+longer\b|\bnow\b.*\bpass", re.IGNORECASE)
 _CLAUSES = re.compile(r"[;,]|\s(?:but|although|though|while|whereas)\s", re.IGNORECASE)
 # A detail that admits tests are failing: a fail word near "tests" (either way round),
@@ -220,6 +223,9 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
     failing = failing_tests(message)
     if failing is None or (detail is not None and admits_failure(detail)):
         return detail
+    # Never repeat what the detail already says.
+    if detail is not None and failing.lower() in detail.lower():
+        return detail
     failing = end_sentence(_cap_words(failing, MESSAGE_WORDS))
     if detail is not None and len(detail.split()) + len(failing.split()) <= MESSAGE_WORDS:
         return f"{detail} {capitalize(failing)}"
@@ -227,16 +233,30 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
 
 
 def failing_tests(message: str) -> str | None:
-    """The first sentence of a message that says tests are still failing, if any."""
+    """The first clause of a message that says tests are still failing, if any.
+
+    The clause alone ("2 of the 31 tests still fail"), so a word cap on what's
+    spoken can't cut the failure off the end of a long sentence.
+    """
     # Line by line, so a list item or heading isn't run into the next one.
     for line in _CODE_FENCE.sub("\n", message).splitlines():
         for sentence in _SENTENCES.findall(plain(line)):
-            if any(
-                _TESTS_FAILING.search(clause) and not _FAILURE_OVER.search(clause)
-                for clause in _CLAUSES.split(sentence)
-            ):
-                return sentence.rstrip(",;: ")
+            # Matched on the sentence, since a summary ("2 failed, 41 passed") has a comma.
+            for match in _TESTS_FAILING.finditer(sentence):
+                clause = _clause_at(sentence, match.start())
+                if not _FAILURE_OVER.search(clause) and not _FIXED_FAILURE.search(clause):
+                    return strip_end(clause).rstrip(",;: ")
     return None
+
+
+def _clause_at(sentence: str, index: int) -> str:
+    """The clause of `sentence` that holds the character at `index`."""
+    start = 0
+    for split in _CLAUSES.finditer(sentence):
+        if split.start() > index:
+            return sentence[start : split.start()].strip()
+        start = split.end()
+    return sentence[start:].strip()
 
 
 def admits_failure(text: str) -> bool:

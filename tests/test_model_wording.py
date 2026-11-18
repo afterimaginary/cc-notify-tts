@@ -362,6 +362,14 @@ def test_only_a_failure_about_tests_admits_one(raw: str, spoken_: bool) -> None:
     assert (detail(raw, n) is not None) is spoken_
 
 
+def test_a_fixed_failure_in_the_input_doesnt_reject_correct_wording() -> None:
+    n = note(
+        EventKind.FINISHED,
+        {"last_assistant_message": "Fixed the 3 failed tests in test_auth.py with a fake clock."},
+    )
+    assert detail("Used a fake clock in test_auth.py.", n) == "Used a fake clock in test_auth.py."
+
+
 def test_a_turn_without_failing_tests_isnt_checked_for_them() -> None:
     assert detail("Added backoff to the fetcher.") == "Added backoff to the fetcher."
 

@@ -375,7 +375,30 @@ def test_failing_tests_are_spoken_alone_when_both_dont_fit() -> None:
         "Rewrote the calendar slot generator so that bookings across daylight saving changes"
         " land on the right local hour every time. Test run: 2 failed, 41 passed."
     )
-    assert finished_text(message) == "Finished up in weather app. Test run: 2 failed, 41 passed."
+    assert finished_text(message) == "Finished up in weather app. Test run: 2 failed."
+
+
+def test_a_failure_at_the_end_of_a_long_sentence_isnt_cut_off() -> None:
+    message = (
+        "Rewrote the calendar slot generator so that bookings across daylight saving changes"
+        " land on the right local hour, but 2 tests still fail."
+    )
+    assert finished_text(message) == "Finished up in weather app. 2 tests still fail."
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Fixed the 2 failed tests; all 40 pass now.",
+        "Fixed 2 tests failing on CI by pinning the clock.",
+        "Retried the 3 failed uploads.",
+        "Fixed the 3 failed tests in test_auth.py by mocking the clock.",
+        "The importer now gives up after 5 failed attempts.",
+    ],
+)
+def test_a_success_with_a_fail_word_is_spoken_once_as_it_is(message: str) -> None:
+    assert failing_tests(message) is None
+    assert finished_text(message) == f"Finished up in weather app. {message}"
 
 
 def test_failing_tests_are_spoken_after_a_lead_in() -> None:
