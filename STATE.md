@@ -6,7 +6,7 @@
 
 Milestones 1 and 2 are built: on templates alone, the plugin's hooks reach a local daemon that classifies each event, decides whether to speak from the config and live presence, words it and speaks it with Kokoro, and the README covers install, `status`, `fire`, mute and uninstall. An end-to-end test runs the real hook commands, shim and daemon (with fake speech and presence) through a whole session in `verify`. Ollama wording with guards (ADR-0015) and the wording eval (ADR-0016) are in, and ten models were compared on it: `granite4:micro` is the default wording model, with `phi4-mini:3.8b` the runner-up (ADR-0018). Every event's stages are now logged and measured: the first sound comes about 0.75 s after the hook with templates and 1.0 s with `granite4:micro` (p95), and hooks stay under 60 ms p95 (ADR-0019). A turn that ends with failing tests is never worded as a success, whichever model writes it (ADR-0021). A scripted demo video, rebuilt by `make demo`, shows it working (ADR-0020), and the README carries the eval and latency evidence, how the project was built, its limitations and a roadmap. The brief's acceptance checks were run from a clean install in real sessions and pass wherever a worker could run them, some in a stand-in form (ADR-0025); what's left is the owner's steps in that record and the launch.
 
-How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured results and decisions are ADR-0001 to ADR-0023, ADR-0025, ADR-0026, ADR-0029, ADR-0030 and ADR-0033 in [docs/decisions/](docs/decisions/).
+How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured results and decisions are ADR-0001 to ADR-0023, ADR-0025, ADR-0026, ADR-0029, ADR-0030, ADR-0033 and ADR-0036 in [docs/decisions/](docs/decisions/).
 
 ## Features
 
@@ -22,6 +22,7 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured
 
 ## Recently Done
 
+- A turn that only answers a question is no longer worded as work done: the finished prompt asks for "Explained …" when nothing changed and to say so when a turn stops to ask (the stop or the question is kept); four eval cases, `granite4:micro` 46 to 47 of 60, with one answer-only case still worded as a change (ADR-0036) (#63)
 - The failing-tests check reads more phrasings ("the suite still has 2 failures", "still red", "test_a is failing"), ties "still broken" to tests, keeps what failed when it cuts a long sentence, and the guard checks the whole message; three eval cases, `granite4:micro` unchanged at 44 (ADR-0033) (#62)
 - Ollama is asked at `OLLAMA_HOST` when it names this machine; one on another machine is ignored with a log line, and `doctor` shows the address in use (ADR-0029) (#44)
 - A detached tmux session no longer keeps the host app it was last attached from: the shim sends the host as unknown and the daemon clears it, so the gate speaks (ADR-0030) (#47)

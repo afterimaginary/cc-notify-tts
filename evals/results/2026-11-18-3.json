@@ -714,7 +714,7 @@
         "cases": 48,
         "passed": 36,
         "spoken": 47,
-        "kept": 37,
+        "kept": 36,
         "invented": 1,
         "over_length": 0,
         "lead_ins_spoken": 0,
@@ -1033,7 +1033,9 @@
           "answer": "Deleted the `orders` table\u2019s null customer_id values.",
           "detail": "Deleted the orders table's null customer_id values.",
           "reason": "ok",
-          "missing": [],
+          "missing": [
+            "stop*"
+          ],
           "invented": [
             "deleted"
           ],
@@ -3430,7 +3432,7 @@
         "cases": 48,
         "passed": 40,
         "spoken": 47,
-        "kept": 42,
+        "kept": 41,
         "invented": 2,
         "over_length": 0,
         "lead_ins_spoken": 0,
@@ -3743,7 +3745,9 @@
           "answer": "Deleted the 12 rows with null customer_id from the orders table.",
           "detail": "Deleted the 12 rows with null customer_id from the orders table.",
           "reason": "ok",
-          "missing": [],
+          "missing": [
+            "stop*"
+          ],
           "invented": [
             "deleted"
           ],
