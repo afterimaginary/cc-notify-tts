@@ -1,0 +1,299 @@
+[
+  {
+    "id": "finished-backoff",
+    "traps": ["numbers"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/weather-app",
+      "last_assistant_message": "Added exponential backoff to the forecast fetcher and two tests for the retry path. All 48 tests pass."
+    },
+    "required": [["backoff", "back off", "retr*"]],
+    "forbidden": ["redis", "50 tests", "48 retries"]
+  },
+  {
+    "id": "finished-lead-in-list",
+    "traps": ["lead-in", "markdown list"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/recipe-box",
+      "last_assistant_message": [
+        "Here's what was done:",
+        "",
+        "- Added a dark mode toggle to the settings page",
+        "- Stored the choice in localStorage so it survives a reload",
+        "- Updated 3 snapshot tests for the new toggle"
+      ]
+    },
+    "required": [["dark mode"]],
+    "forbidden": ["light mode", "4 snapshot", "cookie*"]
+  },
+  {
+    "id": "finished-lead-in-inline",
+    "traps": ["lead-in", "names", "numbers"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/ledger-api",
+      "last_assistant_message": "Here's what was done: renamed the `fetchUser` helper to `loadUser` across 14 files and updated every import that referenced it."
+    },
+    "required": [["loaduser", "renam*"]],
+    "forbidden": ["15 files", "deleted", "getuser"]
+  },
+  {
+    "id": "finished-lead-in-so",
+    "traps": ["lead-in", "names"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/invoice-tool",
+      "last_assistant_message": "So, to recap: the export button now writes UTF-8 with a byte order mark, so Excel opens accented customer names correctly."
+    },
+    "required": [["export*", "utf 8", "byte order mark", "excel"]],
+    "forbidden": ["pdf", "utf 16", "numbers app"]
+  },
+  {
+    "id": "finished-lead-in-all-set",
+    "traps": ["lead-in", "markdown list", "multi-sentence"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/trail-maps",
+      "last_assistant_message": [
+        "All set! Here's a summary of the changes I made:",
+        "",
+        "1. Moved session handling out of `routes/auth.py` into a new `sessions.py` module.",
+        "2. Sessions now expire after 30 minutes of inactivity instead of never.",
+        "3. Logging out clears the session cookie on every subdomain.",
+        "4. Added 9 tests covering expiry and logout.",
+        "",
+        "Let me know if you want the expiry configurable."
+      ]
+    },
+    "required": [["session*", "logout", "log out", "logging out", "expir*"]],
+    "forbidden": ["60 minutes", "10 tests", "configurable expiry"]
+  },
+  {
+    "id": "finished-multi-sentence",
+    "traps": ["multi-sentence", "pronoun"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/photo-sorter",
+      "last_assistant_message": "I fixed the off-by-one error in the pagination query. The last page was skipping its final row. I also added a regression test for it. Everything passes now."
+    },
+    "required": [["pagination", "off by one", "last page", "final row"]],
+    "forbidden": ["first page", "two tests", "2 tests"]
+  },
+  {
+    "id": "finished-tests-still-fail",
+    "traps": ["numbers", "names", "partial success"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/invoice-tool",
+      "last_assistant_message": "Updated the CSV importer to handle quoted commas, but 2 of the 31 tests still fail: test_empty_rows and test_bom_header. I haven't touched those yet."
+    },
+    "required": [["csv", "import*", "quoted comma*"], ["fail*", "2 of", "two of"]],
+    "forbidden": ["all tests pass", "all 31", "tests pass", "fixed test_empty_rows"]
+  },
+  {
+    "id": "finished-considered-not-used",
+    "traps": ["names", "alternatives considered"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/trail-maps",
+      "last_assistant_message": "Looked into caching the map tile responses. Redis would work but adds another service to run, so I used an in-memory LRU cache with a 10-minute expiry instead."
+    },
+    "required": [["cach*", "lru"]],
+    "forbidden": ["redis cache", "with redis", "using redis", "added redis", "redis caching"]
+  },
+  {
+    "id": "finished-many-numbers",
+    "traps": ["numbers", "units"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/photo-sorter",
+      "last_assistant_message": "Profiled the image resizer. After switching to the streaming decoder, p50 dropped from 840 ms to 210 ms and peak memory went from 1.2 GB to 380 MB."
+    },
+    "required": [["resiz*", "image*"], ["streaming", "decoder", "210", "faster", "memory"]],
+    "forbidden": ["840 mb", "210 mb", "380 ms", "1.2 ms"]
+  },
+  {
+    "id": "finished-long-message",
+    "traps": ["long input", "names", "summary at the end"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/garden-planner",
+      "last_assistant_message": [
+        "You asked me to look into the lost reminder times from the issue tracker and fix them properly rather than with another workaround, and to keep the plugin file formats stable. I read the issue, the linked forum thread and the last three releases' changelogs first, to see whether this had been patched before. It had: release 3.2 added a short delay before saving the calendar, which made the race rarer on fast machines but did nothing about its cause, and the delay is still in the code. I've removed it as part of this change, since the new store makes it unnecessary.",
+        "",
+        "Before changing anything I reproduced the reported problem. With the calendar window and the bed editor both open, I set a reminder time in the calendar, then renamed a bed in the editor. The reminder time was gone after a restart. Doing the same in the other order lost the bed name instead. It happens every time, not intermittently, as long as both windows have been opened since launch. Closing either window before making the second change avoids it, which matches the workaround a few people mentioned in the issue thread.",
+        "",
+        "I also checked whether anything else writes those files. The backup feature reads them but never writes. The import wizard writes beds.json once, at the end, and only when no other window is open. The two plugins write their own files under plugins/, not the shared ones. So the race is between the app's own windows only.",
+        "",
+        "I started by reading how settings are stored today. Every preference lives in its own JSON file under the app's data folder: layout.json, units.json, reminders.json, beds.json and a handful of smaller ones. Each screen reads its file on open and writes it back on every change, which is why two windows open at once can overwrite each other's changes. The bug report about lost reminder times is exactly that race: the calendar window and the bed editor both rewrite reminders.json from their own stale copy.",
+        "",
+        "I looked at three ways to fix it. The first was a file lock around each read-modify-write. That fixes the race but keeps a dozen files with no shared schema, and the lock has to be honoured by every screen, including the two plugins that write their own files. The second was a single JSON document with a version counter and a compare-and-swap on write. That's simpler, but every write still rewrites the whole document, and the document is already over 400 KB for users with large gardens, because the planting history is in it. The third was an embedded database.",
+        "",
+        "For the database I compared SQLite with Postgres. Postgres would need a server running alongside a desktop app, which is a non-starter for something people install with a double-click, so SQLite it was. It ships with Python, handles concurrent readers and serialises writers, and the planting history becomes a table we can query instead of a list we scan.",
+        "",
+        "The schema has four tables: settings (key, value, updated_at), beds, plantings and reminders. Settings that were scattered over small files become rows in the settings table. Beds and plantings keep their current fields. Reminders gain an id so two windows editing different reminders no longer collide at all.",
+        "",
+        "On first launch after the update, the app looks for the old JSON files. If it finds them, it imports each one inside a single transaction, so a crash halfway leaves the old files as the source of truth and the import simply runs again next time. After a successful import the old files are renamed with a .imported suffix rather than deleted, so a user can still recover them by hand if something looks wrong. A later release can delete them.",
+        "",
+        "Every screen now reads and writes through a small store module instead of touching files. The bed editor and the calendar were the two that needed real changes; the others only swapped their load and save calls. The two plugins still write their own files, which I left alone because their format is part of the plugin API, and changing it would break plugins people have written.",
+        "",
+        "Tests: I added tests for the import (a clean import, a partial import after a simulated crash, and an import with a malformed beds.json, which is skipped with a warning), for two stores writing the same reminder, and for two stores writing different reminders. The full suite passes, 212 tests in all, and the import of the large sample garden takes about 0.3 seconds.",
+        "",
+        "Summary: migrated the settings store from JSON files to SQLite, with the old files imported on first launch."
+      ]
+    },
+    "required": [["sqlite"], ["setting*", "store"]],
+    "forbidden": ["postgres", "deleted the old", "213 tests"]
+  },
+  {
+    "id": "finished-code-fence",
+    "traps": ["code block", "names", "numbers"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/chess-clock",
+      "last_assistant_message": [
+        "Fixed the date parser so it accepts ISO week dates:",
+        "",
+        "```python",
+        "def parse_week(text: str) -> date:",
+        "    year, week, day = WEEK_DATE.fullmatch(text).groups()",
+        "    return date.fromisocalendar(int(year), int(week), int(day or 1))",
+        "```",
+        "",
+        "The 6 new cases in test_dates.py cover week 53 and a missing weekday."
+      ]
+    },
+    "required": [["date*", "week*", "pars*"]],
+    "forbidden": ["deployed", "released", "7 new", "week 52"]
+  },
+  {
+    "id": "finished-ends-with-question",
+    "traps": ["names", "question at the end"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/ledger-api",
+      "last_assistant_message": "Split the monolithic `utils.py` into `dates.py`, `money.py` and `text.py`, and updated the imports. Should I also move the tests to match?"
+    },
+    "required": [["split*", "utils"]],
+    "forbidden": ["moved the tests", "deleted"]
+  },
+  {
+    "id": "finished-nothing-changed",
+    "traps": ["names", "no change made"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/weather-app",
+      "last_assistant_message": "I couldn't reproduce the startup crash. The log you shared shows a missing `API_KEY`, so it's likely an environment problem rather than the code. No files were changed."
+    },
+    "required": [["reproduc*", "api_key", "crash*"]],
+    "forbidden": ["fixed the", "fixed a", "added api_key", "set api_key"]
+  },
+  {
+    "id": "finished-markdown-heavy",
+    "traps": ["markdown", "numbers", "names"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/photo-sorter",
+      "last_assistant_message": [
+        "## Summary",
+        "",
+        "**Done.** Added rate limiting to the `/upload` endpoint (5 requests per minute per user), returning `429` with a `Retry-After` header.",
+        "",
+        "### Files",
+        "- `app/limits.py`",
+        "- `app/routes/upload.py`"
+      ]
+    },
+    "required": [["rate limit*", "limit*"]],
+    "forbidden": ["10 requests", "per hour", "503"]
+  },
+  {
+    "id": "finished-commit-push",
+    "traps": ["names", "numbers"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/trail-maps",
+      "last_assistant_message": "Committed the fix as `a1b2c3d` and pushed `fix-login-redirect` to origin. The pull request is #214."
+    },
+    "required": [["commit*", "push*", "pull request"]],
+    "forbidden": ["merged", "#241", "main branch"]
+  },
+  {
+    "id": "finished-upgrade",
+    "traps": ["names", "version numbers"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/recipe-box",
+      "last_assistant_message": "Upgraded React from 18.2 to 19.1, fixed the 7 type errors it caused, and the build is green again."
+    },
+    "required": [["react", "upgrad*"]],
+    "forbidden": ["19.2", "18.1", "8 type errors", "downgrad*"]
+  },
+  {
+    "id": "finished-wordy-preamble",
+    "traps": ["preamble", "names", "numbers"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/ledger-api",
+      "last_assistant_message": "Great question! After digging through the code, I found the slow dashboard load was caused by an N+1 query in `ProjectList`. I added `select_related('owner')`, and the page now makes 3 queries instead of 214."
+    },
+    "required": [["n+1", "quer*", "dashboard", "select_related"]],
+    "forbidden": ["great question", "2 queries", "241"]
+  },
+  {
+    "id": "finished-docs-only",
+    "traps": ["claims not made"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/chess-clock",
+      "last_assistant_message": "Rewrote the README's install section for Homebrew and added a troubleshooting note about the Xcode command-line tools."
+    },
+    "required": [["readme", "install*"]],
+    "forbidden": ["test*", "release*", "apt"]
+  },
+  {
+    "id": "finished-subagents",
+    "traps": ["numbers", "names", "multi-sentence"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/garden-planner",
+      "last_assistant_message": "The three research agents finished. Two found that the flaky test comes from a shared temp directory, so I've made each test use its own `tmp_path`. The third found nothing."
+    },
+    "required": [["flaky", "tmp_path", "temp*"]],
+    "forbidden": ["four agents", "4 agents", "three tests", "3 tests"]
+  },
+  {
+    "id": "finished-stopped-midway",
+    "traps": ["names", "numbers", "partial success"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/invoice-tool",
+      "last_assistant_message": "Started the database migration but stopped: the `orders` table has 12 rows with a null `customer_id`, which the new foreign key rejects. Should I delete them or backfill a placeholder customer?"
+    },
+    "required": [["migrat*", "orders", "customer_id", "null"]],
+    "forbidden": ["migrated the", "completed", "finished the migration", "deleted"]
+  },
+  {
+    "id": "finished-we-pronoun",
+    "traps": ["pronoun", "numbers"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/weather-app",
+      "last_assistant_message": "We now cache the parsed config, so startup is about 40% faster."
+    },
+    "required": [["cach*", "config"]],
+    "forbidden": ["50%", "twice as fast", "4%"]
+  },
+  {
+    "id": "finished-spelled-numbers",
+    "traps": ["numbers in words"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/recipe-box",
+      "last_assistant_message": "Removed the three unused feature flags and the eleven dead code branches they guarded."
+    },
+    "required": [["flag*"]],
+    "forbidden": ["twelve", "12", "four", "added"]
+  }
+]

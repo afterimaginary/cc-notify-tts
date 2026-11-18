@@ -78,6 +78,24 @@ def test_loaded_context_reads_ps(server: tuple[StandIn, Ollama]) -> None:
     assert stand_in.requests[0][:2] == ("GET", "/api/ps")
 
 
+def test_running_returns_the_models_ps_entry(server: tuple[StandIn, Ollama]) -> None:
+    stand_in, client = server
+    entry = {"name": "tiny:1b", "digest": "abc", "size": 10, "size_vram": 8}
+    stand_in.reply = {"models": [entry]}
+    assert client.running("tiny") is None
+    assert client.running("tiny:1b") == entry
+
+
+def test_version(server: tuple[StandIn, Ollama]) -> None:
+    stand_in, client = server
+    stand_in.reply = {"version": "0.40.16"}
+    assert client.version() == "0.40.16"
+    assert stand_in.requests[0][:2] == ("GET", "/api/version")
+    stand_in.reply = {}
+    with pytest.raises(OllamaError, match="no version"):
+        client.version()
+
+
 def test_chat_sends_context_keep_alive_and_no_thinking(server: tuple[StandIn, Ollama]) -> None:
     stand_in, client = server
     stand_in.reply = {"message": {"role": "assistant", "content": "Added backoff."}}

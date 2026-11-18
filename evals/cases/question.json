@@ -1,0 +1,319 @@
+[
+  {
+    "id": "question-retries",
+    "traps": ["numbers in words"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/weather-app",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "Should the retry give up after three attempts or five?",
+            "header": "Retries",
+            "options": [
+              {"label": "Three", "description": "Fail fast"},
+              {"label": "Five", "description": "Ride out short outages"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["retr*", "attempt*", "give up"]],
+    "forbidden": ["four", "ten", "seconds"]
+  },
+  {
+    "id": "question-database",
+    "traps": ["names"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/garden-planner",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "Which database should the prototype use?",
+            "header": "Database",
+            "options": [
+              {"label": "SQLite", "description": "A single file, nothing to run"},
+              {"label": "Postgres", "description": "Matches production later"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["database", "sqlite", "postgres"]],
+    "forbidden": ["mysql", "mongo*"]
+  },
+  {
+    "id": "question-two-questions",
+    "traps": ["several questions"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/ledger-api",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "Should the API return dates as ISO 8601 strings or Unix timestamps?",
+            "header": "Dates",
+            "options": [
+              {"label": "ISO 8601", "description": "Readable, sorts as text"},
+              {"label": "Unix timestamps", "description": "Compact, timezone-free"}
+            ],
+            "multiSelect": false
+          },
+          {
+            "question": "Do you want pagination on the items endpoint?",
+            "header": "Pagination",
+            "options": [
+              {"label": "Yes", "description": "Cursor-based"},
+              {"label": "No", "description": "Return everything"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["date*", "timestamp*", "iso"]],
+    "forbidden": ["8061", "rfc", "graphql"]
+  },
+  {
+    "id": "question-long-context",
+    "traps": ["long input", "names"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/trail-maps",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "The login page redirects to /home after sign-in. The design doc says /dashboard, but the mobile app deep-links to /home, and changing it would break links in emails already sent. Which page should sign-in redirect to by default?",
+            "header": "Redirect",
+            "options": [
+              {"label": "/home", "description": "Keeps existing links working"},
+              {"label": "/dashboard", "description": "Matches the design doc"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["redirect*", "sign in", "login", "log in", "after signing in"]],
+    "forbidden": ["logout", "log out", "/settings"]
+  },
+  {
+    "id": "question-rename",
+    "traps": ["names"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/ledger-api",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "Should I rename `UserService` to `AccountService` everywhere, including the public SDK?",
+            "header": "Rename",
+            "options": [
+              {"label": "Everywhere", "description": "One name, but a breaking SDK change"},
+              {"label": "Internal only", "description": "The SDK keeps UserService"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["renam*", "accountservice"]],
+    "forbidden": ["delete*", "userservices", "accountsservice"]
+  },
+  {
+    "id": "question-shards",
+    "traps": ["numbers"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/photo-sorter",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "The test suite takes 14 minutes. Should I split it into 4 parallel shards or 8?",
+            "header": "Shards",
+            "options": [
+              {"label": "4 shards", "description": "About 4 minutes each"},
+              {"label": "8 shards", "description": "About 2 minutes each, more runners"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["shard*", "parallel", "split"]],
+    "forbidden": ["16", "6 shards", "41 minutes"]
+  },
+  {
+    "id": "question-delete-branches",
+    "traps": ["numbers", "destructive"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/chess-clock",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "Is it okay to delete the 3 stale feature branches on the remote?",
+            "header": "Cleanup",
+            "options": [
+              {"label": "Delete them", "description": "They were merged months ago"},
+              {"label": "Keep them", "description": "Leave the remote as it is"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["branch*"], ["delet*", "remov*"]],
+    "forbidden": ["main", "4 stale", "local branches"]
+  },
+  {
+    "id": "question-chart-library",
+    "traps": ["names", "several options"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/garden-planner",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "Which chart library do you prefer for the harvest dashboard?",
+            "header": "Charts",
+            "options": [
+              {"label": "Recharts", "description": "React components"},
+              {"label": "Chart.js", "description": "Canvas, small"},
+              {"label": "Victory", "description": "Animations built in"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["chart*"]],
+    "forbidden": ["d3", "plotly", "highcharts"]
+  },
+  {
+    "id": "question-multi-select",
+    "traps": ["multiple choice"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/invoice-tool",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "Which environments should get the new logging config?",
+            "header": "Logging",
+            "options": [
+              {"label": "Development", "description": "Local machines"},
+              {"label": "Staging", "description": "The shared test server"},
+              {"label": "Production", "description": "Live traffic"}
+            ],
+            "multiSelect": true
+          }
+        ]
+      }
+    },
+    "required": [["environment*", "logging", "log*"]],
+    "forbidden": ["qa", "testing environment", "all environments"]
+  },
+  {
+    "id": "question-three-questions",
+    "traps": ["several questions"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/recipe-box",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "What should the app be called in the App Store?",
+            "header": "Name",
+            "options": [
+              {"label": "Recipe Box", "description": "The project name"},
+              {"label": "Pantry", "description": "Shorter"}
+            ],
+            "multiSelect": false
+          },
+          {
+            "question": "Which icon set should the tab bar use?",
+            "header": "Icons",
+            "options": [
+              {"label": "SF Symbols", "description": "Native look"},
+              {"label": "Custom", "description": "Drawn to match the brand"}
+            ],
+            "multiSelect": false
+          },
+          {
+            "question": "Should the first release include the meal planner?",
+            "header": "Scope",
+            "options": [
+              {"label": "Yes", "description": "Ship it now"},
+              {"label": "No", "description": "Keep it for 1.1"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["name*", "call*", "app store"]],
+    "forbidden": ["google play", "play store", "price"]
+  },
+  {
+    "id": "question-rounding",
+    "traps": ["long input", "names", "numbers"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/invoice-tool",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "`parse_amount` rounds half-up, but the bank export rounds half-even, so totals differ by a cent on about 1 in 200 invoices. Should I switch our rounding to half-even to match the bank?",
+            "header": "Rounding",
+            "options": [
+              {"label": "Switch to half-even", "description": "Matches the bank exactly"},
+              {"label": "Keep half-up", "description": "Matches invoices already sent"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["round*", "half even"]],
+    "forbidden": ["half down", "1 in 100", "two cents"]
+  },
+  {
+    "id": "question-lead-in",
+    "traps": ["lead-in"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/weather-app",
+      "tool_name": "AskUserQuestion",
+      "tool_input": {
+        "questions": [
+          {
+            "question": "Before I continue: should the migration run automatically on deploy, or as a manual step?",
+            "header": "Migration",
+            "options": [
+              {"label": "On deploy", "description": "Automatic"},
+              {"label": "Manual", "description": "Run it yourself"}
+            ],
+            "multiSelect": false
+          }
+        ]
+      }
+    },
+    "required": [["migration*"]],
+    "forbidden": ["rollback", "roll back", "nightly"]
+  }
+]

@@ -28,12 +28,13 @@ extend-exclude = [".claude"]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 
 [tool.pyright]
-include = ["src", "tests", "hooks"]
+include = ["src", "tests", "hooks", "evals"]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 markers = [
     "integration: slower tests that still need no model, Ollama or audio device; run by verify only",
     "model: needs the downloaded speech model and an audio device; opt-in with `-m model`",
