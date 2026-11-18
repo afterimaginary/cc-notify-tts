@@ -3,6 +3,7 @@
     uv run python -m bench.latency summarize [daemon.log ...] [--since UNIX_SECONDS]
     uv run python -m bench.latency run [--model granite4:micro] [--rounds 30]
     uv run python -m bench.latency afplay [--runs 20]
+    uv run python -m bench.latency gap [--runs 20]
 
 `summarize` reads the daemon's `timing` lines (ADR-0019) and prints p50, p95
 and max per stage. With no file it reads the daemon's own log and its rotated
@@ -25,11 +26,18 @@ is set up, just before playback starts, which bounds how long after the
 `playing` mark sound starts. Its exit time shows how long it lingers after a
 short sound ends.
 
-`run` needs the speech model (`cc-notify-tts setup`) and an audio device, so it's not
-part of `make ready` or `make verify`.
+`gap` speaks sentences back to back, as the speech worker does with queued ones,
+with real Kokoro synthesis but each WAV overwritten by silence of the same length,
+so nothing is heard. It reports the silence between one sentence's sound and the
+next, and its two parts: how long the player held on past the audio, and the next
+sentence's synthesis (ADR-0022).
+
+`run` and `gap` need the speech model (`cc-notify-tts setup`) and an audio device, so
+they're not part of `make ready` or `make verify`.
 """
 
 import argparse
+import itertools
 import json
 import os
 import platform
@@ -40,6 +48,7 @@ import sys
 import tempfile
 import time
 import uuid
+import wave
 from collections.abc import Callable, Iterable, Sequence
 from importlib.metadata import version
 from pathlib import Path
@@ -48,7 +57,7 @@ from typing import Any
 from cc_notify_tts import client
 from cc_notify_tts.models import default_models_dir
 from cc_notify_tts.ollama import Ollama, OllamaError
-from cc_notify_tts.timeline import Span, parse, percentile, summarize
+from cc_notify_tts.timeline import Span, Timeline, parse, percentile, summarize
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURES = REPO / "tests" / "fixtures" / "hooks"
@@ -66,6 +75,13 @@ EVENTS = (
 ROUND_SECONDS = 6.0
 # A turn's prompt comes this long before its permission request.
 THINK_SECONDS = 0.5
+# Spoken back to back by `gap`, at the lengths notifications usually are.
+GAP_SENTENCES = (
+    "Finished in api: the login tests pass now.",
+    "Permission needed in web to run the migration script.",
+    "Background work in api is done.",
+    "Claude has a question for you in docs.",
+)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -83,9 +99,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     r.add_argument("--json", type=Path, help="also write the raw results here")
     a = sub.add_parser("afplay", help="time afplay's start-up and exit on a short sound")
     a.add_argument("--runs", type=int, default=20)
+    g = sub.add_parser("gap", help="time the silence between back-to-back sentences (silent)")
+    g.add_argument("--runs", type=int, default=20)
     args = parser.parse_args(argv)
     if args.command == "afplay":
         return afplay(args.runs)
+    if args.command == "gap":
+        return gap(args.runs)
     if args.command == "summarize":
         logs: list[Path] = args.logs or default_logs()
         records = parse(read_lines(logs))
@@ -304,6 +324,62 @@ def afplay(runs: int) -> int:
     print(f"Machine: {machine()}; afplay on a 50 ms WAV, {runs} runs, ms\n")
     print("| Measure | p50 | p95 | max |\n| - | - | - | - |")
     for name, samples in (("Spawn to last setup line", ready), ("Spawn to exit", exited)):
+        print(
+            f"| {name} | {percentile(samples, 50):.1f} | {percentile(samples, 95):.1f} | "
+            f"{max(samples):.1f} |"
+        )
+    return 0
+
+
+class SilencedSynthesizer:
+    """Kokoro's real synthesis, with the WAV then overwritten by silence of the same
+    length, so playback takes exactly as long but nothing is heard."""
+
+    def __init__(self) -> None:
+        from cc_notify_tts.speech import KokoroSynthesizer
+
+        self._kokoro = KokoroSynthesizer()
+
+    def synthesize(self, text: str, voice: str, wav: Path) -> None:
+        import numpy as np
+
+        from cc_notify_tts.speech import write_wav
+
+        self._kokoro.synthesize(text, voice, wav)
+        with wave.open(str(wav), "rb") as spoken:
+            frames, rate = spoken.getnframes(), spoken.getframerate()
+        write_wav(wav, np.zeros(frames, dtype=np.float32), rate)
+
+
+def gap(runs: int) -> int:
+    """Time the silence between sentences spoken back to back, as queued ones are."""
+    from cc_notify_tts.speech import AfplayPlayer, Speaker
+
+    speaker = Speaker(SilencedSynthesizer(), AfplayPlayer())
+    timelines: list[Timeline] = []
+    for i in range(runs + 1):
+        timeline = Timeline("gap", "bench")
+        speaker.speak(GAP_SENTENCES[i % len(GAP_SENTENCES)], timeline=timeline)
+        timelines.append(timeline)
+    # Each sentence's sound starts the same afplay start-up after its `playing` mark,
+    # so the silence between two is the second's `playing` less the first's
+    # `playing` and audio. The parts of it: the first's `playing` to `ended` less
+    # its audio, then the second's synthesis.
+    silence: list[float] = []
+    held: list[float] = []
+    synthesis: list[float] = []
+    for first, second in itertools.pairwise(timelines):
+        audio = first.audio_seconds or 0.0
+        silence.append((second.marks["playing"] - first.marks["playing"] - audio) * 1000)
+        held.append((first.marks["ended"] - first.marks["playing"] - audio) * 1000)
+        synthesis.append((second.marks["synthesized"] - first.marks["ended"]) * 1000)
+    print(f"Machine: {machine()}; {runs} back-to-back pairs, silent playback, ms\n")
+    print("| Measure | p50 | p95 | max |\n| - | - | - | - |")
+    for name, samples in (
+        ("Silence between sentences", silence),
+        ("Player held past the audio", held),
+        ("Next sentence's synthesis", synthesis),
+    ):
         print(
             f"| {name} | {percentile(samples, 50):.1f} | {percentile(samples, 95):.1f} | "
             f"{max(samples):.1f} |"
