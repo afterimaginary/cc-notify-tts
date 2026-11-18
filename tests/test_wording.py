@@ -8,7 +8,7 @@ import pytest
 
 from cc_notify_tts.events import EventKind, Notification, classify
 from cc_notify_tts.sessions import BackgroundItem, SessionStore
-from cc_notify_tts.wording import Wording, describe_action, project_name, word
+from cc_notify_tts.wording import Wording, describe_action, failing_tests, project_name, word
 
 FIXTURES = Path(__file__).parent / "fixtures" / "hooks"
 SESSION = "5f0c2d1e-8a7b-4c3d-9e2f-1a2b3c4d5e6f"
@@ -291,3 +291,69 @@ def test_model_detail_replaces_the_template_detail() -> None:
     )
     finished = word(note(EventKind.FINISHED, fixture("stop")))
     assert finished.text("fixed the retry.") == "Finished up in weather app. Fixed the retry."
+
+
+# --- a turn that ends with tests failing (ADR-0021) ------------------------------
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Updated the importer, but 2 of the 31 tests still fail: test_a and test_b.",
+        "Three tests in test_slots.py still fail because they expect UTC.",
+        "Added the endpoint, but its tests aren't passing yet.",
+        "The tests are still failing on CI.",
+        "Test run: 2 failed, 41 passed.",
+        "Two integration tests fail on the new schema.",
+        "Some failing tests remain in the parser.",
+        "Refactored the module.\n\n- test_refund still fails",
+    ],
+)
+def test_failing_tests_are_found(message: str) -> None:
+    assert failing_tests(message) is not None
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Added backoff and two tests for the retry path.",
+        "Fixed the 2 failing tests in test_parser.py; all 33 tests pass now.",
+        "The two upload tests that were still failing now pass.",
+        "The flaky test no longer fails.",
+        "The integration suite finished: 112 passed, 0 failed.",
+        "Fixed the bug that made tests fail on CI.",
+    ],
+)
+def test_passing_tests_arent_failing(message: str) -> None:
+    assert failing_tests(message) is None
+
+
+def finished_text(message: str) -> str:
+    return word(note(EventKind.FINISHED, {"last_assistant_message": message})).text()
+
+
+def test_failing_tests_already_in_the_first_sentence_stay_as_they_are() -> None:
+    assert finished_text("Updated the importer, but 2 tests still fail. More later.") == (
+        "Finished up in weather app. Updated the importer, but 2 tests still fail."
+    )
+
+
+def test_failing_tests_in_a_later_sentence_are_added() -> None:
+    assert finished_text("Fixed the timezone handling. Three tests still fail. Sorry.") == (
+        "Finished up in weather app. Fixed the timezone handling. Three tests still fail."
+    )
+
+
+def test_failing_tests_are_spoken_alone_when_both_dont_fit() -> None:
+    message = (
+        "Rewrote the calendar slot generator so that bookings across daylight saving changes"
+        " land on the right local hour every time. Test run: 2 failed, 41 passed."
+    )
+    assert finished_text(message) == "Finished up in weather app. Test run: 2 failed, 41 passed."
+
+
+def test_failing_tests_are_spoken_after_a_lead_in() -> None:
+    message = "Here's where things stand:\n\n- Moved the retry logic\n- 2 tests still fail"
+    assert finished_text(message) == (
+        "Finished up in weather app. Moved the retry logic. 2 tests still fail."
+    )

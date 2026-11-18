@@ -272,6 +272,52 @@ def test_question_detail_ends_in_a_question_mark() -> None:
     )
 
 
+# --- a turn that ends with tests failing (ADR-0021) --------------------------------
+
+TESTS_FAIL = note(
+    EventKind.FINISHED,
+    {
+        "last_assistant_message": (
+            "Updated the CSV importer to handle quoted commas, but 2 of the 31 tests still"
+            " fail: test_empty_rows and test_bom_header. I haven't touched those yet."
+        )
+    },
+)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Updated the CSV importer to handle quoted commas.",
+        "Fixed the CSV importer and its tests.",
+    ],
+)
+def test_success_is_rejected_when_tests_still_fail(raw: str) -> None:
+    request = request_for(TESTS_FAIL)
+    assert request is not None
+    checked = guard(raw, request, word(TESTS_FAIL), PROJECT)
+    assert checked.detail is None
+    assert checked.reason == "leaves out that tests still fail"
+    # The template is spoken instead, and it says so too.
+    assert "2 of the 31 tests still fail" in word(TESTS_FAIL).text(checked.detail)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "Updated the CSV importer; 2 tests still fail.",
+        "Handled quoted commas in the CSV importer, but 2 tests are failing.",
+        "Updated the CSV importer, but 2 tests aren't passing.",
+    ],
+)
+def test_wording_that_admits_the_failure_is_spoken(raw: str) -> None:
+    assert detail(raw, TESTS_FAIL) is not None
+
+
+def test_a_turn_without_failing_tests_isnt_checked_for_them() -> None:
+    assert detail("Added backoff to the fetcher.") == "Added backoff to the fetcher."
+
+
 # --- write_detail: asking Ollama, and each fallback ---------------------------------
 
 

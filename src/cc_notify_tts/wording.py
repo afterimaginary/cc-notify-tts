@@ -56,6 +56,25 @@ _SENTENCE = re.compile(r"(.+?[.!?])(?=\s|$)")
 _URL = re.compile(r"\b([a-z][a-z0-9+.-]*://[^\s)>\]]*?)([.,;:!?]*)(?=[\s)>\]]|$)")
 _PATH = re.compile(r"(?<![\w/])(?:~|\.{1,2})?/(?:[\w.-]+/)*([\w.-]+?)([.,;:!?]*)(?=\s|$)")
 _CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+# Any sentence of a one-line text, the last one with or without an end mark.
+_SENTENCES = re.compile(r"\S.*?(?:[.!?](?=\s|$)|$)")
+# A sentence saying tests are failing as the turn ends (ADR-0021): "2 of the 31
+# tests still fail", "the tests aren't passing yet", "3 failed, 40 passed".
+_COUNT = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|some|several|a few)"
+_TESTS = r"(?:tests?|specs?)"
+_TESTS_FAILING = re.compile(
+    r"\bstill\s+(?:fail\w*|broken)\b"
+    rf"|\b{_TESTS}\s+(?:are|is|remain)\s+(?:still\s+)?failing\b"
+    rf"|\b{_TESTS}\s+(?:do|does|are|is)\s*(?:not|n't)\s+(?:yet\s+)?pass"
+    rf"|\b{_COUNT}\s+(?:of\s+(?:the\s+)?\d+\s+)?(?:\w+\s+)?{_TESTS}\s+(?:are\s+)?fail(?:s|ed|ing)?\b"
+    r"|\b[1-9]\d*\s+failed\b"
+    r"|\b(?:failing\s+tests?|test\s+failures?)\s+remains?\b",
+    re.IGNORECASE,
+)
+# ...unless the same sentence says the failure is over ("no longer fails", "now pass").
+_FAILURE_OVER = re.compile(r"\bno\s+longer\b|\bnow\b[^.!?]*\bpass", re.IGNORECASE)
+# A detail that admits a failure, in any words a model or a message might use.
+_ADMITS_FAILURE = re.compile(r"\bfail|\bbroken\b|(?:\bnot|n't)\s+(?:yet\s+)?pass", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -169,15 +188,42 @@ def describe_action(payload: Mapping[str, Any]) -> str:
 
 
 def _message_detail(payload: Mapping[str, Any]) -> str | None:
-    """The first sentence of the turn's last message, cleaned up for speech."""
-    text = plain(_opening(_text(payload, "last_assistant_message")))
-    if not text:
-        return None
-    sentence = first_sentence(text)
+    """The first sentence of the turn's last message, cleaned up for speech.
+
+    If the message says tests still fail and that sentence doesn't, the
+    sentence that does is added, or spoken alone if both don't fit.
+    """
+    message = _text(payload, "last_assistant_message")
+    text = plain(_opening(message))
+    sentence = first_sentence(text) if text else ""
     # A lead-in to a list ("Here's what changed:") says nothing on its own.
-    if sentence.rstrip().endswith(":"):
-        return None
-    return end_sentence(_cap_words(sentence, MESSAGE_WORDS))
+    detail = (
+        end_sentence(_cap_words(sentence, MESSAGE_WORDS))
+        if sentence and not sentence.rstrip().endswith(":")
+        else None
+    )
+    failing = failing_tests(message)
+    if failing is None or (detail is not None and admits_failure(detail)):
+        return detail
+    failing = end_sentence(_cap_words(failing, MESSAGE_WORDS))
+    if detail is not None and len(detail.split()) + len(failing.split()) <= MESSAGE_WORDS:
+        return f"{detail} {capitalize(failing)}"
+    return capitalize(failing)
+
+
+def failing_tests(message: str) -> str | None:
+    """The first sentence of a message that says tests are still failing, if any."""
+    # Line by line, so a list item or heading isn't run into the next one.
+    for line in _CODE_FENCE.sub("\n", message).splitlines():
+        for sentence in _SENTENCES.findall(plain(line)):
+            if _TESTS_FAILING.search(sentence) and not _FAILURE_OVER.search(sentence):
+                return sentence.rstrip(",;: ")
+    return None
+
+
+def admits_failure(text: str) -> bool:
+    """Whether a detail says something failed or isn't passing."""
+    return _ADMITS_FAILURE.search(text) is not None
 
 
 def _opening(message: str) -> str:
