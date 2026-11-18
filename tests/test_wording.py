@@ -339,6 +339,27 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
             "Here are two options:\n\nKeep the cache or drop it.",
             "Here are two options: keep the cache or drop it.",
         ),
+        # A label naming each option counts as the first option, like a list item.
+        (
+            "Here are two options:\n\n**Option A: Keep the cache**\nThis is faster.\n\n"
+            "**Option B: Drop it**\nThis is safer.",
+            "Here are two options: keep the cache.",
+        ),
+        ("Two options:\n\n### Option 1: keep the cache\nFaster.", "Two options: keep the cache."),
+        (
+            "Here are two ways to fix it:\n\n### Option A (recommended) - Retry the request\n"
+            "Cheap.\n\n### Option B - Raise the timeout\nSafer.",
+            "Here are two ways to fix it: retry the request.",
+        ),
+        # Without a lead-in to a choice, the label is spoken whole, so it's still heard as one.
+        ("### Option 1: Keep the cache\nFaster.", "Option 1: Keep the cache."),
+        (
+            "Here's what I'd suggest:\n\n**Option A — keep the cache**\nThis is faster.",
+            "Option A — keep the cache.",
+        ),
+        # A label that names an option without saying what it is stays a label.
+        ("**Option A**\nKeep the cache, it's faster.", "Keep the cache, it's faster."),
+        ("## Optional: cleanup\n\nRemoved the old flag.", "Removed the old flag."),
         # A long one is left out, so the option isn't cut off.
         (
             "Looking at how the cache behaves under load and what the logs show, "
