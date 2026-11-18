@@ -6,7 +6,7 @@
 
 Milestones 1 and 2 are built: on templates alone, the plugin's hooks reach a local daemon that classifies each event, decides whether to speak from the config and live presence, words it and speaks it with Kokoro, and the README covers install, `status`, `fire`, mute and uninstall. An end-to-end test runs the real hook commands, shim and daemon (with fake speech and presence) through a whole session in `verify`. Ollama wording with guards (ADR-0015) and the wording eval (ADR-0016) are in, and ten models were compared on it: `granite4:micro` is the default wording model, with `phi4-mini:3.8b` the runner-up (ADR-0018). Every event's stages are now logged and measured: the first sound comes about 0.75 s after the hook with templates and 1.0 s with `granite4:micro` (p95), and hooks stay under 60 ms p95 (ADR-0019). A turn that ends with failing tests is never worded as a success, whichever model writes it (ADR-0021). A scripted demo video, rebuilt by `make demo`, shows it working (ADR-0020), and the README carries the eval and latency evidence, how the project was built, its limitations and a roadmap. The brief's acceptance checks were run from a clean install in real sessions and pass wherever a worker could run them, some in a stand-in form (ADR-0025); what's left is the owner's steps in that record and the launch.
 
-How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured results and decisions are ADR-0001 to ADR-0023, ADR-0025 and ADR-0026 in [docs/decisions/](docs/decisions/).
+How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured results and decisions are ADR-0001 to ADR-0023, ADR-0025, ADR-0026 and ADR-0030 in [docs/decisions/](docs/decisions/).
 
 ## Features
 
@@ -22,6 +22,7 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured
 
 ## Recently Done
 
+- A detached tmux session no longer keeps the host app it was last attached from: the shim sends the host as unknown and the daemon clears it, so the gate speaks (ADR-0030) (#47)
 - Version 0.1.0 with release notes in `CHANGELOG.md`, the run's numbers in the README's "How this was built", and the repo's description, website and topics set; the plugin manifests stay unversioned (ADR-0014) (#23)
 - MVP acceptance run on a real install: the three install commands, spoken turns and permission requests, the gate and the hook targets pass, and `make eval` matches for the two models run; the daemon now logs each sentence it queues (ADR-0025) (#24)
 - A turn that ends with failing tests is never spoken as a success: a guard rejects model wording that leaves the failure out, and the template adds it; five eval cases, ten models measured before and after (ADR-0021) (#53)

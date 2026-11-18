@@ -119,7 +119,7 @@ def test_every_fixture_reaches_the_daemon_which_the_first_hook_starts(home: Home
         assert before <= sent["fired_at"] <= time.time()
         if payload["hook_event_name"] == "SessionStart":
             # Named from the test's own ancestry or environment; may be unknown in CI.
-            host = sent.get("host_app")
+            host = sent["host_app"]
             assert host is None or (isinstance(host, str) and host)
         else:
             assert "host_app" not in sent
@@ -135,12 +135,15 @@ def test_every_fixture_reaches_the_daemon_which_the_first_hook_starts(home: Home
 
 def test_hooks_inside_tmux_name_the_host_on_announcing_events(home: Home) -> None:
     home.install()
-    # No tmux client answers for this pane, so the host is unknown and not sent,
-    # and nothing from the environment is trusted in its place.
+    # No tmux client answers for this pane, as in a detached session, so the host
+    # goes out as unknown, and nothing from the environment is trusted in its place.
     tmux = {"TMUX": "/tmp/none,1,0", "TMUX_PANE": "%999", "__CFBundleIdentifier": "x.y"}
-    done = home.run_hook("SessionStart", (FIXTURES / "session_start.json").read_bytes(), **tmux)
-    assert done.returncode == 0
-    assert "host_app" not in home.requests()[-1]
+    for hook, fixture in [("SessionStart", "session_start"), ("Stop", "stop")]:
+        done = home.run_hook(hook, (FIXTURES / f"{fixture}.json").read_bytes(), **tmux)
+        assert done.returncode == 0
+        sent = home.requests()[-1]
+        assert "host_app" in sent
+        assert sent["host_app"] is None
 
 
 def test_running_daemon_is_reused(home: Home) -> None:
