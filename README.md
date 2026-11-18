@@ -166,7 +166,7 @@ The work started from a short [brief](docs/brief.md) and ran in four milestones.
 
 Orchestral turned the brief into GitHub issues and ran up to three Claude Code workers at once, each on its own branch and worktree. Every PR was checked against its issue's acceptance criteria by a reviewer agent that hadn't written it, and had to pass `make verify` (ruff, strict pyright, and the unit and end-to-end tests) in CI before it merged. Every measured result and design choice is recorded in [docs/decisions/](docs/decisions/).
 
-The run, as of the v0.1.0 release:
+The run up to the v0.1.0 release, not counting the release's own issue and pull request:
 
 | | |
 | --- | --- |

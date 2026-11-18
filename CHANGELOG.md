@@ -14,7 +14,7 @@ The first release: Claude Code speaks one sentence about what it finished or wha
 - **Optional local wording** by an Ollama model, `granite4:micro` by default, with guards that reject names and numbers not in Claude's reply and fall back to built-in templates. A turn that ends with failing tests is never worded as a success (ADR-0015, ADR-0018, ADR-0021).
 - **Claude Code plugin** with seven async hooks and a standard-library hook shim, installed from the repository's own marketplace (ADR-0014).
 - **CLI:** `setup`, `status`, `fire`, `mute`/`unmute` and `doctor` (ADR-0011, ADR-0017).
-- **`make eval`:** a reproducible eval of local wording models over 48 hand-written cases; ten models compared (ADR-0016, ADR-0018).
+- **`make eval`:** a reproducible eval of local wording models over 53 hand-written cases; ten models compared (ADR-0016, ADR-0018).
 - **Measured latency:** a `timing` line per event in `daemon.log` and `bench.latency`. The first sound comes 0.74 s after the hook with templates and 0.99 s with `granite4:micro` (p95), and hooks stay under 60 ms p95 (ADR-0019, ADR-0022).
 - **`make demo`:** a scripted demo video with real speech, rebuilt from scratch; the full cut is attached to this release (ADR-0020).
 
