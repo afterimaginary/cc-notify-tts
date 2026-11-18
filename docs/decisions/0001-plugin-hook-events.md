@@ -67,7 +67,7 @@ Consequences for the presence design: `__CFBundleIdentifier` is the most direct 
 
 ## Decision
 
-The owner approved this hook list as proposed. The desktop-app check stays a manual follow-up (steps below).
+The hook list was approved as proposed. The desktop-app check is a manual check not yet run (steps below, #89).
 
 Register these events in the plugin's `hooks/hooks.json`, every handler `async: true`:
 
@@ -92,9 +92,9 @@ Not registered:
 
 - "Background work done" depends on Claude Code waking the main agent when background work finishes. It did for both a background agent and a background shell command. If a future version stops doing that, `SubagentStop` would be the fallback for agents, and shell commands would have no signal at all.
 - A denial the user makes by answering "No", or that a deny rule makes, is silent. That's acceptable: the user was there to answer, or chose the rule.
-- `PermissionDenied` and the whole desktop app are untested. The owner's run below confirms them; if it shows a gap, the hook list is revisited in a new decision.
+- `PermissionDenied` and the whole desktop app are untested. The manual checks below confirm them (#89); if it shows a gap, the hook list is revisited in a new decision.
 
-## Owner steps for what's untested
+## Manual checks not yet run (#89)
 
 The log holds real prompts and paths, so it stays on your machine; paste only the summary.
 
@@ -111,7 +111,7 @@ The log holds real prompts and paths, so it stays on your machine; paste only th
    - In plan mode: "Plan adding a README line saying hello." Leave the plan waiting for approval for a few seconds, then reject it.
    - Switch the model to one that doesn't exist (`/model claude-nonexistent`) and send any prompt.
    - Close the session.
-5. `python3 <repo>/spikes/hook-logger/summarize.py` and paste the output on the issue.
+5. `python3 <repo>/spikes/hook-logger/summarize.py` and paste the output on #89.
 6. Clean up: `claude plugin uninstall cc-notify-tts-hook-logger@cc-notify-tts-spikes`, `claude plugin marketplace remove cc-notify-tts-spikes`, and delete `~/Library/Logs/cc-notify-tts-spike`.
 
 **A terminal without tmux:** in Terminal or iTerm2, run `claude --plugin-dir <repo>/spikes/hook-logger`, send one prompt, `/exit`, then run `summarize.py` and paste its "Host environment" lines.

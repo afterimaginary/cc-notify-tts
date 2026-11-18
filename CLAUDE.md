@@ -4,7 +4,7 @@ Configurable, summarized voice notifications for Claude Code on macOS: a Claude 
 
 ## Verification
 
-- Before `/refine`: `make ready`
+- Before asking for a review: `make ready`
 - The full suite, `make verify`, runs as the PR's required `verify` check. Do not run it locally unless you are changing it or reproducing a failure.
 
 ## Project notes
