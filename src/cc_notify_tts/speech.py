@@ -29,6 +29,21 @@ AFPLAY = "/usr/bin/afplay"
 AFPLAY_START_SECONDS = 0.15
 
 
+def _not_a_word_count_mismatch(record: logging.LogRecord) -> bool:
+    """Drop phonemizer's word count warning, which Kokoro has no use for (ADR-0034).
+
+    espeak reads numbers and codes out as several words, so phonemizer's check
+    that its output has as many words as its input fails for sentences like
+    "landed as e942277". The check only matters to callers that align words, and
+    Kokoro doesn't. Every other phonemizer message still reaches the log.
+    """
+    return not record.getMessage().startswith("words count mismatch")
+
+
+# phonemizer logs the warning on its own top-level logger, which a filter there sees.
+logging.getLogger("phonemizer").addFilter(_not_a_word_count_mismatch)
+
+
 class Synthesizer(Protocol):
     def synthesize(self, text: str, voice: str, wav: Path) -> None:
         """Write `text`, spoken in `voice`, to `wav`. Returns once the file is complete."""
