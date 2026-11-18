@@ -1,6 +1,6 @@
 # Spike: on-demand daemon lifetime and scheduling priority
 
-Answers two questions behind ADR-0001. Does a process started from a Claude Code hook outlive the hook, the session and the window it ran in? And does it get scheduled like a LaunchAgent with `ProcessType` Interactive, or like a throttled one?
+Answers two questions behind ADR-0002. Does a process started from a Claude Code hook outlive the hook, the session and the window it ran in? And does it get scheduled like a LaunchAgent with `ProcessType` Interactive, or like a throttled one?
 
 | File | What it does |
 | --- | --- |

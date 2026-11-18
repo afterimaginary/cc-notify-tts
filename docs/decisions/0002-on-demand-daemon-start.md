@@ -3,7 +3,7 @@ description: The hook shim starts the daemon on demand as a detached process; no
 status: accepted
 ---
 
-# ADR-0001: Start the daemon on demand from a hook
+# ADR-0002: Start the daemon on demand from a hook
 
 ## Context
 

@@ -4,7 +4,7 @@
 
 ## Where We Are
 
-The repository is set up: brief, build policy, Python toolchain, `make ready` / `make verify` and the `verify` check. No product code yet; milestone 1 (proving the risky parts) is under way. Hook coverage is measured in the CLI (ADR-0001) and synthetic payload fixtures are in `tests/fixtures/hooks/`.
+The repository is set up: brief, build policy, Python toolchain, `make ready` / `make verify` and the `verify` check. No product code yet; milestone 1 (proving the risky parts) is under way. Hook coverage is measured in the CLI (ADR-0001) and synthetic payload fixtures are in `tests/fixtures/hooks/`. The daemon will start on demand from the hook (ADR-0002).
 
 ## Features
 
@@ -16,7 +16,7 @@ The repository is set up: brief, build policy, Python toolchain, `make ready` / 
 
 ## Recently Done
 
-- Spike: a daemon started from a hook outlives its session and runs at foreground priority, so it starts on demand (ADR-0001) (#3)
+- Spike: a daemon started from a hook outlives its session and runs at foreground priority, so it starts on demand (ADR-0002) (#3)
 - Repository setup
 
 ## Up Next
@@ -25,7 +25,7 @@ The repository is set up: brief, build policy, Python toolchain, `make ready` / 
 
 ## Needs Your Decision
 
-- Run ADR-0001's desktop-app steps when convenient; the hook list itself is approved.
+- Run the desktop-app steps of ADR-0001 and ADR-0002 (spike README) when convenient; the hook list itself is approved.
 
 ## Notes
 
