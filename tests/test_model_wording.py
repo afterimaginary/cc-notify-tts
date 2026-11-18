@@ -336,6 +336,29 @@ def test_a_fixed_failure_isnt_admitting_the_one_left(raw: str) -> None:
     assert detail("Fixed the auth tests; 2 billing tests still fail.", n) is not None
 
 
+@pytest.mark.parametrize(
+    ("raw", "spoken_"),
+    [
+        ("Fixed the broken import in the CLI.", False),
+        ("Added retry on upload failure.", False),
+        ("Fixed the broken import; tests failed on the fixture.", True),
+        ("Fixed the CLI import, but the suite is still broken.", True),
+        ("Flagged failing tests in the CLI.", True),
+    ],
+)
+def test_only_a_failure_about_tests_admits_one(raw: str, spoken_: bool) -> None:
+    n = note(
+        EventKind.FINISHED,
+        {
+            "last_assistant_message": (
+                "Fixed the broken import in the CLI and added retry on upload failure."
+                " 2 tests still fail on the fixture."
+            )
+        },
+    )
+    assert (detail(raw, n) is not None) is spoken_
+
+
 def test_a_turn_without_failing_tests_isnt_checked_for_them() -> None:
     assert detail("Added backoff to the fetcher.") == "Added backoff to the fetcher."
 

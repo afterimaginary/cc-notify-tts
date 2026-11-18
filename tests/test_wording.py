@@ -355,6 +355,15 @@ def test_a_fixed_failure_doesnt_count_as_admitting_one() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "first", ["Fixed the broken import in the CLI.", "Added retry on upload failure."]
+)
+def test_a_failure_thats_not_about_tests_doesnt_count_as_admitting_one(first: str) -> None:
+    assert finished_text(f"{first} 2 tests still fail on the fixture.") == (
+        f"Finished up in weather app. {first} 2 tests still fail on the fixture."
+    )
+
+
 def test_failing_tests_are_spoken_alone_when_both_dont_fit() -> None:
     message = (
         "Rewrote the calendar slot generator so that bookings across daylight saving changes"

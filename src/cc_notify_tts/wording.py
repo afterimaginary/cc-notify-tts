@@ -75,8 +75,17 @@ _TESTS_FAILING = re.compile(
 # Checked clause by clause, so "31 now pass, but 2 still fail" still counts.
 _FAILURE_OVER = re.compile(r"\bno\s+longer\b|\bnow\b.*\bpass", re.IGNORECASE)
 _CLAUSES = re.compile(r"[;,]|\s(?:but|although|though|while|whereas)\s", re.IGNORECASE)
-# A detail that admits a failure, in any words a model or a message might use...
-_ADMITS_FAILURE = re.compile(r"\bfail|\bbroken\b|(?:\bnot|n't)\s+(?:yet\s+)?pass", re.IGNORECASE)
+# A detail that admits tests are failing: a fail word near "tests" (either way round),
+# "still fail" or "not passing". A fail word about anything else ("Fixed the broken
+# import") doesn't count...
+_CHECKS = r"(?:tests?|specs?|suite|ci|build|checks?)"
+_ADMITS_FAILURE = re.compile(
+    rf"\b{_CHECKS}\b(?:\W+\w+){{0,4}}?\W+(?:fail\w*|broken|red)\b"
+    rf"|\bfail\w*\W+(?:\w+\W+){{0,2}}?{_CHECKS}\b"
+    r"|\bstill\s+fail"
+    r"|(?:\bnot|n't)\s+(?:yet\s+)?pass",
+    re.IGNORECASE,
+)
 # ...other than a failure that was fixed ("Fixed the failing auth tests").
 _FIXED_FAILURE = re.compile(
     r"\b(?:fix|resolv|repair)\w*\s+(?:[\w'-]+\s+){0,3}?fail\w*", re.IGNORECASE
