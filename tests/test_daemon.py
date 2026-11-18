@@ -1,6 +1,7 @@
 """Requests the daemon accepts and rejects, without a socket."""
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -13,12 +14,13 @@ from cc_notify_tts.daemon import Daemon, Paths
 from cc_notify_tts.mute import MuteFile
 from cc_notify_tts.queues import Received, Utterance
 from cc_notify_tts.sessions import SessionState, SessionStore
+from cc_notify_tts.timeline import Timeline, parse
 
 NOW = 1_000_000.0
 
 
 class NoSpeaker:
-    def speak(self, text: str, voice: str) -> bool:
+    def speak(self, text: str, voice: str, timeline: Timeline) -> bool:
         raise AssertionError("not used")
 
 
@@ -67,13 +69,36 @@ def test_event_is_queued_with_its_hook_time_and_host(daemon: Daemon) -> None:
     payload = {"session_id": "s1", "hook_event_name": "Stop"}
     message = {"type": "event", "fired_at": NOW - 2, "host_app": "com.apple.Terminal"}
     assert send(daemon, {**message, "payload": payload}) == {"ok": True}
-    assert queued(daemon) == Received(payload, NOW - 2, "com.apple.Terminal")
+    assert queued(daemon) == Received(
+        payload, NOW - 2, "com.apple.Terminal", Timeline("Stop", "s1")
+    )
+
+
+def test_event_timeline_has_the_shim_marks_and_arrival(daemon: Daemon) -> None:
+    payload = {"session_id": "s1", "hook_event_name": "Stop"}
+    send(daemon, {"type": "event", "fired_at": NOW - 2, "sent_at": NOW - 1, "payload": payload})
+    timeline = queued(daemon).timeline
+    assert (timeline.hook, timeline.session_id) == ("Stop", "s1")
+    assert timeline.marks == {"hook": NOW - 2, "sent": NOW - 1, "received": NOW}
+
+
+@pytest.mark.parametrize(("sent_at", "logged"), [("soon", NOW), (NOW + 60, NOW), (True, NOW)])
+def test_bad_or_future_send_time_is_arrival_time(
+    daemon: Daemon, sent_at: Any, logged: float
+) -> None:
+    send(daemon, {"type": "event", "fired_at": NOW - 2, "sent_at": sent_at, "payload": {}})
+    assert queued(daemon).timeline.marks["sent"] == logged
+
+
+def test_event_without_send_time_has_no_sent_mark(daemon: Daemon) -> None:
+    send(daemon, {"type": "event", "fired_at": NOW - 2, "payload": {}})
+    assert "sent" not in queued(daemon).timeline.marks
 
 
 @pytest.mark.parametrize("fired_at", [None, "soon", NOW + 60])
 def test_missing_or_future_hook_time_is_arrival_time(daemon: Daemon, fired_at: Any) -> None:
     send(daemon, {"type": "event", "fired_at": fired_at, "host_app": "", "payload": {}})
-    assert queued(daemon) == Received({}, NOW, None)
+    assert queued(daemon) == Received({}, NOW, None, Timeline("?", ""))
 
 
 def test_status_before_any_session(daemon: Daemon) -> None:
@@ -117,7 +142,7 @@ def worded(tmp_path: Path, ollama: FakeOllama, config_text: str = "") -> tuple[D
     paths = Paths(tmp_path / "d.sock", tmp_path / "state", config)
     daemon = Daemon(paths, NoSpeaker, follow_front=False, clock=lambda: NOW, ollama=ollama)
     payload = json.loads((FIXTURES / "stop.json").read_text())
-    daemon._handle_event(Received(payload, NOW, None))  # pyright: ignore[reportPrivateUsage]
+    daemon._handle_event(Received(payload, NOW, None, Timeline("Stop", "s1")))  # pyright: ignore[reportPrivateUsage]
     _, pending = daemon._slot.snapshot()  # pyright: ignore[reportPrivateUsage]
     return daemon, pending.text if pending else None
 
@@ -147,11 +172,49 @@ def test_model_kept_warm_while_a_session_is_open_and_unloaded_after(tmp_path: Pa
     daemon, _ = worded(tmp_path, ollama, '[wording]\nmodel = "tiny:1b"\n')
     daemon._update_keep_warm()  # pyright: ignore[reportPrivateUsage]
     end = json.loads((FIXTURES / "session_end.json").read_text())
-    daemon._handle_event(Received(end, NOW, None))  # pyright: ignore[reportPrivateUsage]
+    daemon._handle_event(Received(end, NOW, None, Timeline("SessionEnd", "s1")))  # pyright: ignore[reportPrivateUsage]
     daemon._update_keep_warm()  # pyright: ignore[reportPrivateUsage]
     assert daemon._keep_warm is not None  # pyright: ignore[reportPrivateUsage]
     daemon._keep_warm.close()  # pyright: ignore[reportPrivateUsage]
     assert ollama.calls == [("chat", "tiny:1b"), ("load", "tiny:1b"), ("unload", "tiny:1b")]
+
+
+def test_queued_sentence_carries_the_event_timeline(tmp_path: Path) -> None:
+    daemon, _ = worded(tmp_path, FakeOllama("Added backoff to the forecast fetcher."))
+    _, pending = daemon._slot.snapshot()  # pyright: ignore[reportPrivateUsage]
+    assert pending is not None
+    assert pending.timeline.kind == "finished"
+    assert list(pending.timeline.marks) == ["dequeued", "gated", "worded"]
+
+
+def timing_outcomes(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [r["outcome"] for r in parse(caplog.messages)]
+
+
+def test_silenced_and_unannounced_events_log_their_timeline(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    config = tmp_path / "config.toml"
+    config.write_text('[events.finished]\nspeak = "never"\n')
+    paths = Paths(tmp_path / "d.sock", tmp_path / "state", config)
+    daemon = Daemon(paths, NoSpeaker, follow_front=False, clock=lambda: NOW)
+    prompt = json.loads((FIXTURES / "user_prompt_submit.json").read_text())
+    stop = json.loads((FIXTURES / "stop.json").read_text())
+    with caplog.at_level(logging.INFO):
+        for payload in (prompt, stop):
+            timeline = Timeline(payload["hook_event_name"], payload["session_id"])
+            daemon._handle_event(Received(payload, NOW, None, timeline))  # pyright: ignore[reportPrivateUsage]
+    assert timing_outcomes(caplog) == ["no notification", "silenced"]
+
+
+def test_replaced_sentence_logs_its_timeline(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    daemon, _ = worded(tmp_path, FakeOllama("Added backoff to the forecast fetcher."))
+    with caplog.at_level(logging.INFO):
+        send(daemon, {"type": "fire", "event": "failed", "always": True})
+    [record] = parse(caplog.messages)
+    assert (record["hook"], record["kind"], record["outcome"]) == ("Stop", "finished", "replaced")
 
 
 # --- fire -------------------------------------------------------------------------

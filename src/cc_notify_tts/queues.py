@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from cc_notify_tts.events import EventKind
+from cc_notify_tts.timeline import Timeline
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,8 @@ class Received:
     # Wall-clock time the hook fired, from the shim, or arrival time if it sent none.
     fired_at: float
     host_app: str | None
+    # Its stage marks, logged when it's done (ADR-0019).
+    timeline: Timeline = field(compare=False)
 
 
 @dataclass(frozen=True)
@@ -105,6 +108,7 @@ class Utterance:
     kind: EventKind
     # Wall-clock time the hook behind it fired, for dropping stale messages.
     fired_at: float
+    timeline: Timeline = field(compare=False)
 
 
 class PendingSlot:

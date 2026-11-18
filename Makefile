@@ -18,8 +18,14 @@ eval:
 	@test -n "$(MODELS)" || { echo 'Usage: make eval MODELS="llama3.2:1b gemma3:1b"'; exit 2; }
 	$(UV) run --frozen python -m evals.run $(MODELS)
 
+# Fires a scripted session through the real hooks, daemon and Kokoro (sound
+# plays) and prints p50 and p95 per stage. Needs the speech model; MODEL adds
+# Ollama wording: make latency MODEL=granite4:micro
+latency:
+	$(UV) run --frozen python -m bench.latency run $(if $(MODEL),--model $(MODEL))
+
 # Installs a git pre-push hook that runs `make ready`.
 hooks:
 	./scripts/install-pre-push.sh
 
-.PHONY: ready verify eval hooks
+.PHONY: ready verify eval latency hooks
