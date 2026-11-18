@@ -2,8 +2,9 @@
 
 ```
 Claude Code ── plugin hooks (async) ──▶ hook shim (standard library only)
-                                          │ updates per-session state on disk
-                                          │ sends the event over a Unix socket
+                                          │ names the host app (SessionStart, tmux)
+                                          │ sends the event over a Unix socket,
+                                          │ starting the daemon if nothing answers
                                           ▼
                                    daemon (started on demand, exits when idle)
                                      inbox in hook order ─▶ classification ─▶ when-to-speak check
@@ -11,7 +12,8 @@ Claude Code ── plugin hooks (async) ──▶ hook shim (standard library on
                                      ─▶ single-slot queue ─▶ speech synthesis ─▶ playback
 ```
 
-- **Hook shim:** never writes to stdout, always exits 0, and returns quickly. Anything expensive happens in the daemon. Hooks run it as a script with a uv-managed Python by absolute path and `-I -S`, never through `uv run` (ADR-0004).
+- **Plugin and hook shim:** the repository is the plugin (`.claude-plugin/plugin.json`) and its own marketplace (`.claude-plugin/marketplace.json`). `hooks/hooks.json` registers seven events, all async (ADR-0001), each running `hooks/shim.py` with the data folder's uv-managed Python by absolute path and `-I -S`, never through `uv run` (ADR-0004, ADR-0011). That script imports `shim.py`, `client.py` and `host_app.py` from the plugin's own `src/`, all standard library only. The shim never writes to stdout, always exits 0, logs problems to `~/Library/Logs/cc-notify-tts/shim.log`, and leaves anything expensive to the daemon (ADR-0014).
+- **Daemon client:** `client.py` is how the shim and the CLI reach the daemon: the socket path, one request, and starting `python -I -m cc_notify_tts.daemon` detached, then retrying until it answers.
 - **Daemon:** `daemon.py` keeps the speech model warm while Claude Code is in use and exits after an idle timeout. The hook shim starts it on demand as a detached process, with no LaunchAgent (ADR-0002), and talks to it in one-line JSON requests over a Unix socket ([protocol](specs/daemon-protocol.md)). A lock file keeps it to one instance. Socket threads only enqueue; one event worker classifies events in the order their hooks fired, gates and words them, and records what was heard; one speech worker plays them through a single pending slot (`queues.py`, ADR-0013).
 - **Presence and the gate:** the hook shim names each session's host app and the daemon keeps it in the session's state; `presence.py` reads idle time and follows the frontmost app with a long-running `lsappinfo listen`. None of it needs a macOS permission, and a signal it can't read counts as away (ADR-0006). `gate.py` applies mute, quiet hours, the event's setting and then `away`, and returns the decision with a reason ([design](designs/when-to-speak.md)).
 - **Classification and state:** `events.py` turns each hook payload into one of seven notification events (or none), using per-session files from `sessions.py` (turn start, live background work, what was heard), which survive a daemon restart. Duplicates of a kind within 5 s collapse (ADR-0007, [design](designs/event-classification.md)).

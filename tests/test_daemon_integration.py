@@ -12,7 +12,8 @@ from typing import Any
 
 import pytest
 
-from cc_notify_tts.daemon import Daemon, Paths, is_answering, request
+from cc_notify_tts.client import is_answering, request
+from cc_notify_tts.daemon import Daemon, Paths
 
 pytestmark = pytest.mark.integration
 

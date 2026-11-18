@@ -7,7 +7,8 @@ from typing import Any
 import pytest
 
 from cc_notify_tts import __version__
-from cc_notify_tts.daemon import MAX_MESSAGE_BYTES, Daemon, Paths
+from cc_notify_tts.client import MAX_MESSAGE_BYTES
+from cc_notify_tts.daemon import Daemon, Paths
 from cc_notify_tts.queues import Received
 
 NOW = 1_000_000.0
