@@ -339,6 +339,12 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
             "Here are two options:\n\nKeep the cache or drop it.",
             "Here are two options: keep the cache or drop it.",
         ),
+        # A long one is left out, so the option isn't cut off.
+        (
+            "Looking at how the cache behaves under load and what the logs show, "
+            "I think there are a couple of options:\n\n1. Keep the cache\n2. Drop it",
+            "Keep the cache.",
+        ),
         # A label line before it doesn't carry over.
         ("Here are two options:\n## Summary\n\n- Fixed the retry", "Fixed the retry."),
         # A summary lead-in on its own line still goes.

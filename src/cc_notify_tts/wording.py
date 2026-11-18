@@ -392,8 +392,15 @@ def _opening(message: str) -> str:
 
 
 def _introduces_choice(line: str) -> bool:
-    """A lead-in line ending in a colon that names a choice ("Here are two options:")."""
-    return line.rstrip("*_ ").endswith(":") and _CHOICE.search(line) is not None
+    """A short lead-in line ending in a colon that names a choice ("Here are two options:").
+
+    A long one is left out, so it can't push the option past the word cap.
+    """
+    return (
+        line.rstrip("*_ ").endswith(":")
+        and len(line.split()) <= MESSAGE_WORDS // 2
+        and _CHOICE.search(line) is not None
+    )
 
 
 def _background_detail(items: Sequence[BackgroundItem]) -> str | None:
