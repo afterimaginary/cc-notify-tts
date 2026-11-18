@@ -2,7 +2,7 @@
 
 How raw hook payloads become the seven notification events, and what each session keeps on disk. The decisions behind it are in ADR-0007; the hook list it reads is ADR-0001.
 
-Code: `src/cc_notify_tts/events.py` (classification, dedupe) and `src/cc_notify_tts/sessions.py` (state files). Both use only the standard library. There is no file locking: only the daemon, which handles one event at a time, calls `classify`.
+Code: `src/cc_notify_tts/events.py` (classification, dedupe) and `src/cc_notify_tts/sessions.py` (state files). Both use only the standard library. There is no file locking: only the daemon calls `classify` and `mark_still_running_heard`, and it must run both on the same queue, one at a time.
 
 ## Interface
 
@@ -36,7 +36,8 @@ Code: `src/cc_notify_tts/events.py` (classification, dedupe) and `src/cc_notify_
 
 Hooks run async, so two events can be handled out of order.
 
-- A `Stop` listing an item already known to be finished is older than one already handled. It's dropped and changes nothing.
+- A `Stop` whose prompt arrived before the latest handled `Stop`'s prompt is older than it. It's dropped and changes nothing.
+- When either prompt isn't on record, a `Stop` outside the user's turn that lists an item already known to be finished is dropped the same way. The user's own turn is never dropped, and an id that shows up live again (an agent continued with `SendMessage` keeps its id) stops counting as finished.
 - A `UserPromptSubmit` whose `prompt_id` matches the latest `Stop`'s arrived after its own turn ended, and is ignored.
 
 ## Dedupe
@@ -55,6 +56,7 @@ One JSON file per session, `<session_id>.json` under `~/Library/Application Supp
 | `turn_started_at`, `turn_prompt_id`, `turn_open` | The user's latest turn, and whether its `Stop` is still to come |
 | `last_stop_prompt_id` | `prompt_id` of the latest `Stop` |
 | `background` | Live items at the latest `Stop`: `id`, `type`, `description` |
+| `prompt_ids` | `prompt_id`s of recent prompts, user and wake-up, in arrival order (the latest 64) |
 | `wake_prompt_ids` | `prompt_id`s of recent wake-up prompts (the latest 64) |
 | `finished_background` | Ids known to have finished |
 | `still_running_heard` | A `still_running` announcement played and no `background_done` or new user turn has followed |

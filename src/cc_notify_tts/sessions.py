@@ -54,6 +54,8 @@ class SessionState:
     # Prompt id of the latest Stop, to ignore a UserPromptSubmit that arrives after it.
     last_stop_prompt_id: str | None = None
     background: list[BackgroundItem] = field(default_factory=list[BackgroundItem])
+    # Prompt ids of recent prompts, user and wake-up, in arrival order.
+    prompt_ids: list[str] = field(default_factory=list[str])
     # Prompt ids of recent wake-up prompts (background work reporting back).
     wake_prompt_ids: list[str] = field(default_factory=list[str])
     # Ids that were live at one Stop and gone at a later one.

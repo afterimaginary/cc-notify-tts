@@ -174,6 +174,39 @@ def test_out_of_order_background_stops(s: Session) -> None:
     assert state.background == []
 
 
+def test_out_of_order_stops_ordered_by_prompt(s: Session) -> None:
+    s.send("user_prompt_submit", prompt_id="p1")
+    s.send("stop_background_running", prompt_id="p1")
+    s.store.mark_still_running_heard(SESSION)
+    s.send("user_prompt_submit_agent_message", prompt_id="p2")
+    s.send("user_prompt_submit_task_notification", prompt_id="p3")
+    agent_only = fixture("stop_background_running")["background_tasks"][:1]
+
+    assert s.kind("stop_background_done", prompt_id="p3") is EventKind.BACKGROUND_DONE
+    assert s.kind("stop", prompt_id="p2", background_tasks=agent_only) is None
+    state = s.store.load(SESSION)
+    assert state is not None
+    assert state.background == []
+
+
+def test_continued_agent_keeps_user_turns_audible(s: Session) -> None:
+    agent = fixture("stop_background_running")["background_tasks"][:1]
+    s.send("user_prompt_submit", prompt_id="p1")
+    assert s.kind("stop", prompt_id="p1", background_tasks=agent) is EventKind.STILL_RUNNING
+    s.store.mark_still_running_heard(SESSION)
+    s.send("user_prompt_submit_agent_message", prompt_id="p2")
+    assert s.kind("stop_background_done", prompt_id="p2") is EventKind.BACKGROUND_DONE
+
+    # The user continues the same agent, which keeps its id.
+    s.send("user_prompt_submit", after=10.0, prompt_id="p3")
+    assert s.kind("stop", prompt_id="p3", background_tasks=agent) is EventKind.STILL_RUNNING
+    s.store.mark_still_running_heard(SESSION)
+    s.send("user_prompt_submit_agent_message", prompt_id="p4")
+    assert s.kind("stop_background_done", prompt_id="p4") is EventKind.BACKGROUND_DONE
+    s.send("user_prompt_submit", after=10.0, prompt_id="p5")
+    assert s.kind("stop", prompt_id="p5") is EventKind.FINISHED
+
+
 def test_prompt_arriving_after_its_own_stop(s: Session) -> None:
     s.send("user_prompt_submit", prompt_id="p1")
     s.send("stop_background_running", prompt_id="p1")

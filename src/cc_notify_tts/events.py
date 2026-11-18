@@ -105,10 +105,11 @@ def classify(store: SessionStore, payload: Mapping[str, Any], now: float) -> Not
 def _user_prompt(state: SessionState, payload: Mapping[str, Any], now: float) -> None:
     prompt = (_str(payload, "prompt") or "").lstrip()
     prompt_id = _str(payload, "prompt_id")
+    if prompt_id is not None and prompt_id not in state.prompt_ids:
+        state.prompt_ids = [*state.prompt_ids, prompt_id][-FINISHED_MEMORY:]
     if prompt.startswith(WAKE_UP_PREFIXES):
         if prompt_id is not None:
-            ids = [*state.wake_prompt_ids, prompt_id]
-            state.wake_prompt_ids = ids[-FINISHED_MEMORY:]
+            state.wake_prompt_ids = [*state.wake_prompt_ids, prompt_id][-FINISHED_MEMORY:]
         return
     if prompt_id is not None and prompt_id == state.last_stop_prompt_id:
         return  # Arrived after its own Stop.
@@ -122,14 +123,14 @@ def _user_prompt(state: SessionState, payload: Mapping[str, Any], now: float) ->
 def _stop(state: SessionState, payload: Mapping[str, Any]) -> EventKind | None:
     live = _live_background(payload)
     live_ids = {item.id for item in live}
-    if live_ids & set(state.finished_background):
-        return None  # Older than a Stop already handled: it lists work known to be done.
-
     prompt_id = _str(payload, "prompt_id")
     if prompt_id is not None and state.turn_prompt_id is not None:
         own_turn = prompt_id == state.turn_prompt_id
     else:
         own_turn = state.turn_open
+    if _is_stale(state, prompt_id, live_ids, own_turn):
+        return None
+
     # A wake-up turn is known from its prompt, or, if that hasn't arrived yet,
     # from a Stop outside the user's turn while background work was live.
     wake_up = (prompt_id is not None and prompt_id in state.wake_prompt_ids) or (
@@ -137,7 +138,9 @@ def _stop(state: SessionState, payload: Mapping[str, Any]) -> EventKind | None:
     )
 
     gone = [item.id for item in state.background if item.id not in live_ids]
-    state.finished_background = (state.finished_background + gone)[-FINISHED_MEMORY:]
+    # An id can come back: a finished agent continued with SendMessage keeps its id.
+    kept = [i for i in state.finished_background if i not in live_ids]
+    state.finished_background = (kept + gone)[-FINISHED_MEMORY:]
     state.background = live
     state.last_stop_prompt_id = prompt_id
     if own_turn:
@@ -154,6 +157,19 @@ def _stop(state: SessionState, payload: Mapping[str, Any]) -> EventKind | None:
         return EventKind.STILL_RUNNING
     state.still_running_heard = False
     return EventKind.FINISHED
+
+
+def _is_stale(
+    state: SessionState, prompt_id: str | None, live_ids: set[str], own_turn: bool
+) -> bool:
+    """Whether this Stop is older than one already handled (hooks run async)."""
+    order = state.prompt_ids
+    last = state.last_stop_prompt_id
+    if prompt_id in order and last in order:
+        return order.index(prompt_id) < order.index(last)
+    # Without both prompts on record, a Stop listing work a later Stop showed as
+    # finished is old. The user's own turn is never dropped this way.
+    return not own_turn and bool(live_ids & set(state.finished_background))
 
 
 def _live_background(payload: Mapping[str, Any]) -> list[BackgroundItem]:
