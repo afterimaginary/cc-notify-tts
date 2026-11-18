@@ -78,7 +78,7 @@ _CLAUSES = re.compile(r"[;,]|\s(?:but|although|though|while|whereas)\s", re.IGNO
 # A detail that admits tests are failing: a fail word near "tests" (either way round),
 # "still fail" or "not passing". A fail word about anything else ("Fixed the broken
 # import") doesn't count...
-_CHECKS = r"(?:tests?|specs?|suite|ci|build|checks?)"
+_CHECKS = r"(?:tests?|specs?|suite|ci|build)"
 _ADMITS_FAILURE = re.compile(
     rf"\b{_CHECKS}\b(?:\W+\w+){{0,4}}?\W+(?:fail\w*|broken|red)\b"
     rf"|\bfail\w*\W+(?:\w+\W+){{0,2}}?{_CHECKS}\b"

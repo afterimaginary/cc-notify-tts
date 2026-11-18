@@ -356,7 +356,13 @@ def test_a_fixed_failure_doesnt_count_as_admitting_one() -> None:
 
 
 @pytest.mark.parametrize(
-    "first", ["Fixed the broken import in the CLI.", "Added retry on upload failure."]
+    "first",
+    [
+        "Fixed the broken import in the CLI.",
+        "Added retry on upload failure.",
+        "Handled failed payments in checkout.",
+        "Added a fail-fast check to the loader.",
+    ],
 )
 def test_a_failure_thats_not_about_tests_doesnt_count_as_admitting_one(first: str) -> None:
     assert finished_text(f"{first} 2 tests still fail on the fixture.") == (

@@ -341,6 +341,8 @@ def test_a_fixed_failure_isnt_admitting_the_one_left(raw: str) -> None:
     [
         ("Fixed the broken import in the CLI.", False),
         ("Added retry on upload failure.", False),
+        ("Handled failed payments in checkout.", False),
+        ("Added a fail-fast check to the loader.", False),
         ("Fixed the broken import; tests failed on the fixture.", True),
         ("Fixed the CLI import, but the suite is still broken.", True),
         ("Flagged failing tests in the CLI.", True),
@@ -351,7 +353,8 @@ def test_only_a_failure_about_tests_admits_one(raw: str, spoken_: bool) -> None:
         EventKind.FINISHED,
         {
             "last_assistant_message": (
-                "Fixed the broken import in the CLI and added retry on upload failure."
+                "Fixed the broken import in the CLI, added retry on upload failure, handled"
+                " failed payments in checkout and added a fail-fast check to the loader."
                 " 2 tests still fail on the fixture."
             )
         },
