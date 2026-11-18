@@ -299,3 +299,11 @@ def test_session_end_for_unknown_session_writes_nothing(s: Session) -> None:
 def test_missing_session_id_is_ignored(s: Session) -> None:
     assert s.kind("stop", session_id=None) is None
     assert s.store.all() == []
+
+
+def test_project_folder_is_where_the_session_started(s: Session) -> None:
+    s.send("session_start")
+    s.send("user_prompt_submit", prompt_id="p1", cwd="/Users/dev/src/weather-app/tests")
+    note = s.send("stop", prompt_id="p1", cwd="/Users/dev/src/weather-app/tests")
+    assert note is not None
+    assert note.cwd == "/Users/dev/src/weather-app"

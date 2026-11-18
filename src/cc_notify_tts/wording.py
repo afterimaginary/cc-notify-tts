@@ -48,7 +48,9 @@ _NUMBERS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight"
 _CODE_FENCE = re.compile(r"```.*?```", re.DOTALL)
 _MD_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
 _MD_MARKS = re.compile(r"`|\*\*|__|^#+\s*|^\s*[-*+]\s+|^\s*\d+\.\s+", re.MULTILINE)
-_PARAGRAPH_END = re.compile(r"\n\s*\n|(?<=:)[ \t]*\n")
+_LIST_ITEM = re.compile(r"^(?:[-*+]|\d+[.)])\s+")
+# A line that only labels what follows: a heading, a bold label or a lead-in ending in a colon.
+_LABEL = re.compile(r"#+\s.*|(\*\*|__)[^*_]+\1:?|.*:")
 _SENTENCE = re.compile(r"(.+?[.!?])(?=\s|$)")
 _CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 
@@ -107,7 +109,9 @@ def word(note: Notification) -> Wording:
 
 def project_name(cwd: str) -> str:
     """The session folder's name as words: dashes, underscores and camel case become spaces."""
-    name = PurePosixPath(cwd).name if cwd else ""
+    # A worktree under .claude/worktrees/ belongs to the repository that holds it.
+    root, worktree, _ = cwd.partition("/.claude/worktrees/")
+    name = PurePosixPath(root if worktree else cwd).name if cwd else ""
     words = _CAMEL.sub(" ", name.replace("-", " ").replace("_", " ")).split()
     # Lower-case ordinary words; leave acronyms like "API" as they are.
     spoken = " ".join(w if w.isupper() and len(w) > 1 else w.lower() for w in words)
@@ -163,9 +167,7 @@ def describe_action(payload: Mapping[str, Any]) -> str:
 
 def _message_detail(payload: Mapping[str, Any]) -> str | None:
     """The first sentence of the turn's last message, cleaned up for speech."""
-    raw = _CODE_FENCE.sub(" ", _text(payload, "last_assistant_message")).strip()
-    # Only the opening paragraph, up to any line that leads into a list.
-    text = _plain(_PARAGRAPH_END.split(raw, maxsplit=1)[0])
+    text = _plain(_opening(_text(payload, "last_assistant_message")))
     if not text:
         return None
     match = _SENTENCE.match(text)
@@ -174,6 +176,23 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
     if sentence.rstrip().endswith(":"):
         return None
     return _end(_cap_words(sentence, MESSAGE_WORDS))
+
+
+def _opening(message: str) -> str:
+    """A message's opening paragraph, past any headings and labels, or its first list item."""
+    paragraph: list[str] = []
+    for line in _CODE_FENCE.sub("\n\n", message).splitlines():
+        line = line.strip()
+        if _LIST_ITEM.match(line):
+            if paragraph:
+                break
+            return _LIST_ITEM.sub("", line)
+        if not line or (not paragraph and _LABEL.fullmatch(line)):
+            if paragraph:
+                break
+            continue
+        paragraph.append(line)
+    return " ".join(paragraph)
 
 
 def _background_detail(items: Sequence[BackgroundItem]) -> str | None:
@@ -211,8 +230,16 @@ def _phrase(description: str) -> str:
 
 
 def _short_command(command: str) -> str:
-    """A command's first words, with paths reduced to file names."""
-    words = [(PurePosixPath(w).name or w) if "/" in w else w for w in command.split()]
+    """A command's first words, with paths reduced to file names and redirections left out."""
+    words: list[str] = []
+    for w in command.split():
+        if "<" in w or ">" in w:
+            continue
+        if "://" in w:
+            w = _host(w)
+        elif "/" in w:
+            w = PurePosixPath(w).name or w
+        words.append(w)
     return " ".join(words[:COMMAND_WORDS])
 
 

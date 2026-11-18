@@ -107,6 +107,8 @@ def test_every_event_kind_has_a_spoken_fixture(tmp_path: Path) -> None:
         ("/Users/dev/src/next.js", "next.js"),
         ("", "your project"),
         ("/", "your project"),
+        ("/Users/dev/src/weather-app/.claude/worktrees/issue-15", "weather app"),
+        ("/Users/dev/src/weather-app/.claude/worktrees/issue-15/src", "weather app"),
     ],
 )
 def test_project_name(cwd: str, expected: str) -> None:
@@ -168,6 +170,18 @@ def test_bash_command_is_shortened() -> None:
     assert action == "run pytest -q test_a.py test_b.py test_c.py test_d.py"
 
 
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        ("ls build 2>/dev/null", "run ls build"),
+        ("curl -s https://api.example.com/v1/items", "run curl -s api.example.com"),
+    ],
+)
+def test_command_redirections_and_urls(command: str, expected: str) -> None:
+    action = describe_action({"tool_name": "Bash", "tool_input": {"command": command}})
+    assert action == expected
+
+
 def test_long_description_is_capped() -> None:
     description = " ".join(["word"] * 30)
     action = describe_action({"tool_name": "Bash", "tool_input": {"description": description}})
@@ -205,7 +219,14 @@ def test_question_without_question_mark_or_text() -> None:
     [
         ("Done. Everything passes.", "Done."),
         ("**Fixed** the `parse` bug in [events](events.py).", "Fixed the parse bug in events."),
-        ("Here's what changed:\n- one\n- two", None),
+        ("Here's what changed:\n- Added one\n- Added two", "Added one."),
+        ("## Summary\n\nFixed the retry. Tests pass.", "Fixed the retry."),
+        ("**Summary**\n\nFixed the retry.", "Fixed the retry."),
+        ("**Done:**\nFixed the retry.", "Fixed the retry."),
+        ("- Fixed the retry\n- Added tests", "Fixed the retry."),
+        ("1. Fixed the retry\n2. Added tests", "Fixed the retry."),
+        ("Fixed two bugs, in order\n- one\n- two", "Fixed two bugs, in order."),
+        ("Here's the diff:\n```\ncode\n```\nAll good.", "All good."),
         ("", None),
         ("```\ncode\n```", None),
         ("No full stop at the end", "No full stop at the end."),

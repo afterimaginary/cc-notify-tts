@@ -37,7 +37,7 @@ Examples, from the fixtures:
 
 ## Project name
 
-The last component of the session's working folder, made speakable:
+The last component of the folder the session started in, made speakable. A later `cd` doesn't change it, and a worktree under `.claude/worktrees/` is named after the repository that holds it.
 
 - Dashes and underscores become spaces, and camel case is split: `weather-app`, `weather_app` and `WeatherApp` are all "weather app".
 - Words are lower-cased, except all-capital words such as `API`, which are kept.
@@ -51,7 +51,7 @@ A permission request or denial names what the tool call would do, from `tool_nam
 | Tool | Action |
 | - | - |
 | `Bash` with a `description` | The description as a verb phrase ("force-push the rebased branch to main"), up to 12 words |
-| `Bash` without one | "run" and the command's first line, up to 6 words, with any word containing `/` reduced to its file name ("run python build.py --release") |
+| `Bash` without one | "run" and the command's first line, up to 6 words, with redirections such as `2>/dev/null` left out, URLs reduced to their host and any other word containing `/` reduced to its file name ("run python build.py --release") |
 | `Edit`, `MultiEdit`, `NotebookEdit` | "edit" and the file name |
 | `Write` | "write" and the file name |
 | `Read` | "read" and the file name |
@@ -66,7 +66,7 @@ A missing argument gives a general phrase instead ("edit a file", "run a shell c
 
 ## Details from text
 
-- **Last message:** code blocks, links, emphasis, headings and list markers are removed. Only the opening paragraph counts, and it ends at a line ending in a colon. The first sentence is taken and capped at 20 words. A sentence ending in a colon ("Here's what changed:") is a lead-in and gives no detail. A detail always ends in `.`, `!` or `?`.
+- **Last message:** code blocks are removed, and so are headings, bold labels ("**Summary**") and lead-in lines ending in a colon ("Here's what changed:") before the first paragraph. If a list comes first, its first item counts on its own; otherwise the opening paragraph does, up to a blank line or a list. Links and emphasis are reduced to their text. The first sentence is taken and capped at 20 words. A sentence ending in a colon gives no detail. A detail always ends in `.`, `!` or `?`.
 - **Background work:** up to two items are listed by description ("audit the forecast cache and run the integration test suite"). With more, or with an item that has no description, they're counted: "one agent and two commands".
 - **Questions:** the first question's text (or its header), capped at 20 words and ending in `?` if it has no end mark.
 - **Errors:** the `StopFailure` `error` value, spoken as a phrase:

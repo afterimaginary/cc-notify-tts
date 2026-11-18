@@ -50,7 +50,8 @@ One JSON file per session, `<session_id>.json` under `~/Library/Application Supp
 
 | Field | Meaning |
 | - | - |
-| `session_id`, `cwd` | From the payloads |
+| `session_id` | From the payloads |
+| `cwd` | From the session's first payload that has one, so a later `cd` doesn't rename the project |
 | `open`, `closed_at` | Cleared and set by `SessionEnd`; `SessionStart` reopens |
 | `last_event_at` | Time of the latest hook event |
 | `turn_started_at`, `turn_prompt_id`, `turn_open` | The user's latest turn, and whether its `Stop` is still to come |
