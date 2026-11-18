@@ -794,5 +794,6 @@
         }
       ]
     }
-  ]
+  ],
+  "scoring": "Kept as a \"before\" run: Scored with the guards on main before ADR-0033 (#62)"
 }
