@@ -355,9 +355,16 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
         ("### Option 1: Keep the cache\nFaster.", "Option 1: Keep the cache."),
         (
             "Here's what I'd suggest:\n\n**Option A — keep the cache**\nThis is faster.",
-            "Option A — keep the cache.",
+            "Option A: keep the cache.",
         ),
-        # A label that names an option without saying what it is stays a label.
+        ("### Option 1. Keep the cache\nFaster.", "Option 1: Keep the cache."),
+        # A label that only names an option keeps the lead-in for what follows it...
+        (
+            "Here are two options:\n\n### Option A\nKeep the cache.\n\n### Option B\nDrop it.",
+            "Here are two options: keep the cache.",
+        ),
+        ("Two options:\n\n**Option A**\nKeep the cache.", "Two options: keep the cache."),
+        # ...and without one, stays a label.
         ("**Option A**\nKeep the cache, it's faster.", "Keep the cache, it's faster."),
         ("## Optional: cleanup\n\nRemoved the old flag.", "Removed the old flag."),
         # A long one is left out, so the option isn't cut off.

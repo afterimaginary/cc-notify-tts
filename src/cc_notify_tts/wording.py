@@ -67,10 +67,11 @@ _LEAD_IN = re.compile(
 # A lead-in that introduces a choice ("Here are two options:") stays, so what follows
 # isn't heard as an instruction.
 _CHOICE = re.compile(r"\b(?:options?|choices?|alternatives?|ways|approaches)\b", re.IGNORECASE)
-# A label line, in plain text, that names one option and what it is ("**Option A:
-# Keep the cache**", "### Option 1 (recommended) - drop it").
+# A label line, in plain text, that names one option and maybe what it is ("**Option
+# A: Keep the cache**", "### Option 1 (recommended) - drop it", "### Option B").
 _OPTION_LABEL = re.compile(
-    r"option\s+(?:[a-z]|\d+)(?:\s*\([^)]*\))?\s*(?:[:.)\u2013\u2014]|\s-)\s*(?P<title>\S.*)",
+    r"(?P<name>option\s+(?:[a-z]|\d+))(?:\s*\([^)]*\))?"
+    r"(?:\s*(?:[:.)\u2013\u2014]|\s-)\s*(?P<title>\S.*))?",
     re.IGNORECASE,
 )
 # A mark that may end a sentence: one followed by a space or the end, so decimals
@@ -375,7 +376,8 @@ def _opening(message: str) -> str:
     A label line that introduces a choice ("Here are two options:") is kept in
     front of what follows it, so the first option isn't heard as an instruction.
     A label that names an option ("**Option A: Keep the cache**") counts as the
-    first option, like a list item, and is kept whole without such a lead-in.
+    first option, like a list item, and is kept as "Option A: ..." without such a
+    lead-in. One that only names it ("### Option A") keeps the lead-in for what follows.
     """
     paragraph: list[str] = []
     choice = ""
@@ -389,10 +391,13 @@ def _opening(message: str) -> str:
         if not line or (not paragraph and _LABEL.fullmatch(line)):
             if paragraph:
                 break
-            if option := _OPTION_LABEL.fullmatch(plain(line).rstrip(":")):
+            option = _OPTION_LABEL.fullmatch(plain(line).rstrip(":"))
+            if option and option["title"]:
                 if choice:
                     return f"{choice} {lower_first(option['title'])}"
-                return plain(line).rstrip(":")
+                return f"{option['name']}: {option['title']}"
+            if option and choice:
+                continue
             if line:
                 choice = line if _introduces_choice(line) else ""
             continue
