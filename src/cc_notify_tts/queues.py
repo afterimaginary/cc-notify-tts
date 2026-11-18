@@ -37,7 +37,7 @@ class Received:
 
 @dataclass(frozen=True)
 class Heard:
-    """A "still running" announcement for this session actually played."""
+    """A "still running" or "finished" announcement for this session actually played."""
 
     session_id: str
 

@@ -109,7 +109,7 @@ What the daemon is doing, for `cc-notify-tts status`.
 3. **The gate** decides whether to speak, with a reason ([when to speak](../designs/when-to-speak.md)). The config file is read for each notification.
 4. **Wording:** the template sentence ([spoken messages](spoken-messages.md)).
 5. **Queue.** One sentence plays at a time, and at most one waits. A newer sentence replaces the waiting one. A sentence whose hook fired more than 30 s before it would start playing is dropped.
-6. **Speech** synthesizes and plays it. After a `still_running` sentence actually plays, the daemon records it as heard in the session's state, on the same worker as classification.
+6. **Speech** synthesizes and plays it. After a `still_running` sentence, or a `finished` one while background work is live, actually plays, the daemon records it as heard in the session's state, on the same worker as classification.
 
 ## Lifetime
 

@@ -68,6 +68,10 @@ SPOKEN: dict[str, str | None] = {
         "Done for now in weather app, but background work isn't finished."
         " Still going: audit the forecast cache and run the integration test suite."
     ),
+    "stop_dev_server_running": (
+        "Done for now in weather app, but background work isn't finished."
+        " Still going: run the dev server."
+    ),
     "stop_failure": "The turn failed in weather app. It hit a rate limit.",
     "subagent_start": None,
     "subagent_stop": None,
