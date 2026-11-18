@@ -378,6 +378,32 @@ def test_a_fixed_failure_in_the_input_doesnt_reject_correct_wording() -> None:
     assert detail("Used a fake clock in test_auth.py.", n) == "Used a fake clock in test_auth.py."
 
 
+def test_a_test_summary_admits_the_failure() -> None:
+    n = note(
+        EventKind.FINISHED,
+        {"last_assistant_message": "Moved the retry logic. Test run: 41 passed, 2 failed."},
+    )
+    raw = "Moved the retry logic; 41 passed, 2 failed."
+    assert detail(raw, n) == raw
+
+
+def test_failing_tests_before_the_models_window_still_reject_a_success() -> None:
+    message = "2 tests still fail on the fixture. " + "Moved the retry logic. " * 200
+    n = note(EventKind.FINISHED, {"last_assistant_message": message})
+    request = request_for(n)
+    assert request is not None
+    assert "fail" not in request.source
+    assert detail("Moved the retry logic.", n) is None
+
+
+def test_something_else_still_broken_doesnt_reject_wording() -> None:
+    n = note(
+        EventKind.FINISHED,
+        {"last_assistant_message": "Fixed the date parser. The CSV import is still broken."},
+    )
+    assert detail("Fixed the date parser.", n) == "Fixed the date parser."
+
+
 def test_a_turn_without_failing_tests_isnt_checked_for_them() -> None:
     assert detail("Added backoff to the fetcher.") == "Added backoff to the fetcher."
 
