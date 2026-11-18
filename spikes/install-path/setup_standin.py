@@ -15,7 +15,7 @@ the model is downloaded (that's `setup`'s own issue):
 4. Puts the model files in `models/` (copied from `--models-from` here).
 5. Installs the plugin through Claude Code's own command, or prints the
    in-app commands when `claude` isn't on PATH.
-6. Warns when the CLI's folder isn't on PATH.
+6. Adds the CLI's folder to PATH with `uv tool update-shell` when it's missing.
 """
 
 import argparse
@@ -37,9 +37,10 @@ def relink(link: Path, target: Path) -> None:
 
 def minor_version_python() -> Path:
     # uv keeps cpython-3.13-<platform> pointing at the newest 3.13 patch it
-    # has installed, so a link to it survives `uv python upgrade`.
+    # has installed, so a link to it survives `uv python upgrade`. --system
+    # skips the venv of the project `setup` happens to run in, or an active one.
     found = subprocess.run(
-        ["uv", "python", "find", "--managed-python", "3.13"],
+        ["uv", "python", "find", "--managed-python", "--system", "3.13"],
         capture_output=True,
         text=True,
         check=True,
@@ -77,7 +78,17 @@ def main() -> int:
     tool_bin = Path(os.environ.get("UV_TOOL_BIN_DIR", Path.home() / ".local" / "bin"))
     path = os.environ.get("PATH", "").split(os.pathsep)
     if str(tool_bin) not in path:
-        print(f"{tool_bin} isn't on PATH; run `uv tool update-shell` and open a new terminal.")
+        # uv's own way of adding its folder to the shell profile. It picks the
+        # profile from $SHELL and says which file it changed.
+        done = subprocess.run(["uv", "tool", "update-shell"], capture_output=True, text=True)
+        if done.returncode == 0:
+            print(f"Changed your shell profile to add {tool_bin} to PATH (uv tool update-shell):")
+            print("  " + (done.stdout + done.stderr).strip().replace("\n", "\n  "))
+            print("Open a new terminal to use `cc-notify-tts`.")
+        else:
+            print(f"{tool_bin} isn't on PATH, and `uv tool update-shell` failed:")
+            print("  " + (done.stdout + done.stderr).strip().replace("\n", "\n  "))
+            print(f"Add {tool_bin} to PATH yourself to use `cc-notify-tts`.")
     return 0
 
 

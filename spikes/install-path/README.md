@@ -17,11 +17,11 @@ Needs `uv` from Homebrew and `claude` on `PATH`. A run takes about 15 s once uv'
 
 ## What it does
 
-Everything runs with `HOME` set to a new temporary folder and `PATH` cut down to Homebrew, the system folders and `claude` itself. So uv's Python and tools, Claude Code's settings and plugin cache, and the data folder all start empty. The real user's Claude Code settings, plugins and data folder are never touched.
+Everything runs with `HOME` set to a new temporary folder and `PATH` cut down to Homebrew, the system folders and `claude` itself, and `SHELL` set to zsh as in a macOS terminal. So uv's Python and tools, Claude Code's settings and plugin cache, and the data folder all start empty. The real user's Claude Code settings, plugins and data folder are never touched.
 
 1. **`brew install uv`**: checked with `brew list`, not run.
 2. **`uv tool install --managed-python --python 3.13 <this checkout>`**, standing in for the git URL, with `--with kokoro-onnx==0.6.1` until the package declares it.
-3. **`cc-notify-tts setup`**: `setup_standin.py`, run with the tool's own interpreter. It links the interpreters into the data folder, copies the model files and installs the stand-in plugin with `claude plugin install cc-notify-tts --marketplace <path>`.
+3. **`~/.local/bin/cc-notify-tts setup`**: `setup_standin.py`, run with the tool's own interpreter from inside a project with its own `.venv`. It links the interpreters into the data folder, copies the model files, installs the stand-in plugin with `claude plugin install cc-notify-tts --marketplace <path>` and runs `uv tool update-shell`. A new interactive zsh then has to find `cc-notify-tts` on `PATH`.
 
 Then it checks, each time by opening a `claude -p` session whose prompt a hook blocks, so no model request is made:
 

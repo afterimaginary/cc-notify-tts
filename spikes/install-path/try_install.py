@@ -13,9 +13,10 @@ Steps, each printed with its result:
 2. `uv tool install --managed-python --python 3.13 <repo>`: the CLI, from this
    checkout (standing in for the git URL), with kokoro-onnx added by `--with`
    until the package declares it.
-3. `cc-notify-tts setup`: `setup_standin.py`, run with the tool's interpreter,
-   installs the stand-in plugin from a copy of `marketplace/` through
-   `claude plugin install --marketplace`.
+3. `~/.local/bin/cc-notify-tts setup`: `setup_standin.py`, run with the tool's
+   interpreter from inside a project with its own venv, installs the stand-in
+   plugin from a copy of `marketplace/` through `claude plugin install
+   --marketplace` and adds `~/.local/bin` to PATH; a new zsh then finds the CLI.
 
 Then it opens a Claude Code session whose prompt a hook blocks, so no model
 request is made, and checks the plugin's SessionStart hook ran the shim with
@@ -63,6 +64,7 @@ class Sandbox:
             "USER": os.environ.get("USER", ""),
             "TMPDIR": str(root / "tmp"),
             "LANG": "en_US.UTF-8",
+            "SHELL": "/bin/zsh",  # macOS's default; uv picks the profile from it
         }
         (root / "tmp").mkdir()
 
@@ -87,7 +89,6 @@ class Sandbox:
     def session(self) -> list[dict[str, object]]:
         """One `claude -p` session, prompt blocked; returns its hook events."""
         project = self.root / "project"
-        project.mkdir(exist_ok=True)
         settings = {"hooks": {"UserPromptSubmit": [{"hooks": [{"type": "command",
                                                                "command": BLOCK}]}]}}  # fmt: skip
         line = {"type": "user", "message": {"role": "user", "content": "spike"}}
@@ -192,7 +193,14 @@ def main() -> None:
              str(market)]  # fmt: skip
     if args.models_from:
         setup += ["--models-from", str(args.models_from)]
-    sb.run(*setup)
+    # Run it inside a project with its own venv, where a plain `uv python find`
+    # would return that venv's interpreter.
+    project = sb.root / "project"
+    project.mkdir()
+    sb.run("uv", "venv", "-q", "--python", "3.13", str(project / ".venv"))
+    sb.run(*setup, cwd=project)
+    found = sb.run("zsh", "-i", "-c", "command -v cc-notify-tts", check=False)
+    check("a new terminal finds the CLI on PATH", found.endswith("/.local/bin/cc-notify-tts"))
     cache = sb.home / ".claude" / "plugins" / "cache"
     print(f"  plugin cache: {sorted(str(p.relative_to(cache)) for p in cache.glob('*/*/*'))}")
 
