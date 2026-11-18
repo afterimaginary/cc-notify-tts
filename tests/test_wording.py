@@ -391,6 +391,25 @@ def test_a_short_failing_sentence_is_spoken_whole(failing: str) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("message", "text"),
+    [
+        (
+            "Moved the retry logic. Ran the full test suite again after rebasing onto main"
+            " with the new fixtures and a clean cache: 41 passed, 2 failed.",
+            "Finished up in weather app. Moved the retry logic. Some tests are still failing.",
+        ),
+        (
+            "Refactored the slot generator so bookings across daylight saving changes and"
+            " leap days land on the right local hour and 2 tests still fail.",
+            "Finished up in weather app. Some tests are still failing.",
+        ),
+    ],
+)
+def test_a_failure_the_cap_would_cut_off_is_said_plainly(message: str, text: str) -> None:
+    assert finished_text(message) == text
+
+
 def test_a_failure_at_the_end_of_a_long_sentence_isnt_cut_off() -> None:
     message = (
         "Rewrote the calendar slot generator so that bookings across daylight saving changes"

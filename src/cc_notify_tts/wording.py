@@ -24,6 +24,8 @@ FALLBACK_PROJECT = "your project"
 MESSAGE_WORDS = 20
 QUESTION_WORDS = 20
 ACTION_WORDS = 12
+# Spoken when the sentence saying tests fail is too long to keep its failure (ADR-0021).
+STILL_FAILING = "Some tests are still failing."
 COMMAND_WORDS = 6
 # Background work is listed by description up to this many items, then counted.
 LISTED_BACKGROUND = 2
@@ -227,6 +229,9 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
     if detail is not None and failing.lower() in detail.lower():
         return detail
     failing = end_sentence(_cap_words(failing, MESSAGE_WORDS))
+    # The cap can cut the failure off a long clause; say it plainly instead.
+    if not admits_failure(failing):
+        failing = STILL_FAILING
     if detail is not None and len(detail.split()) + len(failing.split()) <= MESSAGE_WORDS:
         return f"{detail} {capitalize(failing)}"
     return capitalize(failing)
