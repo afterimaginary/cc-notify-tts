@@ -138,6 +138,8 @@ def rejection(reason: str) -> str:
         return "not in input"
     if "words, not" in reason:
         return "length"
+    if "tests still fail" in reason:
+        return "tests still fail"
     if "lead-in" in reason:
         return "lead-in"
     if reason == "empty answer":

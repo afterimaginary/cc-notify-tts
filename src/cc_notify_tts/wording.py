@@ -24,6 +24,8 @@ FALLBACK_PROJECT = "your project"
 MESSAGE_WORDS = 20
 QUESTION_WORDS = 20
 ACTION_WORDS = 12
+# Spoken when the sentence saying tests fail is too long to keep its failure (ADR-0021).
+STILL_FAILING = "Some tests are still failing."
 COMMAND_WORDS = 6
 # Background work is listed by description up to this many items, then counted.
 LISTED_BACKGROUND = 2
@@ -56,6 +58,43 @@ _SENTENCE = re.compile(r"(.+?[.!?])(?=\s|$)")
 _URL = re.compile(r"\b([a-z][a-z0-9+.-]*://[^\s)>\]]*?)([.,;:!?]*)(?=[\s)>\]]|$)")
 _PATH = re.compile(r"(?<![\w/])(?:~|\.{1,2})?/(?:[\w.-]+/)*([\w.-]+?)([.,;:!?]*)(?=\s|$)")
 _CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
+# Any sentence of a one-line text, the last one with or without an end mark.
+_SENTENCES = re.compile(r"\S.*?(?:[.!?](?=\s|$)|$)")
+# A sentence saying tests are failing as the turn ends (ADR-0021): "2 of the 31
+# tests still fail", "the tests aren't passing yet", "3 failed, 40 passed".
+_COUNT = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|some|several|a few)"
+_TESTS = r"(?:tests?|specs?)"
+_TESTS_FAILING = re.compile(
+    r"\bstill\s+(?:fail\w*|broken)\b"
+    rf"|\b{_TESTS}\s+(?:are|is|remain)\s+(?:still\s+)?failing\b"
+    rf"|\b{_TESTS}\s+(?:do|does|are|is)\s*(?:not|n't)\s+(?:yet\s+)?pass"
+    rf"|\b{_COUNT}\s+(?:of\s+(?:the\s+)?\d+\s+)?(?:\w+\s+)?{_TESTS}\s+(?:are\s+)?fail(?:s|ed|ing)?\b"
+    # "N failed" only about tests: "tests: 2 failed" or a summary, "2 failed, 41 passed".
+    rf"|\b{_TESTS}\W+[1-9]\d*\s+failed\b"
+    r"|\b[1-9]\d*\s+failed\W+\d+\s+passed\b|\b\d+\s+passed\W+[1-9]\d*\s+failed\b"
+    r"|\b(?:failing\s+tests?|test\s+failures?)\s+remains?\b",
+    re.IGNORECASE,
+)
+# ...unless the clause it's in says that failure is over ("no longer fails", "now pass")
+# or was fixed ("Fixed 2 tests failing on CI"). Checked clause by clause, so "31 now
+# pass, but 2 still fail" still counts.
+_FAILURE_OVER = re.compile(r"\bno\s+longer\b|\bnow\b.*\bpass", re.IGNORECASE)
+_CLAUSES = re.compile(r"[;,]|\s(?:but|although|though|while|whereas)\s", re.IGNORECASE)
+# A detail that admits tests are failing: a fail word near "tests" (either way round),
+# "still fail" or "not passing". A fail word about anything else ("Fixed the broken
+# import") doesn't count...
+_CHECKS = r"(?:tests?|specs?|suite|ci|build)"
+_ADMITS_FAILURE = re.compile(
+    rf"\b{_CHECKS}\b(?:\W+\w+){{0,4}}?\W+(?:fail\w*|broken|red)\b"
+    rf"|\bfail\w*\W+(?:\w+\W+){{0,2}}?{_CHECKS}\b"
+    r"|\bstill\s+fail"
+    r"|(?:\bnot|n't)\s+(?:yet\s+)?pass",
+    re.IGNORECASE,
+)
+# ...other than a failure that was fixed ("Fixed the failing auth tests").
+_FIXED_FAILURE = re.compile(
+    r"\b(?:fix|resolv|repair)\w*\s+(?:[\w'-]+\s+){0,3}?fail\w*", re.IGNORECASE
+)
 
 
 @dataclass(frozen=True)
@@ -169,15 +208,71 @@ def describe_action(payload: Mapping[str, Any]) -> str:
 
 
 def _message_detail(payload: Mapping[str, Any]) -> str | None:
-    """The first sentence of the turn's last message, cleaned up for speech."""
-    text = plain(_opening(_text(payload, "last_assistant_message")))
-    if not text:
-        return None
-    sentence = first_sentence(text)
+    """The first sentence of the turn's last message, cleaned up for speech.
+
+    If the message says tests still fail and that sentence doesn't, the
+    sentence that does is added, or spoken alone if both don't fit.
+    """
+    message = _text(payload, "last_assistant_message")
+    text = plain(_opening(message))
+    sentence = first_sentence(text) if text else ""
     # A lead-in to a list ("Here's what changed:") says nothing on its own.
-    if sentence.rstrip().endswith(":"):
-        return None
-    return end_sentence(_cap_words(sentence, MESSAGE_WORDS))
+    detail = (
+        end_sentence(_cap_words(sentence, MESSAGE_WORDS))
+        if sentence and not sentence.rstrip().endswith(":")
+        else None
+    )
+    failing = failing_tests(message)
+    if failing is None or (detail is not None and admits_failure(detail)):
+        return detail
+    # Never repeat what the detail already says.
+    if detail is not None and failing.lower() in detail.lower():
+        return detail
+    cut = len(failing.split()) > MESSAGE_WORDS
+    failing = end_sentence(_cap_words(failing, MESSAGE_WORDS))
+    # The cap can cut the failure off a long clause; say it plainly instead.
+    if cut and not admits_failure(failing):
+        failing = STILL_FAILING
+    if detail is not None and len(detail.split()) + len(failing.split()) <= MESSAGE_WORDS:
+        return f"{detail} {capitalize(failing)}"
+    return capitalize(failing)
+
+
+def failing_tests(message: str) -> str | None:
+    """The first sentence of a message that says tests are still failing, if any.
+
+    A sentence over `MESSAGE_WORDS` gives only its clauses that hold the
+    failure ("2 of the 31 tests still fail"), so the word cap on what's spoken
+    can't cut the failure off the end.
+    """
+    # Line by line, so a list item or heading isn't run into the next one.
+    for line in _CODE_FENCE.sub("\n", message).splitlines():
+        for sentence in _SENTENCES.findall(plain(line)):
+            # Matched on the sentence, since a summary ("2 failed, 41 passed") has a comma.
+            for match in _TESTS_FAILING.finditer(sentence):
+                start, end = _clause_at(sentence, match.start())
+                clause = sentence[start:end]
+                if _FAILURE_OVER.search(clause) or _FIXED_FAILURE.search(clause):
+                    continue
+                if len(sentence.split()) > MESSAGE_WORDS:
+                    sentence = sentence[start : _clause_at(sentence, match.end() - 1)[1]]
+                return strip_end(sentence.strip()).rstrip(",;: ")
+    return None
+
+
+def _clause_at(sentence: str, index: int) -> tuple[int, int]:
+    """Where the clause of `sentence` that holds the character at `index` starts and ends."""
+    start = 0
+    for split in _CLAUSES.finditer(sentence):
+        if split.start() > index:
+            return start, split.start()
+        start = split.end()
+    return start, len(sentence)
+
+
+def admits_failure(text: str) -> bool:
+    """Whether a detail says something failed or isn't passing, not that a failure was fixed."""
+    return _ADMITS_FAILURE.search(_FIXED_FAILURE.sub("", text)) is not None
 
 
 def _opening(message: str) -> str:
