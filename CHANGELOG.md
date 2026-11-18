@@ -8,6 +8,10 @@ All notable changes to this project are recorded here. Versions follow [Semantic
 
 - **`OLLAMA_HOST` on this machine:** wording asks Ollama at `OLLAMA_HOST` when it names this machine (`localhost`, a loopback address, `0.0.0.0` or `::`), so Ollama on another local port still writes the detail. An `OLLAMA_HOST` on another machine is ignored with a log line, so wording stays local, and `doctor` shows the address in use (ADR-0029, #44).
 
+### Fixed
+
+- **Detached tmux sessions:** a session in a detached tmux no longer keeps the app it was last attached from, so it counts as away and is spoken, and the next hook after reattaching names the new app (ADR-0030, #47).
+
 ## [0.1.0] - 2026-11-18
 
 The first release: Claude Code speaks one sentence about what it finished or what it needs from you, at the moments you choose, with the speech and the wording made on your Mac.

@@ -193,7 +193,6 @@ The run up to the v0.1.0 release, not counting the release's own issue and pull 
 In no particular order, and without dates:
 
 - Drop lead-ins like "Here's what was done:" from template wording ([#50](https://github.com/afterimaginary/cc-notify-tts/issues/50)).
-- Follow a detached tmux session to the app it's reattached in ([#47](https://github.com/afterimaginary/cc-notify-tts/issues/47)).
 - Try an in-process MLX model for wording, compared with the same eval.
 
 ## Contributing
