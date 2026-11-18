@@ -267,7 +267,7 @@ def cold_start(model: Path, voices: Path, voice: str) -> dict[str, float]:
         "second_synthesis_ms": round(second_ms, 1),
         "rss_before_load_mb": round(rss_before_load, 1),
         "rss_loaded_mb": round(rss_loaded, 1),
-        "rss_after_first_mb": round(rss_mb(), 1),
+        "rss_after_two_mb": round(rss_mb(), 1),
     }
 
 

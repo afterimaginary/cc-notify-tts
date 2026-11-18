@@ -15,6 +15,7 @@ uv run --script spikes/kokoro_latency/kokoro_latency.py --download
 | Option | Default | Does |
 | --- | --- | --- |
 | `--variant` | `fp32` | Model file: `fp32`, `fp16` or `int8` |
+| `--models-dir` | `~/Library/Application Support/cc-notify-tts/models` | Where the model files are, or are downloaded to |
 | `--voice` | `af_heart` | Kokoro voice |
 | `--runs` | 7 | Warm passes over all 15 sentences, for each baseline |
 | `--playback-runs` | 3 | Passes for each playback phase |

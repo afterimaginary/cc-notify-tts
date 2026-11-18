@@ -77,7 +77,7 @@ Latency grows linearly with length, at about 43 ms per word on top of about 50 m
 | --- | --- | --- |
 | Before loading (Python plus imports) | 71 MB | 63 MB |
 | Model loaded | 487 MB | 224 MB |
-| After one 12-word synthesis | 670 MB | 405 MB |
+| After two 12-word syntheses | 670 MB | 405 MB |
 | After the warm 5–20-word runs | 885 MB | 594 MB |
 | After a 180-word paragraph | 974 MB | 905 MB |
 
