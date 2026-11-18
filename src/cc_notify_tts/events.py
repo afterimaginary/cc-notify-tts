@@ -45,7 +45,7 @@ class Notification:
     payload: Mapping[str, Any]
     # Seconds since the user's latest prompt, if known.
     turn_seconds: float | None
-    # Background work still live (for STILL_RUNNING).
+    # Background work still live and not announced before (for STILL_RUNNING).
     background: tuple[BackgroundItem, ...]
     # Bundle id of the app the session runs in, or "" if it's unknown.
     host_app: str = ""
@@ -113,7 +113,9 @@ def classify(
         cwd=state.cwd,
         payload=payload,
         turn_seconds=None if state.turn_started_at is None else now - state.turn_started_at,
-        background=tuple(state.background) if kind is EventKind.STILL_RUNNING else (),
+        background=tuple(b for b in state.background if b.id in state.awaited_background)
+        if kind is EventKind.STILL_RUNNING
+        else (),
         host_app=state.host_app,
     )
 
@@ -161,15 +163,24 @@ def _stop(state: SessionState, payload: Mapping[str, Any]) -> EventKind | None:
     state.last_stop_prompt_id = prompt_id
     if own_turn:
         state.turn_open = False
+    announced = [i for i in state.announced_background if i in live_ids]
+    # Work the user hasn't been told about: newly started, or what the latest
+    # "still running" announced. Work announced before that (a dev server) is
+    # left to run without holding anything up.
+    pending = [i for i in live_ids if i not in announced or i in state.awaited_background]
+    unannounced = [item.id for item in live if item.id not in announced]
+    state.announced_background = announced
 
     if wake_up:
         # A wake-up turn after background work: only the end of all of it matters,
         # and only if the user heard that it was still running.
-        if live or not state.still_running_heard:
+        if pending or not state.still_running_heard:
             return None
         state.still_running_heard = False
         return EventKind.BACKGROUND_DONE
-    if live:
+    if unannounced:
+        state.announced_background = announced + unannounced
+        state.awaited_background = unannounced
         return EventKind.STILL_RUNNING
     state.still_running_heard = False
     return EventKind.FINISHED
