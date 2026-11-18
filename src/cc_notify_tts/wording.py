@@ -364,20 +364,36 @@ def admits_failure(text: str) -> bool:
 
 
 def _opening(message: str) -> str:
-    """A message's opening paragraph, past any headings and labels, or its first list item."""
+    """A message's opening paragraph, past any headings and labels, or its first list item.
+
+    A label line that introduces a choice ("Here are two options:") is kept in
+    front of what follows it, so the first option isn't heard as an instruction.
+    """
     paragraph: list[str] = []
+    choice = ""
     for line in _CODE_FENCE.sub("\n\n", message).splitlines():
         line = line.strip()
         if _LIST_ITEM.match(line):
             if paragraph:
                 break
-            return _LIST_ITEM.sub("", line)
+            item = _LIST_ITEM.sub("", line)
+            return f"{choice} {lower_first(item)}" if choice else item
         if not line or (not paragraph and _LABEL.fullmatch(line)):
             if paragraph:
                 break
+            if line:
+                choice = line if _introduces_choice(line) else ""
             continue
+        if not paragraph and choice:
+            paragraph.append(choice)
+            line = lower_first(line)
         paragraph.append(line)
     return " ".join(paragraph)
+
+
+def _introduces_choice(line: str) -> bool:
+    """A lead-in line ending in a colon that names a choice ("Here are two options:")."""
+    return line.rstrip("*_ ").endswith(":") and _CHOICE.search(line) is not None
 
 
 def _background_detail(items: Sequence[BackgroundItem]) -> str | None:

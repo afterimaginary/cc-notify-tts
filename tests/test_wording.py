@@ -329,6 +329,20 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
             "Here are two ways to fix it: retry the request or raise the timeout.",
             "Here are two ways to fix it: retry the request or raise the timeout.",
         ),
+        # On its own line, a lead-in to a choice stays in front of what follows it.
+        (
+            "Here are two options:\n\n1. Keep the cache\n2. Drop it",
+            "Here are two options: keep the cache.",
+        ),
+        ("**Options:**\n- Retry now\n- Wait for the fix", "Options: retry now."),
+        (
+            "Here are two options:\n\nKeep the cache or drop it.",
+            "Here are two options: keep the cache or drop it.",
+        ),
+        # A label line before it doesn't carry over.
+        ("Here are two options:\n## Summary\n\n- Fixed the retry", "Fixed the retry."),
+        # A summary lead-in on its own line still goes.
+        ("Here's what changed:\n\n1. Fixed the retry\n2. Added tests", "Fixed the retry."),
         # A summary lead-in that only mentions a choice-like word elsewhere still goes.
         (
             "Here's what was done: added an option to drop the cache.",
