@@ -299,6 +299,44 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
     assert wording.detail == "Switched the cache to a local store, e.g. SQLite, to cut startup."
 
 
+@pytest.mark.parametrize(
+    ("message", "detail"),
+    [
+        # An inline lead-in gives way to what it introduces.
+        (
+            "Here's what was done: renamed the fetchUser helper to loadUser. Tests pass.",
+            "Renamed the fetchUser helper to loadUser.",
+        ),
+        ("Here\u2019s a summary of the work: fixed the retry.", "Fixed the retry."),
+        ("Summary: fixed the retry and added tests.", "Fixed the retry and added tests."),
+        ("**Done:** fixed the retry.", "Fixed the retry."),
+        ("In short: the cache was stale.", "The cache was stale."),
+        # A lead-in with nothing after it says nothing, inline or on its own line.
+        ("Here's what was done:", None),
+        ("Here's what was done:\n\nFixed the retry.", "Fixed the retry."),
+        # A colon mid-sentence after anything else is content.
+        (
+            "Fixed the parser: it dropped the last token.",
+            "Fixed the parser: it dropped the last token.",
+        ),
+        ("Update nginx.conf: add caching.", "Update nginx.conf: add caching."),
+        ("Benchmarked it at 10:30: twice as fast.", "Benchmarked it at 10:30: twice as fast."),
+        (
+            "Here's the PR. Fixed it: the cache was stale.",
+            "Here's the PR.",
+        ),
+    ],
+)
+def test_finished_detail_after_a_lead_in(message: str, detail: str | None) -> None:
+    assert word(note(EventKind.FINISHED, {"last_assistant_message": message})).detail == detail
+
+
+def test_failing_tests_after_an_inline_lead_in() -> None:
+    assert finished_text("Here's where things stand: 2 tests still fail.") == (
+        "Finished up in weather app. 2 tests still fail."
+    )
+
+
 def test_finished_without_detail() -> None:
     assert word(note(EventKind.FINISHED)).text() == "Finished up in weather app."
 

@@ -53,6 +53,17 @@ _MD_MARKS = re.compile(r"`|\*\*|__|^#+\s*|^\s*[-*+]\s+|^\s*\d+\.\s+", re.MULTILI
 _LIST_ITEM = re.compile(r"^(?:[-*+]|\d+[.)])\s+")
 # A line that only labels what follows: a heading, a bold label or a lead-in ending in a colon.
 _LABEL = re.compile(r"#+\s.*|(\*\*|__)[^*_]+\1:?|.*:")
+# A lead-in at the start of a sentence, introducing what follows the colon: "Here's
+# what was done:", "In short:", or a lone label word ("Summary:", "Done:"). A colon
+# after anything else is content ("Fixed the parser: it dropped tokens", "Test run:
+# 2 failed").
+_LEAD_IN = re.compile(
+    r"(?:here(?:['\u2019]s| is| are)\b[^:]{0,40}"
+    r"|in summary|in short|to recap|tl;?dr|what (?:was done|changed|i did)"
+    r"|summary|overall|done|all done|all set|results?|changes|update|note"
+    r"):\s+",
+    re.IGNORECASE,
+)
 # A mark that may end a sentence: one followed by a space or the end, so decimals
 # and versions ("3.5", "v1.2.3") never do.
 _SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
@@ -225,6 +236,9 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
     message = _text(payload, "last_assistant_message")
     text = plain(_opening(message))
     sentence = first_sentence(text) if text else ""
+    # Only what an inline lead-in introduces is spoken ("Here's what was done: renamed it.").
+    if lead_in := _LEAD_IN.match(sentence):
+        sentence = capitalize(sentence[lead_in.end() :])
     # A lead-in to a list ("Here's what changed:") says nothing on its own.
     detail = (
         end_sentence(_cap_words(sentence, MESSAGE_WORDS))
