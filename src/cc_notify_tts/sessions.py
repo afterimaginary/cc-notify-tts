@@ -44,6 +44,8 @@ class SessionState:
     session_id: str
     open: bool = True
     cwd: str = ""
+    # Bundle id of the app the session runs in, as the hook shim named it.
+    host_app: str = ""
     last_event_at: float = 0.0
     closed_at: float | None = None
     # When the current (or latest) user turn started, and its prompt id.

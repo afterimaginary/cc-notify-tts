@@ -32,8 +32,8 @@ class Synthesizer(Protocol):
 
 
 class Player(Protocol):
-    def play(self, wav: Path) -> None:
-        """Play `wav` and return when it has finished."""
+    def play(self, wav: Path) -> bool:
+        """Play `wav` and return when it has finished, with whether it played."""
         ...
 
 
@@ -62,10 +62,11 @@ class KokoroSynthesizer:
 
 
 class AfplayPlayer:
-    def play(self, wav: Path) -> None:
+    def play(self, wav: Path) -> bool:
         done = subprocess.run([AFPLAY, str(wav)], capture_output=True, text=True, check=False)
         if done.returncode != 0:
             log.warning("afplay exited %d: %s", done.returncode, done.stderr.strip())
+        return done.returncode == 0
 
 
 class Speaker:
@@ -73,12 +74,13 @@ class Speaker:
         self._synthesizer = synthesizer
         self._player = player
 
-    def speak(self, text: str, voice: str = DEFAULT_VOICE) -> None:
-        """Synthesize `text` in full, then play it. Returns when playback ends."""
+    def speak(self, text: str, voice: str = DEFAULT_VOICE) -> bool:
+        """Synthesize `text` in full, then play it. Returns when playback ends, with
+        whether it played."""
         with tempfile.TemporaryDirectory(prefix="cc-notify-tts-") as tmp:
             wav = Path(tmp) / "speech.wav"
             self._synthesizer.synthesize(text, voice, wav)
-            self._player.play(wav)
+            return self._player.play(wav)
 
 
 def write_wav(path: Path, samples: np.typing.NDArray[np.float32], rate: int) -> None:
