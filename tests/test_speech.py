@@ -21,11 +21,12 @@ class FakePlayer:
         self.log = log
         self.played: list[Path] = []
 
-    def play(self, wav: Path) -> None:
+    def play(self, wav: Path) -> bool:
         # The file must be complete when playback starts.
         with wave.open(str(wav)) as w:
             self.log.append(f"play {w.getnframes()} frames")
         self.played.append(wav)
+        return True
 
 
 def test_synthesis_finishes_before_playback_starts() -> None:

@@ -6,8 +6,8 @@ Code: `src/cc_notify_tts/events.py` (classification, dedupe) and `src/cc_notify_
 
 ## Interface
 
-- `classify(store, payload, now) -> Notification | None` reads the session's state, applies the payload, writes the state back and returns at most one notification.
-- `Notification` carries the `kind`, `session_id`, `cwd`, the raw `payload` (for wording), `turn_seconds` (since the user's latest prompt, if known) and, for `still_running`, the live `background` items.
+- `classify(store, payload, now, host_app=None) -> Notification | None` reads the session's state, applies the payload, writes the state back and returns at most one notification. `host_app` is the session's host app as the hook shim named it; when given, it replaces the one on record. The daemon feeds each session's events in the order their hooks fired (ADR-0013).
+- `Notification` carries the `kind`, `session_id`, `cwd`, `host_app`, the raw `payload` (for wording), `turn_seconds` (since the user's latest prompt, if known) and, for `still_running`, the live `background` items.
 - `SessionStore.mark_still_running_heard(session_id)`: the daemon calls it after a `still_running` utterance actually plays. It's ignored once no background work is live.
 - `SessionStore.open_sessions(now)` lists sessions that are open and have had an event in the last 24 hours. `SessionStore.prune(now)` deletes closed and stale sessions; `classify` runs it on every `SessionEnd`.
 
@@ -52,6 +52,7 @@ One JSON file per session, `<session_id>.json` under `~/Library/Application Supp
 | - | - |
 | `session_id` | From the payloads |
 | `cwd` | From the session's first payload that has one, so a later `cd` doesn't rename the project |
+| `host_app` | Bundle id of the app the session runs in, from the hook shim (ADR-0006); empty if unknown |
 | `open`, `closed_at` | Cleared and set by `SessionEnd`; `SessionStart` reopens |
 | `last_event_at` | Time of the latest hook event |
 | `turn_started_at`, `turn_prompt_id`, `turn_open` | The user's latest turn, and whether its `Stop` is still to come |

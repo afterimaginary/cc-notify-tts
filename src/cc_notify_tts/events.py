@@ -47,9 +47,21 @@ class Notification:
     turn_seconds: float | None
     # Background work still live (for STILL_RUNNING).
     background: tuple[BackgroundItem, ...]
+    # Bundle id of the app the session runs in, or "" if it's unknown.
+    host_app: str = ""
 
 
-def classify(store: SessionStore, payload: Mapping[str, Any], now: float) -> Notification | None:
+def classify(
+    store: SessionStore,
+    payload: Mapping[str, Any],
+    now: float,
+    host_app: str | None = None,
+) -> Notification | None:
+    """Apply one hook payload to its session and return the notification, if any.
+
+    `host_app` is the session's host app as the hook shim named it, sent with
+    the event; when given, it replaces the one on record (ADR-0006).
+    """
     session_id = _str(payload, "session_id")
     event = _str(payload, "hook_event_name")
     if not session_id or not event:
@@ -64,6 +76,8 @@ def classify(store: SessionStore, payload: Mapping[str, Any], now: float) -> Not
     # The folder the session started in names the project; a later `cd` doesn't.
     if not state.cwd and (cwd := _str(payload, "cwd")):
         state.cwd = cwd
+    if host_app:
+        state.host_app = host_app
 
     kind: EventKind | None = None
     if event == "SessionStart":
@@ -100,6 +114,7 @@ def classify(store: SessionStore, payload: Mapping[str, Any], now: float) -> Not
         payload=payload,
         turn_seconds=None if state.turn_started_at is None else now - state.turn_started_at,
         background=tuple(state.background) if kind is EventKind.STILL_RUNNING else (),
+        host_app=state.host_app,
     )
 
 

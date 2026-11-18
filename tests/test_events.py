@@ -307,3 +307,18 @@ def test_project_folder_is_where_the_session_started(s: Session) -> None:
     note = s.send("stop", prompt_id="p1", cwd="/Users/dev/src/weather-app/tests")
     assert note is not None
     assert note.cwd == "/Users/dev/src/weather-app"
+
+
+def test_host_app_from_the_shim_is_kept_and_replaced(s: Session) -> None:
+    classify(s.store, fixture("session_start"), 1.0, host_app="com.apple.Terminal")
+    classify(s.store, fixture("user_prompt_submit", prompt_id="p1"), 2.0)
+    note = classify(s.store, fixture("stop", prompt_id="p1"), 3.0)
+    assert note is not None
+    assert note.host_app == "com.apple.Terminal"
+
+    # Inside tmux the shim names it again on each hook that can announce something.
+    note = classify(
+        s.store, fixture("permission_request_bash"), 4.0, host_app="com.mitchellh.ghostty"
+    )
+    assert note is not None
+    assert note.host_app == "com.mitchellh.ghostty"
