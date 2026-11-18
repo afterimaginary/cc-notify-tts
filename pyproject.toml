@@ -1,6 +1,6 @@
 [project]
 name = "cc-notify-tts"
-version = "0.0.0"
+version = "0.1.0"
 description = "Configurable, summarized voice notifications for Claude Code on macOS"
 readme = "README.md"
 license = "MIT"

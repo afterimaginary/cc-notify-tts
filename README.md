@@ -4,7 +4,7 @@ Claude Code tells you out loud, in one sentence, what it finished or what it nee
 
 ![A simulated Claude Code session finishes a turn with a long reply while you're away, and cc-notify-tts speaks a one-sentence summary of it](docs/demo.gif)
 
-The session on screen is simulated; the hooks, daemon, wording model and voice behind it are real. `make demo` rebuilds this and the full video with sound, which also shows a permission request and a turn that stays silent while you're typing ([demo/README.md](demo/README.md)).
+The session on screen is simulated; the hooks, daemon, wording model and voice behind it are real. `make demo` rebuilds this and the full video with sound, which also shows a permission request and a turn that stays silent while you're typing ([demo/README.md](demo/README.md)). The full video is attached to the [v0.1.0 release](https://github.com/afterimaginary/cc-notify-tts/releases/tag/v0.1.0).
 
 ## Try it
 
@@ -166,15 +166,16 @@ The work started from a short [brief](docs/brief.md) and ran in four milestones.
 
 Orchestral turned the brief into GitHub issues and ran up to three Claude Code workers at once, each on its own branch and worktree. Every PR was checked against its issue's acceptance criteria by a reviewer agent that hadn't written it, and had to pass `make verify` (ruff, strict pyright, and the unit and end-to-end tests) in CI before it merged. Every measured result and design choice is recorded in [docs/decisions/](docs/decisions/).
 
-<!-- The run's numbers are filled in at release. -->
+The run up to the v0.1.0 release, not counting the release's own issue and pull request:
 
 | | |
 | --- | --- |
-| Issues | TBD |
-| Pull requests | TBD |
-| Days | TBD |
-| Workers | TBD |
-| Tokens | TBD |
+| Issues | 38 filed, 27 closed as done: 24 planned from the brief, the rest raised by reviews and the acceptance run |
+| Pull requests | 27 merged, each reviewed by a separate agent and merged once `verify` passed |
+| Days | 1 |
+| Workers | Up to 3 at once, one Claude Code session per issue |
+| Tokens | About 15 M, Orchestral's estimate |
+| Decisions | 23 ADRs |
 
 ## Limitations
 
@@ -191,7 +192,6 @@ Orchestral turned the brief into GitHub issues and ran up to three Claude Code w
 
 In no particular order, and without dates:
 
-- Speak "background done" when the work finishes while "still running" is playing ([#42](https://github.com/afterimaginary/cc-notify-tts/issues/42)).
 - Keep the detail whole at abbreviations like "e.g." ([#36](https://github.com/afterimaginary/cc-notify-tts/issues/36)), and drop lead-ins like "Here's what was done:" from template wording ([#50](https://github.com/afterimaginary/cc-notify-tts/issues/50)).
 - Follow a detached tmux session to the app it's reattached in ([#47](https://github.com/afterimaginary/cc-notify-tts/issues/47)).
 - Try an in-process MLX model for wording, compared with the same eval.
