@@ -152,6 +152,14 @@ def test_first_sentence_only() -> None:
     )
 
 
+def test_first_sentence_isnt_cut_at_an_abbreviation() -> None:
+    # The same splitter as the template detail (`wording.first_sentence`).
+    message = "Switched the cache to a local store, e.g. SQLite, to cut startup. Tests pass."
+    n = note(EventKind.FINISHED, {"last_assistant_message": message})
+    raw = "Switched the cache to a store, e.g. SQLite, to cut startup. Tests pass."
+    assert detail(raw, n) == "Switched the cache to a store, e.g. SQLite, to cut startup."
+
+
 def test_first_line_only_and_reasoning_dropped() -> None:
     raw = "<think>The user wants a summary.</think>\nAdded backoff to the fetcher\nTwo tests too"
     assert detail(raw) == "Added backoff to the fetcher."

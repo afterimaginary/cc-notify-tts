@@ -9,7 +9,14 @@ import pytest
 
 from cc_notify_tts.events import EventKind, Notification, classify
 from cc_notify_tts.sessions import BackgroundItem, SessionStore
-from cc_notify_tts.wording import Wording, describe_action, failing_tests, project_name, word
+from cc_notify_tts.wording import (
+    Wording,
+    describe_action,
+    failing_tests,
+    first_sentence,
+    project_name,
+    word,
+)
 from evals.cases import load_cases
 
 FIXTURES = Path(__file__).parent / "fixtures" / "hooks"
@@ -253,6 +260,41 @@ def test_finished_detail(message: str, detail: str | None) -> None:
     wording = word(note(EventKind.FINISHED, {"last_assistant_message": message}))
     assert wording.frame == "Finished up in weather app."
     assert wording.detail == detail
+
+
+@pytest.mark.parametrize(
+    ("text", "first"),
+    [
+        # Abbreviations don't end the sentence.
+        ("Used a cache, e.g. Redis, for it. Then tested.", "Used a cache, e.g. Redis, for it."),
+        ("Kept one store, i.e. disk. Then tested.", "Kept one store, i.e. disk."),
+        ("Picked SQLite vs. Postgres for tests. Done.", "Picked SQLite vs. Postgres for tests."),
+        ("Chose (e.g. here) the slower path. Done.", "Chose (e.g. here) the slower path."),
+        ("Shipped it in the U.S. first today. Done.", "Shipped it in the U.S. first today."),
+        ("Asked Dr. Lee about it. Done.", "Asked Dr. Lee about it."),
+        ("Cut it by approx. half. Done.", "Cut it by approx. half."),
+        ("Fixed lint, types, etc. and the docs. Done.", "Fixed lint, types, etc. and the docs."),
+        ("Fixed lint, types, etc. Then tested.", "Fixed lint, types, etc."),
+        # Decimals and versions never did.
+        ("Cut latency from 3.5s to 1.2s. Done.", "Cut latency from 3.5s to 1.2s."),
+        ("Bumped it to v1.2.3 and Node to 20.x. Done.", "Bumped it to v1.2.3 and Node to 20.x."),
+        ("Removed version 0.9. Then tested.", "Removed version 0.9."),
+        # Real ends still do, and a text without one is all one sentence.
+        ("Done. Everything passes.", "Done."),
+        ("Is it fixed? Yes.", "Is it fixed?"),
+        ("Fixed the bug in events.py. Done.", "Fixed the bug in events.py."),
+        ("Compared it with the old one vs.", "Compared it with the old one vs."),
+        ("No end mark", "No end mark"),
+    ],
+)
+def test_first_sentence(text: str, first: str) -> None:
+    assert first_sentence(text) == first
+
+
+def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
+    message = "Switched the cache to a local store, e.g. SQLite, to cut startup. Tests pass."
+    wording = word(note(EventKind.FINISHED, {"last_assistant_message": message}))
+    assert wording.detail == "Switched the cache to a local store, e.g. SQLite, to cut startup."
 
 
 def test_finished_without_detail() -> None:

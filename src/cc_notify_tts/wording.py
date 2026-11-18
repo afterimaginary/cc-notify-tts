@@ -53,7 +53,15 @@ _MD_MARKS = re.compile(r"`|\*\*|__|^#+\s*|^\s*[-*+]\s+|^\s*\d+\.\s+", re.MULTILI
 _LIST_ITEM = re.compile(r"^(?:[-*+]|\d+[.)])\s+")
 # A line that only labels what follows: a heading, a bold label or a lead-in ending in a colon.
 _LABEL = re.compile(r"#+\s.*|(\*\*|__)[^*_]+\1:?|.*:")
-_SENTENCE = re.compile(r"(.+?[.!?])(?=\s|$)")
+# A mark that may end a sentence: one followed by a space or the end, so decimals
+# and versions ("3.5", "v1.2.3") never do.
+_SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
+# Words a period follows without ending the sentence, besides letters joined by
+# periods ("e.g.", "i.e.", "U.S."). "etc." ends one unless lower case follows.
+_ABBREVIATIONS = frozenset(
+    {"vs", "cf", "approx", "incl", "esp", "viz", "eg", "ie", "mr", "mrs", "ms", "dr"}
+)
+_INITIALISM = re.compile(r"(?:[a-z]\.)+[a-z]", re.IGNORECASE)
 # A URL or a path, and any punctuation that ends the sentence after it.
 _URL = re.compile(r"\b([a-z][a-z0-9+.-]*://[^\s)>\]]*?)([.,;:!?]*)(?=[\s)>\]]|$)")
 _PATH = re.compile(r"(?<![\w/])(?:~|\.{1,2})?/(?:[\w.-]+/)*([\w.-]+?)([.,;:!?]*)(?=\s|$)")
@@ -366,9 +374,25 @@ def more_questions(total: int) -> str:
 
 
 def first_sentence(text: str) -> str:
-    """Text up to the first `.`, `!` or `?` followed by a space or the end, or all of it."""
-    match = _SENTENCE.match(text)
-    return match.group(1) if match else text
+    """Text up to the first `.`, `!` or `?` that ends a sentence, or all of it.
+
+    A mark ends one when a space or the end follows it, and a period after an
+    abbreviation ("e.g.", "vs.") doesn't.
+    """
+    for end in _SENTENCE_END.finditer(text):
+        if end.start() > 0 and not _after_abbreviation(text, end.start()):
+            return text[: end.end()]
+    return text
+
+
+def _after_abbreviation(text: str, period: int) -> bool:
+    """Whether the mark at `period` is a period that ends an abbreviation."""
+    if text[period] != ".":
+        return False
+    word = re.sub(r"^\W+", "", (text[:period].split() or [""])[-1]).lower()
+    if word == "etc":
+        return text[period + 1 :].lstrip()[:1].islower()
+    return word in _ABBREVIATIONS or _INITIALISM.fullmatch(word) is not None
 
 
 def _cap_words(text: str, limit: int) -> str:
