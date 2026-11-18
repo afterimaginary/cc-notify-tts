@@ -128,6 +128,7 @@ def test_every_fixture_reaches_the_daemon_which_the_first_hook_starts(home: Home
     assert len(starts) == 1, "one daemon, started by the first hook"
     started = starts[0]
     assert started["sid"] == started["started"], "the daemon leads its own session"
+    assert started["cwd"] == "/", "the daemon holds no project folder open"
     assert len(home.requests()) == len(fixtures)
     assert "started the daemon" in home.shim_log()
 

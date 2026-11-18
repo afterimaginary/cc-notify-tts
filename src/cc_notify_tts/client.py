@@ -68,7 +68,9 @@ def start_daemon(python: Path) -> None:
     """Start `python -I -m cc_notify_tts.daemon` detached, and return without waiting.
 
     A new session and stdio away from the caller's pipes let it outlive the hook,
-    the Claude Code session and its window (ADR-0002). A second daemon started by
+    the Claude Code session and its window (ADR-0002). It runs from `/`, so it
+    never holds the starting session's project folder (or its disk) open for its
+    whole life. A second daemon started by
     a race exits on its own (single instance, ADR-0013). Raises OSError when
     `python` can't be run.
     """
@@ -79,6 +81,7 @@ def start_daemon(python: Path) -> None:
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
+        cwd="/",
         start_new_session=True,
     )
 

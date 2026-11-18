@@ -36,7 +36,7 @@ def main() -> None:
     socket_path.parent.mkdir(parents=True, exist_ok=True)
     socket_path.unlink(missing_ok=True)
     server = socketserver.ThreadingUnixStreamServer(str(socket_path), Handler)
-    record({"started": os.getpid(), "sid": os.getsid(0), "argv": sys.argv})
+    record({"started": os.getpid(), "sid": os.getsid(0), "cwd": os.getcwd(), "argv": sys.argv})
     threading.Thread(target=server.serve_forever, args=(0.05,), daemon=True).start()
     while time.monotonic() - last[0] < IDLE_EXIT_SECONDS:
         time.sleep(0.1)
