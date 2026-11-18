@@ -91,7 +91,7 @@ Cold is a request right after the model was unloaded with `keep_alive: 0`, three
 **Timeouts:**
 
 - Before each wording request, read `/api/ps` (under 1 ms).
-- If it lists the model with a 2048 context, send the request with a **1.0 s timeout**. That is about 1.7 times the slowest capped long-input request (595 ms, `llama3.2:3b`) and 4.5 times the worst short-input p95 seen (223 ms, at a load average of 10), and leaves most of the 3 s budget for speech. On timeout or error, speak the template.
+- If it lists the model with a 2048 context, send the request with a **1.0 s timeout**. That is about 1.7 times the slowest long-input request (595 ms, `llama3.2:3b`, 3283 characters) and 4.5 times the worst short-input p95 seen (223 ms, at a load average of 10), and leaves most of the 3 s budget for speech. On timeout or error, speak the template.
 - Otherwise, don't wait for a load. Speak the template now, and send the load-only ping in the background with a **30 s timeout**, so the next notification finds the model warm. A load from cache costs 0.7–1.5 s before the sentence is even written, and a load from disk wasn't measured. Neither fits next to speech synthesis in 3 s.
 
 ## Consequences
@@ -99,5 +99,5 @@ Cold is a request right after the model was unloaded with `keep_alive: 0`, three
 - **Keeping the model warm holds 0.8–2.2 GiB** of GPU memory at `num_ctx` 2048 for these models, for as long as the daemon runs. The eval picks the model and reports its resident memory.
 - The first notification after the daemon starts, after another client changes the model's context, or after Ollama evicts it under memory pressure, is spoken with template wording. The `/api/ps` check sees all three, and the background ping makes the next one warm.
 - Another client using the same model without `num_ctx` shares one loaded copy and reloads it at its own context; the daemon notices through `/api/ps`. Unloading on exit also unloads it for that client, which then pays one load. Other models the user loads in Ollama are not affected.
-- The 1.0 s timeout leaves the least headroom for a 3 B model with long input under heavy load. If the eval picks a model of that size, its latency figures should confirm the timeout, and end-to-end timing in milestone 3 should confirm it with speech synthesis alongside.
+- The 1.0 s timeout leaves the least headroom for a 3 B model with long input under heavy load. Input at the 4000-character cap, or text dense with paths and code that tokenizes into more tokens per character, could put such a model's p95 over 1.0 s; the 1 B models stay under 0.5 s either way. If the eval picks a model of that size, its latency figures should confirm the timeout, and end-to-end timing in milestone 3 should confirm it with speech synthesis alongside.
 - The wording module owns the guards, the prompt and the cap. Its eval should keep the request-number technique or vary real payloads, so the prompt cache doesn't flatter warm latency: with an identical prompt every time, prompt evaluation dropped to about 5 ms.

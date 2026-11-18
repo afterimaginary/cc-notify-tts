@@ -29,7 +29,7 @@ The script is not part of `make ready` or `make verify`, because it needs Ollama
 
 ## What each phase does
 
-Every request is a fixed chat prompt (a finished turn to describe in one sentence), short unless the phase says otherwise,, with temperature 0, `num_predict` 40 and `num_ctx` 2048 unless the phase says otherwise. Models that can think get `think: false`.
+Every request is a fixed chat prompt (a finished turn to describe in one sentence), with temperature 0, `num_predict` 40, `num_ctx` 2048 and the short message unless the phase says otherwise. Models that can think get `think: false`.
 
 | Phase | What it measures |
 | --- | --- |
