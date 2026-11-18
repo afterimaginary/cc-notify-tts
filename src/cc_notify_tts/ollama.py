@@ -61,6 +61,14 @@ class Ollama:
         self.endpoint = endpoint.rstrip("/")
 
     def loaded_context(self, model: str) -> int | None:
+        fields = self.running(model)
+        if fields is None:
+            return None
+        context = fields.get("context_length")
+        return context if isinstance(context, int) else 0
+
+    def running(self, model: str) -> dict[str, Any] | None:
+        """`model`'s entry in /api/ps (size, digest, context length), or None if not loaded."""
         reply = self._call("GET", "/api/ps", None, PS_TIMEOUT)
         models: Any = reply.get("models")
         for entry in models if isinstance(models, list) else []:  # pyright: ignore[reportUnknownVariableType]
@@ -68,9 +76,14 @@ class Ollama:
                 continue
             fields: dict[str, Any] = entry  # pyright: ignore[reportUnknownVariableType]
             if same_model(fields.get("name"), model) or same_model(fields.get("model"), model):
-                context = fields.get("context_length")
-                return context if isinstance(context, int) else 0
+                return fields
         return None
+
+    def version(self) -> str:
+        version = self._call("GET", "/api/version", None, PS_TIMEOUT).get("version")
+        if not isinstance(version, str):
+            raise OllamaError("the reply had no version")
+        return version
 
     def chat(self, model: str, system: str, user: str, *, timeout: float, max_tokens: int) -> str:
         body = {

@@ -1,0 +1,220 @@
+[
+  {
+    "id": "permission-force-push",
+    "traps": ["destructive"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/weather-app",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "git push --force origin main",
+        "description": "Force-push the rebased branch to main"
+      }
+    },
+    "required": [["force push*"]],
+    "forbidden": ["pull", "delete*", "merge*"]
+  },
+  {
+    "id": "permission-remove-build",
+    "traps": ["destructive", "names"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/recipe-box",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "rm -rf dist build .cache",
+        "description": "Remove build artifacts"
+      }
+    },
+    "required": [["remov*", "delet*", "clean*"], ["build*", "dist", "cache"]],
+    "forbidden": ["node_modules", "source", "src"]
+  },
+  {
+    "id": "permission-long-heredoc",
+    "traps": ["long input"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/ledger-api",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "cat > scripts/seed.sql <<'EOF'\nINSERT INTO customers (id, name, country) VALUES\n  (1, 'Acme Supplies', 'GB'),\n  (2, 'Northwind Traders', 'US'),\n  (3, 'Blue Harbor Fisheries', 'NO'),\n  (4, 'Kestrel Analytics', 'DE');\nINSERT INTO invoices (id, customer_id, amount_cents, issued_on) VALUES\n  (101, 1, 125000, '2026-01-15'),\n  (102, 1, 98000, '2026-02-15'),\n  (103, 2, 450000, '2026-02-01'),\n  (104, 3, 76050, '2026-03-03'),\n  (105, 4, 230000, '2026-03-20');\nINSERT INTO payments (invoice_id, amount_cents, paid_on) VALUES\n  (101, 125000, '2026-01-30'),\n  (103, 200000, '2026-02-20');\nEOF\npsql \"$LOCAL_DATABASE_URL\" -v ON_ERROR_STOP=1 -f scripts/seed.sql",
+        "description": "Write the seed script and load it into the local database"
+      }
+    },
+    "required": [["seed*"]],
+    "forbidden": ["production", "drop*", "migrat*"]
+  },
+  {
+    "id": "permission-write-long-file",
+    "traps": ["long input", "names"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/recipe-box",
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": "/Users/dev/src/recipe-box/src/units.ts",
+        "content": "// Converts between the units recipes are written in.\n\nexport type Unit = 'g' | 'kg' | 'ml' | 'l' | 'tsp' | 'tbsp' | 'cup';\n\nconst GRAMS: Record<string, number> = { g: 1, kg: 1000 };\nconst MILLILITRES: Record<string, number> = { ml: 1, l: 1000, tsp: 5, tbsp: 15, cup: 240 };\n\nexport function convert(amount: number, from: Unit, to: Unit): number {\n  if (from in GRAMS && to in GRAMS) {\n    return (amount * GRAMS[from]) / GRAMS[to];\n  }\n  if (from in MILLILITRES && to in MILLILITRES) {\n    return (amount * MILLILITRES[from]) / MILLILITRES[to];\n  }\n  throw new Error(`can't convert ${from} to ${to} without a density`);\n}\n\nexport function scale(amount: number, servings: number, wanted: number): number {\n  return (amount * wanted) / servings;\n}\n\nexport function format(amount: number, unit: Unit): string {\n  const rounded = Math.round(amount * 100) / 100;\n  return `${rounded} ${unit}`;\n}\n"
+      }
+    },
+    "required": [["writ*", "creat*", "add*", "sav*"], ["units.ts", "unit*", "convert*"]],
+    "forbidden": ["delete*", "density table", "temperature"]
+  },
+  {
+    "id": "permission-edit-setting",
+    "traps": ["names"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/photo-sorter",
+      "tool_name": "Edit",
+      "tool_input": {
+        "file_path": "/Users/dev/src/photo-sorter/config/settings.py",
+        "old_string": "DEBUG = True",
+        "new_string": "DEBUG = False",
+        "replace_all": false
+      }
+    },
+    "required": [["debug"], ["off", "disabl*", "false"]],
+    "forbidden": ["delete*", "enable debug", "turn on debug", "true"]
+  },
+  {
+    "id": "permission-web-fetch",
+    "traps": ["url"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/weather-app",
+      "tool_name": "WebFetch",
+      "tool_input": {
+        "url": "https://docs.example.com/api/v2/rate-limits",
+        "prompt": "Find the rate limit for the batch endpoint"
+      }
+    },
+    "required": [["fetch*", "rate limit*", "docs", "read*", "look*", "check*", "find*"]],
+    "forbidden": ["download*", "post*", "v3"]
+  },
+  {
+    "id": "permission-mcp-pull-request",
+    "traps": ["long input", "names", "mcp tool"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/ledger-api",
+      "tool_name": "mcp__github__create_pull_request",
+      "tool_input": {
+        "owner": "example-org",
+        "repo": "ledger-api",
+        "title": "Fix rounding in invoice totals",
+        "head": "fix-rounding",
+        "base": "main",
+        "body": "Invoice totals were rounded half-up while the bank export rounds half-even, so about 1 in 200 invoices differed by a cent from the bank's figure. This switches parse_amount and the total calculation to half-even, adds tests for the cases that differed, and regenerates the fixtures in tests/data. Invoices already issued are not recalculated; a follow-up can decide whether to reissue the 14 affected invoices from March. No schema changes, no new dependencies."
+      }
+    },
+    "required": [["pull request", "pr"]],
+    "forbidden": ["merge*", "issue", "close*"]
+  },
+  {
+    "id": "permission-npm-publish",
+    "traps": ["numbers", "outward-facing"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/chess-clock",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "npm publish --access public",
+        "description": "Publish version 2.4.0 to npm"
+      }
+    },
+    "required": [["publish*"]],
+    "forbidden": ["2.5.0", "private", "install*"]
+  },
+  {
+    "id": "permission-kubectl-delete",
+    "traps": ["destructive", "names"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/trail-maps",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "kubectl delete pod api-7f9c4d-x2k8p -n staging",
+        "description": "Restart the stuck API pod in staging"
+      }
+    },
+    "required": [["delete*", "restart*", "pod"]],
+    "forbidden": ["production", "deployment", "all pods"]
+  },
+  {
+    "id": "permission-brew-install",
+    "traps": ["names"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/garden-planner",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "brew install --cask docker",
+        "description": "Install Docker Desktop"
+      }
+    },
+    "required": [["install*"], ["docker"]],
+    "forbidden": ["uninstall*", "upgrade*", "podman"]
+  },
+  {
+    "id": "permission-reset-hard",
+    "traps": ["destructive", "numbers"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/photo-sorter",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "git reset --hard HEAD~3",
+        "description": "Drop the last 3 commits"
+      }
+    },
+    "required": [["reset*", "drop*", "discard*", "undo*", "remov*"], ["3", "three"]],
+    "forbidden": ["two", "2 commits", "4 commits", "push*", "three times", "3 times"]
+  },
+  {
+    "id": "permission-edit-long-config",
+    "traps": ["long input", "names"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/trail-maps",
+      "tool_name": "Edit",
+      "tool_input": {
+        "file_path": "/Users/dev/src/trail-maps/deploy/nginx.conf",
+        "old_string": "location /tiles/ {\n    proxy_pass http://tiles:8080/;\n}",
+        "new_string": "location /tiles/ {\n    proxy_pass http://tiles:8080/;\n    proxy_cache tiles;\n    proxy_cache_valid 200 10m;\n    proxy_cache_use_stale error timeout updating;\n    proxy_cache_lock on;\n    add_header X-Cache-Status $upstream_cache_status;\n    expires 10m;\n    gzip on;\n    gzip_types application/x-protobuf application/json;\n    limit_req zone=tiles burst=40 nodelay;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_read_timeout 15s;\n}",
+        "replace_all": false
+      }
+    },
+    "required": [["nginx*", "config*"], ["cach*", "tile*"]],
+    "forbidden": ["delete*", "ssl", "https"]
+  },
+  {
+    "id": "permission-refund-api",
+    "traps": ["names", "numbers", "outward-facing"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/invoice-tool",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "curl -X POST https://api.example.com/v1/refunds -H 'Content-Type: application/json' -d '{\"invoice\": \"INV-2041\", \"amount_cents\": 1999}'",
+        "description": "Issue a refund for invoice INV-2041"
+      }
+    },
+    "required": [["refund*"], ["inv 2041", "2041", "invoice"]],
+    "forbidden": ["inv-2014", "charge*", "cancel*"]
+  },
+  {
+    "id": "permission-recreate-db",
+    "traps": ["destructive", "names"],
+    "payload": {
+      "hook_event_name": "PermissionRequest",
+      "cwd": "/Users/dev/src/weather-app",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "dropdb weather_test && createdb weather_test",
+        "description": "Recreate the test database"
+      }
+    },
+    "required": [["database", "dropdb", "recreat*", "weather_test", "db"]],
+    "forbidden": ["production", "weather_prod", "backup*"]
+  }
+]
