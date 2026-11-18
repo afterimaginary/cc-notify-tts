@@ -367,6 +367,16 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
         # ...and without one, goes in front of it.
         ("**Option A**\nKeep the cache, it's faster.", "Option A: keep the cache, it's faster."),
         ("## Options\n\n### Option A\nKeep the cache.", "Option A: keep the cache."),
+        # ...but not in front of anything after a code block that is the option itself.
+        (
+            "### Option A\n```py\ncache = True\n```\n### Option B\n```py\ncache = False\n```\n"
+            "Which do you prefer?",
+            "Which do you prefer?",
+        ),
+        (
+            "**Option A**\n```py\ncache = True\n```\n\nOption B drops it. Which do you prefer?",
+            "Option B drops it.",
+        ),
         ("## Optional: cleanup\n\nRemoved the old flag.", "Removed the old flag."),
         # A long one is left out, so the option isn't cut off.
         (
