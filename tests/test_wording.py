@@ -312,6 +312,24 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
         ("Summary: fixed the retry and added tests.", "Fixed the retry and added tests."),
         ("**Done:** fixed the retry.", "Fixed the retry."),
         ("In short: the cache was stale.", "The cache was stale."),
+        # A lead-in to a choice stays, so the choice isn't heard as an instruction.
+        (
+            "Here are two options: keep the cache or drop it.",
+            "Here are two options: keep the cache or drop it.",
+        ),
+        (
+            "Here\u2019s the choice: retry now or wait for the fix.",
+            "Here\u2019s the choice: retry now or wait for the fix.",
+        ),
+        (
+            "Here are a few alternatives: pin the version, vendor it or drop it.",
+            "Here are a few alternatives: pin the version, vendor it or drop it.",
+        ),
+        # A summary lead-in that only mentions a choice-like word elsewhere still goes.
+        (
+            "Here's what was done: added an option to drop the cache.",
+            "Added an option to drop the cache.",
+        ),
         # A lead-in with nothing after it says nothing, inline or on its own line.
         ("Here's what was done:", None),
         ("Here's what was done:\n\nFixed the retry.", "Fixed the retry."),

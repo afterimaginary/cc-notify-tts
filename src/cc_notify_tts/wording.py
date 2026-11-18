@@ -64,6 +64,9 @@ _LEAD_IN = re.compile(
     r"):\s+",
     re.IGNORECASE,
 )
+# A lead-in that introduces a choice ("Here are two options:") stays, so what follows
+# isn't heard as an instruction.
+_CHOICE = re.compile(r"\b(?:options?|choices?|alternatives?)\b", re.IGNORECASE)
 # A mark that may end a sentence: one followed by a space or the end, so decimals
 # and versions ("3.5", "v1.2.3") never do.
 _SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
@@ -261,7 +264,9 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
 def _without_lead_in(sentence: str) -> str:
     """Only what an inline lead-in introduces ("Here's what was done: renamed it.")."""
     lead_in = _LEAD_IN.match(sentence)
-    return capitalize(sentence[lead_in.end() :]) if lead_in else sentence
+    if lead_in is None or _CHOICE.search(lead_in.group()):
+        return sentence
+    return capitalize(sentence[lead_in.end() :])
 
 
 def failing_tests(message: str) -> str | None:
