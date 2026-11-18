@@ -24,7 +24,7 @@ The repository is set up: brief, build policy, Python toolchain, `make ready` / 
 
 ## Needs Your Decision
 
-- Approve the plugin's hook list proposed in ADR-0001, and run its desktop-app steps (#1).
+- Run ADR-0001's desktop-app steps when convenient; the hook list itself is approved.
 
 ## Notes
 

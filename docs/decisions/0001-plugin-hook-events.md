@@ -1,6 +1,6 @@
 ---
 description: The plugin listens on SessionStart, SessionEnd, UserPromptSubmit, Stop, StopFailure, PermissionRequest and PermissionDenied, all async, and reads background work from Stop's background_tasks.
-status: proposed
+status: accepted
 ---
 
 # ADR-0001: Plugin hook events
@@ -38,6 +38,7 @@ Scenarios run: session start and `/exit`; a plain turn; a turn that starts a bac
 | Task list (`TaskCreate`) | `TaskCreated`, `TaskCompleted` | Not observed: the task-list tools weren't available in the tested CLI | Untested | n/a | n/a. These track the task list, not background work |
 | Permission request | `PermissionRequest`, then `Notification` (`permission_prompt`) about 6 s later | Yes | Untested | Yes | `tool_name`, `tool_input` (for Bash: `command`, `description`), `permission_suggestions`, `permission_mode` |
 | Question to the user | `PermissionRequest` with `tool_name: AskUserQuestion`, then `Notification` (`permission_prompt`) about 6 s later. Fires in auto mode too | Yes | Untested | Yes | `tool_input.questions[]` with `question`, `header`, `options` |
+| Plan waiting for approval (plan mode) | Expected: `PermissionRequest` with `tool_name: ExitPlanMode`, since the docs list it with `AskUserQuestion` as a tool that waits on the user | Untested | Untested | Untested | Expected: `tool_input` with the plan |
 | Denied: user answers "No" | Nothing. The turn is interrupted, no `Stop` fires; `Notification` (`idle_prompt`) about 70 s later | Yes | Untested | n/a | n/a |
 | Denied: deny rule | Nothing specific. `PreToolUse`, then the turn ends with `Stop` | Yes (headless) | Untested | n/a | n/a |
 | Denied: auto-mode classifier | `PermissionDenied` (from the docs: `tool_name`, `tool_input`, `tool_use_id`, `reason`) | Untested: neither harmless probe was denied | Untested | Untested | per the docs, all needed fields |
@@ -64,7 +65,9 @@ Untested here: a CLI session started directly in Terminal, iTerm2, Ghostty or VS
 
 Consequences for the presence design: `__CFBundleIdentifier` is the most direct answer when present; `TERM_PROGRAM` names a terminal but not always the app in front (tmux hides it); `CLAUDE_CODE_DESKTOP_APP_VERSION` marks a desktop-app session but leaks into anything started from one. When none of them identify the app, the `away` check can only use keyboard and mouse idle time, which matches the rule "if presence can't be read, speak".
 
-## Decision (proposed, for the owner to approve)
+## Decision
+
+The owner approved this hook list as proposed. The desktop-app check stays a manual follow-up (steps below).
 
 Register these events in the plugin's `hooks/hooks.json`, every handler `async: true`:
 
@@ -75,20 +78,21 @@ Register these events in the plugin's `hooks/hooks.json`, every handler `async: 
 | `UserPromptSubmit` | Turn start time. Prompts that are `<task-notification>` or `<agent-message>` wake-ups aren't new user turns |
 | `Stop` | Turn finished. A non-empty `background_tasks` means "finished, still running in the background"; an empty list after a heard "still running" means "background work done" |
 | `StopFailure` | Turn failed, with `error` |
-| `PermissionRequest` | Permission prompts (naming the action from `tool_name` and `tool_input`) and questions (`tool_name: AskUserQuestion`). Listen-only: the handler must never print a decision |
+| `PermissionRequest` | Permission prompts (naming the action from `tool_name` and `tool_input`) and questions. `AskUserQuestion` and `ExitPlanMode` (a plan waiting for approval) are waits on the user, not permission for an action, and must not be spoken as "needs your okay to ExitPlanMode". Listen-only: the handler must never print a decision |
 | `PermissionDenied` | Actions the auto-mode classifier denied |
 
 Not registered:
 
 - **`Notification`:** it arrives about 6 s after `PermissionRequest` with a generic message, so it adds a duplicate with less detail. `idle_prompt` isn't one of the events the notifier speaks.
 - **`SubagentStart`, `SubagentStop`, `TaskCreated`, `TaskCompleted`:** `Stop.background_tasks` already lists live agents and shell commands, and background shell commands have no start or stop event at all, so counting starts and stops would cover only half the work. `SubagentStop` even lists the finishing agent as still running.
+- **`Elicitation`:** an MCP server asking the user for input. MCP prompts aren't among the events the notifier speaks about.
 - **Tool events** (`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PostToolBatch`) and **`MessageDisplay`:** they fire many times per turn and carry nothing the notifier needs.
 
 ## Consequences
 
 - "Background work done" depends on Claude Code waking the main agent when background work finishes. It did for both a background agent and a background shell command. If a future version stops doing that, `SubagentStop` would be the fallback for agents, and shell commands would have no signal at all.
 - A denial the user makes by answering "No", or that a deny rule makes, is silent. That's acceptable: the user was there to answer, or chose the rule.
-- `PermissionDenied` and the whole desktop app are untested and need the owner's run below before the hook list is final.
+- `PermissionDenied` and the whole desktop app are untested. The owner's run below confirms them; if it shows a gap, the hook list is revisited in a new decision.
 
 ## Owner steps for what's untested
 
@@ -104,6 +108,7 @@ The log holds real prompts and paths, so it stays on your machine; paste only th
    - "Start two things in the background, then end your turn immediately: a Bash command `sleep 25` with run_in_background, and a background Agent that runs `sleep 35` and replies done." Wait for both to finish.
    - "Use AskUserQuestion to ask me 'Pick a color' with options red and blue." Answer it.
    - In manual permission mode: "Run the Bash command: touch spike-file.txt". Approve it once, then repeat and answer No.
+   - In plan mode: "Plan adding a README line saying hello." Leave the plan waiting for approval for a few seconds, then reject it.
    - Switch the model to one that doesn't exist (`/model claude-nonexistent`) and send any prompt.
    - Close the session.
 5. `python3 <repo>/spikes/hook-logger/summarize.py` and paste the output on the issue.

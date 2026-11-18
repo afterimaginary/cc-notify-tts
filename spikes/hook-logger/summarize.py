@@ -17,6 +17,7 @@ from pathlib import Path
 
 DEFAULT = Path.home() / "Library" / "Logs" / "cc-notify-tts-spike" / "hooks.jsonl"
 COMMON = {"session_id", "transcript_path", "cwd", "hook_event_name", "scratchpad_dir"}
+PRIVATE_VALUES = {"STY", "SSH_CONNECTION", "TMUX"}
 
 
 def main() -> None:
@@ -36,7 +37,8 @@ def main() -> None:
                 first_line = str(payload[key]).splitlines()[0] if payload[key] else ""
                 notes[event].add(f"{key}={first_line}")
         for key, value in (record.get("host_env") or {}).items():
-            host[key].add(str(value))
+            # These hold a hostname or IP addresses: report presence only.
+            host[key].add("(set)" if key in PRIVATE_VALUES else str(value))
         entrypoint = (record.get("claude_env") or {}).get("CLAUDE_CODE_ENTRYPOINT")
         if entrypoint:
             host["CLAUDE_CODE_ENTRYPOINT"].add(entrypoint)
