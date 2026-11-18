@@ -11,6 +11,7 @@ from cc_notify_tts.events import EventKind, Notification, classify
 from cc_notify_tts.sessions import BackgroundItem, SessionStore
 from cc_notify_tts.wording import (
     Wording,
+    capitalize,
     describe_action,
     failing_tests,
     first_sentence,
@@ -297,6 +298,56 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
     message = "Switched the cache to a local store, e.g. SQLite, to cut startup. Tests pass."
     wording = word(note(EventKind.FINISHED, {"last_assistant_message": message}))
     assert wording.detail == "Switched the cache to a local store, e.g. SQLite, to cut startup."
+
+
+@pytest.mark.parametrize(
+    ("message", "detail"),
+    [
+        # An inline lead-in gives way to what it introduces.
+        (
+            "Here's what was done: renamed the fetchUser helper to loadUser. Tests pass.",
+            "Renamed the fetchUser helper to loadUser.",
+        ),
+        ("Here\u2019s a summary of the work: fixed the retry.", "Fixed the retry."),
+        ("Summary: fixed the retry and added tests.", "Fixed the retry and added tests."),
+        ("**Done:** fixed the retry.", "Fixed the retry."),
+        ("In short: the cache was stale.", "The cache was stale."),
+        # A lead-in with nothing after it says nothing, inline or on its own line.
+        ("Here's what was done:", None),
+        ("Here's what was done:\n\nFixed the retry.", "Fixed the retry."),
+        # A colon mid-sentence after anything else is content.
+        (
+            "Fixed the parser: it dropped the last token.",
+            "Fixed the parser: it dropped the last token.",
+        ),
+        ("Update nginx.conf: add caching.", "Update nginx.conf: add caching."),
+        ("Benchmarked it at 10:30: twice as fast.", "Benchmarked it at 10:30: twice as fast."),
+        (
+            "Here's the PR. Fixed it: the cache was stale.",
+            "Here's the PR.",
+        ),
+    ],
+)
+def test_finished_detail_after_a_lead_in(message: str, detail: str | None) -> None:
+    assert word(note(EventKind.FINISHED, {"last_assistant_message": message})).detail == detail
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Here's where things stand: 2 tests still fail.",
+        "Summary: 2 failed, 41 passed.",
+        "Here are the results: 2 failed, 41 passed.",
+    ],
+)
+def test_failing_tests_after_an_inline_lead_in_are_spoken_once(message: str) -> None:
+    after = message.partition(": ")[2]
+    assert finished_text(message) == f"Finished up in weather app. {capitalize(after)}"
+
+
+def test_a_long_here_lead_in() -> None:
+    message = "Here's a summary of the changes I made to the auth flow: renamed it."
+    assert finished_text(message) == "Finished up in weather app. Renamed it."
 
 
 def test_finished_without_detail() -> None:
