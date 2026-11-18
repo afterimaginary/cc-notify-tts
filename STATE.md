@@ -4,7 +4,7 @@
 
 ## Where We Are
 
-Milestones 1 and 2 are built: on templates alone, the plugin's hooks reach a local daemon that classifies each event, decides whether to speak from the config and live presence, words it and speaks it with Kokoro, and the README covers install, `status`, `fire`, mute and uninstall. An end-to-end test runs the real hook commands, shim and daemon (with fake speech and presence) through a whole session in `verify`. Ollama wording with guards (ADR-0015) and the wording eval (ADR-0016) are in, and ten models were compared on it: `granite4:micro` is the default wording model, with `phi4-mini:3.8b` the runner-up (ADR-0018). Every event's stages are now logged and measured: the first sound comes about 0.75 s after the hook with templates and 1.0 s with `granite4:micro` (p95), and hooks stay under 60 ms p95 (ADR-0019). A scripted demo video, rebuilt by `make demo`, shows it working (ADR-0020). What's left is the launch.
+Milestones 1 and 2 are built: on templates alone, the plugin's hooks reach a local daemon that classifies each event, decides whether to speak from the config and live presence, words it and speaks it with Kokoro, and the README covers install, `status`, `fire`, mute and uninstall. An end-to-end test runs the real hook commands, shim and daemon (with fake speech and presence) through a whole session in `verify`. Ollama wording with guards (ADR-0015) and the wording eval (ADR-0016) are in, and ten models were compared on it: `granite4:micro` is the default wording model, with `phi4-mini:3.8b` the runner-up (ADR-0018). Every event's stages are now logged and measured: the first sound comes about 0.75 s after the hook with templates and 1.0 s with `granite4:micro` (p95), and hooks stay under 60 ms p95 (ADR-0019). A scripted demo video, rebuilt by `make demo`, shows it working (ADR-0020), and the README carries the eval and latency evidence, how the project was built, its limitations and a roadmap. What's left is the launch.
 
 How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured results and decisions are ADR-0001 to ADR-0020 and ADR-0022 in [docs/decisions/](docs/decisions/).
 
@@ -18,9 +18,11 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured
 - [x] Shipped default wording model, chosen by the eval (#19)
 - [x] Measured end-to-end latency, stage by stage (#20)
 - [x] `make demo`: a scripted demo video with real speech, and a silent GIF in the README (#21)
+- [x] README with the evidence, "How this was built", limitations and roadmap (#22)
 
 ## Recently Done
 
+- README: three-command try-it, the eval and latency evidence linked to their ADRs, "How this was built" (run numbers filled in at release), limitations and roadmap (#22)
 - Demo: `make demo` records scripted scenes against the real hooks, daemon, wording model and Kokoro, without playing anything aloud (ADR-0020) (#21)
 - A queued sentence no longer waits for `afplay` to exit: the silence between back-to-back sentences fell from 1083 ms to 404 ms p50 (ADR-0022) (#56)
 - Latency instrumentation: a `timing` line per event in `daemon.log`, `bench.latency`, and the measured budget (ADR-0019) (#20)
