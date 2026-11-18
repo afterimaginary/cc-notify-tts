@@ -4,7 +4,7 @@
 
 ## Where We Are
 
-The repository is set up: brief, build policy, Python toolchain, `make ready` / `make verify` and the `verify` check. No product code yet; milestone 1 (proving the risky parts) comes first.
+The repository is set up: brief, build policy, Python toolchain, `make ready` / `make verify` and the `verify` check. No product code yet; milestone 1 (proving the risky parts) is under way. Hook coverage is measured in the CLI (ADR-0001) and synthetic payload fixtures are in `tests/fixtures/hooks/`.
 
 ## Features
 
@@ -24,7 +24,7 @@ The repository is set up: brief, build policy, Python toolchain, `make ready` / 
 
 ## Needs Your Decision
 
-- None.
+- Approve the plugin's hook list proposed in ADR-0001, and run its desktop-app steps (#1).
 
 ## Notes
 

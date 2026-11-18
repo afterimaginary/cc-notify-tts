@@ -1,0 +1,11 @@
+{
+  "name": "cc-notify-tts-spikes",
+  "owner": { "name": "afterimaginary" },
+  "plugins": [
+    {
+      "name": "cc-notify-tts-hook-logger",
+      "source": "./",
+      "description": "Spike only, never shipped: logs every hook event Claude Code sends."
+    }
+  ]
+}
