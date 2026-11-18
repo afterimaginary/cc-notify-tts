@@ -11,6 +11,8 @@ uv run --script spikes/presence/presence_probe.py idle            # idle time: i
 uv run --script spikes/presence/presence_probe.py front           # frontmost app: lsappinfo vs NSWorkspace
 uv run --script spikes/presence/presence_probe.py host            # which app hosts this shell
 uv run --script spikes/presence/presence_probe.py track --seconds 300
+uv run --script spikes/presence/presence_probe.py watch --seconds 300   # notifications only, cost at rest
+uv run --script spikes/presence/presence_probe.py listen --seconds 300  # lsappinfo listen through a pipe
 ```
 
 | Subcommand | Measures |
@@ -19,7 +21,6 @@ uv run --script spikes/presence/presence_probe.py track --seconds 300
 | `front` | The frontmost app's bundle id, read 200 times each with `lsappinfo` (two subprocesses) and with `NSWorkspace.frontmostApplication`. Also times importing AppKit and the memory it adds. |
 | `host` | The app hosting the current process, three ways: `__CFBundleIdentifier`, `TERM_PROGRAM`, and the outermost `.app` bundle among its ancestor processes. Inside tmux it also asks tmux for the attached client's pid and walks that client's ancestors. `--out FILE` appends the result as a JSON line. |
 | `track` | Watches the frontmost app for `--seconds`, polling every `--interval` seconds. One process runs a run loop, receives `NSWorkspace` activation notifications and polls both `lsappinfo` and `NSWorkspace`'s property. A second process polls the property without ever running a run loop. Reports what each method saw, whether the property went stale, and CPU time per poll. |
-
 | `watch` | Activation notifications only, no polling, for `--seconds`: CPU time while watching, resident memory with AppKit loaded, and every switch seen. `--out FILE` appends the result as a JSON line, so it can run detached. |
 | `listen` | Runs `lsappinfo listen +becameFrontmost` for `--seconds` and reads it through a pipe, as the daemon would. Reports each switch's bundle id, how long after the switch its line arrived, and the listener's CPU time and peak memory. |
 

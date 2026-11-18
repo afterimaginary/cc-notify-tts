@@ -17,9 +17,13 @@ Subcommands:
   polling `lsappinfo`, polling `NSWorkspace.frontmostApplication` in a process
   that runs a run loop and one that doesn't, and `NSWorkspace` activation
   notifications. Reports what each saw and what tracking cost in CPU time.
+- `watch`: activation notifications only, to measure an event-driven tracker
+  at rest (CPU time and memory with AppKit loaded).
+- `listen`: `lsappinfo listen +becameFrontmost` read through a pipe: what
+  arrives, how soon after each switch, and what the listener costs.
 
 Nothing here needs Accessibility, Input Monitoring or Screen Recording permission,
-and nothing changes which app is in front: `track` only watches.
+and nothing changes which app is in front: `track`, `watch` and `listen` only watch.
 
     uv run --script spikes/presence/presence_probe.py idle
     uv run --script spikes/presence/presence_probe.py track --seconds 300
