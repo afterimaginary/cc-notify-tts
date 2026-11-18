@@ -26,9 +26,9 @@ The brief sets two latency targets: a finished turn is spoken within 3 s of the 
 | `synthesizing` | the speech worker took it from the queue | speech worker |
 | `synthesized` | the whole sentence is synthesized to a WAV file | speech worker |
 | `playing` | `afplay` spawned | speech worker |
-| `ended` | `afplay` exited | speech worker |
+| `ended` | `afplay` exited (the sound finished, since ADR-0022) | speech worker |
 
-- `dequeued` and `synthesizing` go beyond the issue's list so that the ordering hold and any wait behind earlier speech show up as their own stages rather than inside the gate and synthesis. `ended`, with the synthesized length, bounds how long `afplay` takes to start.
+- `dequeued` and `synthesizing` go beyond the issue's list so that the ordering hold and any wait behind earlier speech show up as their own stages rather than inside the gate and synthesis. `ended`, with the synthesized length, bounds how long `afplay` takes to start. Since ADR-0022, `ended` comes once the sound has finished, so it no longer does.
 - The shim stamps `sent` before it tries the socket, so when nothing answers and it starts the daemon, `sent → received` includes the daemon's start-up. In an everyday `daemon.log` that shows as a large maximum in that row.
 - All marks are wall-clock `time.time()`, the clock the shim already uses for `fired_at`, so marks from the hook process and the daemon compare directly.
 - The log is always on. A line is under 500 bytes per event, against the log's 1 MB rotation.
