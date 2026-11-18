@@ -2,7 +2,15 @@
 
 import pytest
 
-from demo.build import TAIL_SECONDS, Shot, last_freeze_start, parse_duration, timeline
+from demo.build import (
+    GIF_READ_SECONDS,
+    TAIL_SECONDS,
+    Shot,
+    gif_seconds,
+    last_freeze_start,
+    parse_duration,
+    timeline,
+)
 
 
 def test_a_scene_holds_its_last_frame_until_the_sentence_has_been_said() -> None:
@@ -49,3 +57,8 @@ def test_a_clip_that_never_settles_is_an_error() -> None:
 def test_a_duration_is_read_from_ffmpegs_description_of_its_input() -> None:
     log = "Input #0, wav, from 'a.wav':\n  Duration: 00:01:06.59, bitrate: 384 kb/s\n"
     assert parse_duration(log) == pytest.approx(66.59)
+
+
+def test_the_gif_stops_once_its_spoken_line_has_had_time_to_be_read() -> None:
+    shot = Shot(10.0, speech_at=9.0, speech_seconds=6.0)
+    assert gif_seconds(shot) == 9.0 + GIF_READ_SECONDS

@@ -10,7 +10,7 @@
    last change) and mixes that sentence's Kokoro audio in there with ffmpeg.
 4. Adds a caption under each scene and title and end cards (ImageMagick, since
    ffmpeg's text filters aren't in every build), then writes the full cut to
-   `build/demo/` and a short silent GIF to `docs/demo.gif`.
+   `build/demo/` and a short silent GIF of the first scene to `docs/demo.gif`.
 
 Needs `vhs`, `ffmpeg` and `magick` on PATH and the speech model (`cc-notify-tts
 setup` fetches it; otherwise this does). With Ollama running and the default
@@ -49,6 +49,8 @@ CARD_SECONDS = 3.5
 TAIL_SECONDS = 1.2
 GIF_WIDTH = 960
 GIF_FPS = 10
+# How long the GIF holds its spoken line: long enough to read it.
+GIF_READ_SECONDS = 4.0
 
 BACKGROUND = "#1e1e2e"
 TEXT = "#cdd6f4"
@@ -457,10 +459,17 @@ def assemble(work: Path, clips: list[Path], shots: list[Shot], wavs: list[Path |
     return plan
 
 
-def silent_gif(plan: Timeline) -> None:
-    """The scenes alone, without cards or sound, small enough for the README."""
+def gif_seconds(shot: Shot) -> float:
+    """The GIF's length: the scene up to its spoken line, then long enough to read it."""
+    if shot.speech_at is None:
+        return shot.seconds
+    return min(shot.seconds, shot.speech_at + GIF_READ_SECONDS)
+
+
+def silent_gif(plan: Timeline, shots: list[Shot]) -> None:
+    """The first scene alone, cut short after its spoken line, as a quick loop for the README."""
     start = plan.starts[0]
-    length = plan.total - CARD_SECONDS - start
+    length = gif_seconds(shots[0])
     subprocess.run(
         [
             "ffmpeg",
@@ -531,7 +540,7 @@ def main() -> int:
         stop_daemon(home)
         shutil.rmtree(home, ignore_errors=True)
     plan = assemble(work, clips, shots, wavs)
-    silent_gif(plan)
+    silent_gif(plan, shots)
     print(f"Full cut: {VIDEO.relative_to(REPO)} ({plan.total:.1f} s)")
     print(f"Silent cut: {GIF.relative_to(REPO)} ({GIF.stat().st_size / 1e6:.1f} MB)")
     return 0

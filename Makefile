@@ -25,7 +25,7 @@ latency:
 	$(UV) run --frozen python -m bench.latency run $(if $(MODEL),--model $(MODEL))
 
 # Records the demo from scratch: build/demo/cc-notify-tts-demo.mp4 (1080p, with
-# Kokoro's real audio) and docs/demo.gif (short, silent). Needs vhs, ffmpeg and
+# Kokoro's real audio) and docs/demo.gif (the first scene, short and silent). Needs vhs, ffmpeg and
 # ImageMagick; plays nothing out loud. See demo/README.md.
 demo:
 	$(UV) run --frozen python demo/build.py

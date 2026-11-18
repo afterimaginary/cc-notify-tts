@@ -3,7 +3,7 @@
 `make demo` builds the demo video from scratch:
 
 - `build/demo/cc-notify-tts-demo.mp4`: the full cut, 1080p H.264 with AAC audio, with captions and title and end cards. It isn't committed.
-- `docs/demo.gif`: a short silent cut of the same scenes, for the README.
+- `docs/demo.gif`: a short silent loop of the first scene, for the README.
 
 It needs [VHS](https://github.com/charmbracelet/vhs), ffmpeg and ImageMagick (`brew install vhs ffmpeg imagemagick`), [Ollama](https://ollama.com) running with the default wording model (`ollama pull granite4:micro`), and the speech model, which `cc-notify-tts setup` downloads (otherwise the build fetches it into `build/demo/models`). Nothing is played out loud while it records, and the wording model is unloaded when it ends. VHS keeps a headless Chromium under `~/.cache/rod`, which can be deleted afterwards.
 
