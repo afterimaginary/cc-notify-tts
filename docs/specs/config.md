@@ -50,6 +50,10 @@ Quiet hours are off unless both `start` and `end` are set. Setting only one, or 
 
 Numbers can be written with or without a decimal point (`20` or `20.0`). A `presence` threshold of `0` means that signal always counts as away.
 
+## Ollama's address
+
+Not a config key: Ollama is asked at `127.0.0.1:11434`, or at `OLLAMA_HOST` when that names this machine (`localhost`, a loopback address, `0.0.0.0` or `::`, with an optional port or `http://` URL, as the `ollama` CLI reads it). An `OLLAMA_HOST` on another machine is ignored, so wording never leaves this machine; the daemon logs it and `doctor` warns about it (ADR-0029). The daemon reads `OLLAMA_HOST` from the Claude Code session that started it.
+
 ## Example
 
 Every key at its default, with quiet hours shown but left off. Copy it to the path above and change what you need; keys you leave out keep their defaults.

@@ -103,7 +103,7 @@ For a finished turn, a question or a permission request, a local [Ollama](https:
 ollama pull granite4:micro
 ```
 
-It's a 2.1 GB download and holds about 2.2 GiB of memory while a Claude Code session is open. Without it, the built-in wording is spoken. To use another model, set `wording.model` in the [config file](docs/specs/config.md).
+It's a 2.1 GB download and holds about 2.2 GiB of memory while a Claude Code session is open. Without it, the built-in wording is spoken. To use another model, set `wording.model` in the [config file](docs/specs/config.md). If Ollama runs on another port, `OLLAMA_HOST` is used as long as it points at this machine; wording never goes to another machine ([ADR-0029](docs/decisions/0029-ollama-host-on-this-machine.md)).
 
 ## Use
 
@@ -194,7 +194,6 @@ In no particular order, and without dates:
 - Speak "background done" when the work finishes while "still running" is playing ([#42](https://github.com/afterimaginary/cc-notify-tts/issues/42)).
 - Keep the detail whole at abbreviations like "e.g." ([#36](https://github.com/afterimaginary/cc-notify-tts/issues/36)), and drop lead-ins like "Here's what was done:" from template wording ([#50](https://github.com/afterimaginary/cc-notify-tts/issues/50)).
 - Follow a detached tmux session to the app it's reattached in ([#47](https://github.com/afterimaginary/cc-notify-tts/issues/47)).
-- Use `OLLAMA_HOST` when it points at this machine ([#44](https://github.com/afterimaginary/cc-notify-tts/issues/44)).
 - Try an in-process MLX model for wording, compared with the same eval.
 
 ## Contributing

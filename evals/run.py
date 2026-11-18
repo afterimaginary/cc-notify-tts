@@ -145,7 +145,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m evals.run", description=__doc__)
     parser.add_argument("models", nargs="+", help="Ollama model names, such as llama3.2:1b")
     parser.add_argument("--out", type=Path, default=RESULTS_DIR, help="results folder")
-    parser.add_argument("--endpoint", default=ENDPOINT, help="Ollama's address")
+    parser.add_argument(
+        "--endpoint",
+        help=f"Ollama's address (default: OLLAMA_HOST if it's on this machine, else {ENDPOINT})",
+    )
     args = parser.parse_args(argv)
 
     cases = load_cases()

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from cc_notify_tts import __version__, client, config, models
-from cc_notify_tts.ollama import Ollama, OllamaError
+from cc_notify_tts.ollama import Endpoint, Ollama, OllamaError, endpoint_from_env
 from cc_notify_tts.presence import read_front_app, read_idle_seconds
 
 PLUGIN_ID = "cc-notify-tts@cc-notify-tts"
@@ -265,17 +265,24 @@ class ModelList(Protocol):
         ...
 
 
-def check_ollama(wording: config.Wording, ollama: ModelList) -> Check:
+def check_ollama(wording: config.Wording, ollama: ModelList, endpoint: Endpoint) -> Check:
+    """Whether the wording model can be asked, and at which address (ADR-0029)."""
     name = "Ollama (optional)"
     if not wording.ollama:
         return ok(name, "off (wording.ollama = false), so template wording is used")
     model = wording.model
+    # An OLLAMA_HOST on another machine is never used, so say why it's ignored.
+    ignored = (
+        f"; OLLAMA_HOST={endpoint.ignored!r} is ignored, since it isn't on this machine"
+        if endpoint.ignored is not None
+        else ""
+    )
     try:
         installed = ollama.installed(model)
     except OllamaError as e:
         return warn(
             name,
-            f"{e}, so template wording is used",
+            f"{e}, so template wording is used{ignored}",
             "For model-written details, install and start Ollama (`brew install ollama`, "
             f"then `brew services start ollama`) and run `ollama pull {model}`. "
             "To stop this warning, set wording.ollama = false.",
@@ -283,10 +290,18 @@ def check_ollama(wording: config.Wording, ollama: ModelList) -> Check:
     if not installed:
         return warn(
             name,
-            f"running, but {model} isn't pulled, so template wording is used",
+            f"running at {endpoint.url}, but {model} isn't pulled, "
+            f"so template wording is used{ignored}",
             f"Run `ollama pull {model}`, or set wording.model to a model you have.",
         )
-    return ok(name, f"running, with {model}")
+    if ignored:
+        return warn(
+            name,
+            f"running at {endpoint.url}, with {model}{ignored}",
+            "Wording only uses Ollama on this machine. Unset OLLAMA_HOST, "
+            "or point it at this machine.",
+        )
+    return ok(name, f"running at {endpoint.url}, with {model}")
 
 
 # --- running them -------------------------------------------------------------------
@@ -295,6 +310,7 @@ def check_ollama(wording: config.Wording, ollama: ModelList) -> Check:
 def run_checks(data: Path | None = None, config_path: Path | None = None) -> list[Check]:
     data = client.data_dir() if data is None else data
     config_path = config.default_config_path() if config_path is None else config_path
+    endpoint = endpoint_from_env()
     return [
         check_macos(platform.system(), platform.mac_ver()[0]),
         check_hook_python(data),
@@ -304,7 +320,7 @@ def run_checks(data: Path | None = None, config_path: Path | None = None) -> lis
         check_idle(read_idle_seconds),
         check_front(read_front_app),
         *check_config(config_path),
-        check_ollama(config.load(config_path).config.wording, Ollama()),
+        check_ollama(config.load(config_path).config.wording, Ollama(endpoint.url), endpoint),
     ]
 
 
