@@ -79,3 +79,72 @@ def test_status_before_any_session(daemon: Daemon) -> None:
     assert reply["sessions"] == []
     assert reply["idle_timeout_seconds"] == 7200
     assert (reply["speaking"], reply["pending"], reply["front_app"]) == (None, None, None)
+
+
+FIXTURES = Path(__file__).parent / "fixtures" / "hooks"
+
+
+class FakeOllama:
+    """A loaded model that answers `reply`, recording loads and unloads."""
+
+    def __init__(self, reply: str, context: int | None = 2048) -> None:
+        self.reply = reply
+        self.context = context
+        self.calls: list[tuple[str, str]] = []
+
+    def loaded_context(self, model: str) -> int | None:
+        return self.context
+
+    def chat(self, model: str, system: str, user: str, *, timeout: float, max_tokens: int) -> str:
+        self.calls.append(("chat", model))
+        return self.reply
+
+    def load(self, model: str) -> None:
+        self.calls.append(("load", model))
+
+    def unload(self, model: str) -> None:
+        self.calls.append(("unload", model))
+
+
+def worded(tmp_path: Path, ollama: FakeOllama, config_text: str = "") -> tuple[Daemon, str | None]:
+    """The sentence a daemon puts in the slot for the `stop` fixture, spoken always."""
+    config = tmp_path / "config.toml"
+    config.write_text('[events.finished]\nspeak = "always"\n' + config_text)
+    paths = Paths(tmp_path / "d.sock", tmp_path / "state", config)
+    daemon = Daemon(paths, NoSpeaker, follow_front=False, clock=lambda: NOW, ollama=ollama)
+    payload = json.loads((FIXTURES / "stop.json").read_text())
+    daemon._handle_event(Received(payload, NOW, None))  # pyright: ignore[reportPrivateUsage]
+    _, pending = daemon._slot.snapshot()  # pyright: ignore[reportPrivateUsage]
+    return daemon, pending.text if pending else None
+
+
+def test_model_writes_the_detail_under_the_template_frame(tmp_path: Path) -> None:
+    _, text = worded(tmp_path, FakeOllama("Added backoff to the forecast fetcher."))
+    assert text == "Finished up in weather app. Added backoff to the forecast fetcher."
+
+
+def test_a_guard_failure_speaks_the_template(tmp_path: Path) -> None:
+    _, text = worded(tmp_path, FakeOllama("I added Redis."))
+    assert text == (
+        "Finished up in weather app. Added exponential backoff to the forecast fetcher"
+        " and two tests for the retry path."
+    )
+
+
+def test_wording_off_never_asks_the_model(tmp_path: Path) -> None:
+    ollama = FakeOllama("Added backoff to the forecast fetcher.")
+    _, text = worded(tmp_path, ollama, "[wording]\nollama = false\n")
+    assert text is not None and text.startswith("Finished up in weather app. Added exponential")
+    assert ollama.calls == []
+
+
+def test_model_kept_warm_while_a_session_is_open_and_unloaded_after(tmp_path: Path) -> None:
+    ollama = FakeOllama("Added backoff to the forecast fetcher.")
+    daemon, _ = worded(tmp_path, ollama, '[wording]\nmodel = "tiny:1b"\n')
+    daemon._update_keep_warm()  # pyright: ignore[reportPrivateUsage]
+    end = json.loads((FIXTURES / "session_end.json").read_text())
+    daemon._handle_event(Received(end, NOW, None))  # pyright: ignore[reportPrivateUsage]
+    daemon._update_keep_warm()  # pyright: ignore[reportPrivateUsage]
+    assert daemon._keep_warm is not None  # pyright: ignore[reportPrivateUsage]
+    daemon._keep_warm.close()  # pyright: ignore[reportPrivateUsage]
+    assert ollama.calls == [("chat", "tiny:1b"), ("load", "tiny:1b"), ("unload", "tiny:1b")]

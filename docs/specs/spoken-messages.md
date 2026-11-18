@@ -1,6 +1,6 @@
 # Spoken messages
 
-What cc-notify-tts says for each notification event, when the sentence is written by code alone. The events are defined in the [event classification design](../designs/event-classification.md).
+What cc-notify-tts says for each notification event: the template, written by code alone, and when a local model may write the detail instead ([model wording](#model-wording)). The events are defined in the [event classification design](../designs/event-classification.md).
 
 Code: `src/cc_notify_tts/wording.py`. Tests: `tests/test_wording.py`, which runs every hook fixture in `tests/fixtures/hooks/` through classification and wording and checks the exact sentence.
 
@@ -89,3 +89,36 @@ A missing argument gives a general phrase instead ("edit a file", "run a shell c
 `unknown`, or any other value, gives no detail.
 
 Counts up to nine are spoken as words.
+
+## Model wording
+
+With `wording.ollama` on (the default, [config](config.md)), a local Ollama model may write the detail for three events. The frame, and so the project name, is always the template's. Code: `src/cc_notify_tts/model_wording.py` (prompt and guards) and `src/cc_notify_tts/ollama.py` (client and keep-warm). Decisions: ADR-0003, ADR-0015.
+
+| Event | The model is shown | It writes |
+| - | - | - |
+| `finished` | The last 4000 characters of the turn's last message | What was done, one sentence |
+| `question` | Each question and its option labels | The question, asked again shortly |
+| `permission` | The tool name and each argument (up to 500 characters each) | What the call would do, as a verb phrase for the frame's slot |
+
+Every other event, and a plan to review, keeps the template. The model never sees the frame or the project name.
+
+The model is asked only when it's already loaded, and gets `wording.timeout_seconds` to answer. Its answer is cleaned, then checked:
+
+1. Its first non-empty line, without a reasoning block, a label ("Summary:"), quotes or markdown.
+2. A repeat of the frame at the start is removed: the whole frame, its fixed phrases ("needs your okay to", "has a question for you") or the project name.
+3. Its first sentence. Rejected if that ends in a colon: a lead-in such as "Here's what was done:" says nothing.
+4. Rejected if it starts with a subject pronoun: I, we, it, he, she, they, or a contraction of one.
+5. Rejected unless it has 2 to 20 words (2 to 12 for `permission`).
+6. Rejected if any name or number in it isn't in what the model was shown. A name is a word with a capital letter (other than the first word's first letter), a digit, or `.`, `_` or `/` inside it. A count matches in digits or words ("3" or "three").
+
+A detail that passes ends in `.` (`?` for a question) with its first letter capitalized. A permission's action loses a leading "to" and has no end mark, since the frame supplies both. A question with more than one keeps code's "And *n* more questions." after the model's question.
+
+The template's detail is spoken, and the reason logged, whenever:
+
+- Wording is off in the config.
+- Ollama isn't running or isn't installed.
+- The model isn't loaded, or is loaded at another context. It's then loaded in the background, so the next notification can use it; a model that isn't pulled is logged when that load fails.
+- Ollama doesn't answer within the timeout, or answers with an error.
+- The answer fails a check.
+
+While wording is on and a session is open, the daemon keeps the model loaded, and it unloads it once no session is open, wording is turned off or the daemon exits (ADR-0015).
