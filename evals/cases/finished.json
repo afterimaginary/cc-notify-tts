@@ -350,5 +350,38 @@
     },
     "required": [["upload*"], ["pass*", "fix*", "wait*"]],
     "forbidden": ["still fail*", "three", "removed the tests"]
+  },
+  {
+    "id": "finished-tests-partly-fixed",
+    "traps": ["partial success", "numbers", "fail word in a success"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/booking-app",
+      "last_assistant_message": "Fixed the leap-year handling in the date parser. 31 of 33 tests now pass, but the other 2 still fail on February 29."
+    },
+    "required": [["leap*", "date*", "pars*"], ["still fail*", "fail on", "tests fail*", "2 fail*", "two fail*", "not passing"]],
+    "forbidden": ["all tests pass", "all 33", "33 tests pass", "3 still fail", "three still fail"]
+  },
+  {
+    "id": "finished-fixed-failure-then-failing",
+    "traps": ["partial success", "fail word in a success", "multi-sentence"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/shop-api",
+      "last_assistant_message": "Fixed the failing auth tests by refreshing the token fixture. The 2 billing tests still fail because they need a database."
+    },
+    "required": [["auth*", "token*"], ["billing"], ["still fail*", "tests fail*", "failing", "not passing"]],
+    "forbidden": ["all tests pass", "fixed the billing", "3 billing", "three billing"]
+  },
+  {
+    "id": "finished-error-handling-then-failing",
+    "traps": ["partial success", "fail word in a success"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/weather-app",
+      "last_assistant_message": "Fixed the broken import in the CLI and added a fail-fast check to the config loader. 2 tests in test_loader.py still fail because the fixture file is missing."
+    },
+    "required": [["import*", "loader", "config*"], ["still fail*", "tests fail*", "tests failed", "failing", "not passing"]],
+    "forbidden": ["all tests pass", "3 tests", "three tests", "fixed the tests"]
   }
 ]

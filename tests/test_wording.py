@@ -411,6 +411,13 @@ def test_model_detail_replaces_the_template_detail() -> None:
         "31 of 33 tests now pass; the other 2 still fail on leap years.",
         "Most tests now pass, but 3 still fail.",
         "It no longer crashes on empty input, but 2 tests still fail.",
+        "The test suite still has 2 failures.",
+        "2 tests are still red.",
+        "CI is red on the auth suite.",
+        "test_a is failing.",
+        "The test for leap years fails.",
+        "The tests in test_dates.py are failing.",
+        "Three tests, e.g. test_a and test_b, still fail.",
     ],
 )
 def test_failing_tests_are_found(message: str) -> None:
@@ -426,6 +433,13 @@ def test_failing_tests_are_found(message: str) -> None:
         "The flaky test no longer fails.",
         "The integration suite finished: 112 passed, 0 failed.",
         "Fixed the bug that made tests fail on CI.",
+        "The CSV import is still broken for files with a BOM.",
+        "Retried the upload after 3 failures.",
+        "The integration suite finished with 0 failures.",
+        "Fixed the 2 test failures in test_auth.py.",
+        "Added a test for when login fails.",
+        "Added a test for the case where the upload fails.",
+        "Made the error banner red.",
     ],
 )
 def test_passing_tests_arent_failing(message: str) -> None:
@@ -511,9 +525,8 @@ def test_a_failure_the_cap_would_cut_off_is_said_plainly(message: str, text: str
     ("message", "text"),
     [
         (
-            "Fixed the date parser. The CSV import is still broken for files with a BOM.",
-            "Finished up in weather app. Fixed the date parser."
-            " The CSV import is still broken for files with a BOM.",
+            "Moved the retry logic. Only test_a is failing.",
+            "Finished up in weather app. Moved the retry logic. Only test_a is failing.",
         ),
         (
             "Moved the retry logic. Ran it again: 41 passed, 2 failed.",
@@ -545,6 +558,14 @@ SHORT_SENTENCES = [
     "Two tests, test_a and test_b, still fail.",
     "The CSV import is still broken for files with a BOM.",
     "Ran it again: 41 passed, 2 failed.",
+    "The test suite still has 2 failures.",
+    "2 tests are still red.",
+    "CI is red on the auth suite.",
+    "Only test_a is failing.",
+    "The test for leap years fails.",
+    "Three tests, e.g. test_a and test_b, still fail.",
+    "Added a test for when login fails.",
+    "Retried the upload after 3 failures.",
     "Fixed the failing auth tests.",
     "Fixed the broken import in the CLI.",
     "Added retry on upload failure.",
@@ -612,3 +633,40 @@ def test_failing_tests_are_spoken_after_a_lead_in() -> None:
     assert finished_text(message) == (
         "Finished up in weather app. Moved the retry logic. 2 tests still fail."
     )
+
+
+def test_something_else_still_broken_isnt_added() -> None:
+    message = "Fixed the date parser. The CSV import is still broken for files with a BOM."
+    assert finished_text(message) == "Finished up in weather app. Fixed the date parser."
+
+
+LONG_START = (
+    "Rewrote the calendar slot generator so that bookings across daylight saving changes"
+    " land on the right local hour"
+)
+
+
+@pytest.mark.parametrize(
+    ("end", "spoken"),
+    [
+        # A clause after a comma loses its conjunction.
+        (", and the 2 billing tests still fail.", "The 2 billing tests still fail."),
+        # An appositive keeps its subject.
+        (
+            ", and two tests, test_a and test_b, still fail.",
+            "Two tests, test_a and test_b, still fail.",
+        ),
+        # A count keeps the clause that says it's a count of tests.
+        (
+            "; 31 of 33 tests now pass, the other 2 still fail.",
+            "31 of 33 tests now pass, the other 2 still fail.",
+        ),
+    ],
+)
+def test_a_failure_cut_from_a_long_sentence_says_what_failed(end: str, spoken: str) -> None:
+    assert finished_text(LONG_START + end) == f"Finished up in weather app. {spoken}"
+
+
+def test_a_failing_sentence_isnt_split_at_an_abbreviation() -> None:
+    message = "Moved the retry logic. Three tests, e.g. test_a and test_b, still fail."
+    assert failing_tests(message) == "Three tests, e.g. test_a and test_b, still fail"

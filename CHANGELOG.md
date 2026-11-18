@@ -10,6 +10,7 @@ All notable changes to this project are recorded here. Versions follow [Semantic
 
 ### Fixed
 
+- **Failing tests, more phrasings:** "the test suite still has 2 failures", "tests are still red", "test_a is failing" and "the test for leap years fails" now count as failing tests, while "still broken" about something other than tests no longer does. A failure cut from a long sentence keeps what failed ("Two tests, test_a and test_b, still fail."), model wording that gives a test summary ("41 passed, 2 failed") is accepted, and the guard checks the whole message, not only the part the model sees (ADR-0033, #62).
 - **Detached tmux sessions:** a session in a detached tmux no longer keeps the app it was last attached from, so it counts as away and is spoken, and the next hook after reattaching names the new app (ADR-0030, #47).
 
 ## [0.1.0] - 2026-11-18

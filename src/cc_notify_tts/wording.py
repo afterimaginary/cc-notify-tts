@@ -78,37 +78,54 @@ _INITIALISM = re.compile(r"(?:[a-z]\.)+[a-z]", re.IGNORECASE)
 _URL = re.compile(r"\b([a-z][a-z0-9+.-]*://[^\s)>\]]*?)([.,;:!?]*)(?=[\s)>\]]|$)")
 _PATH = re.compile(r"(?<![\w/])(?:~|\.{1,2})?/(?:[\w.-]+/)*([\w.-]+?)([.,;:!?]*)(?=\s|$)")
 _CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
-# Any sentence of a one-line text, the last one with or without an end mark.
-_SENTENCES = re.compile(r"\S.*?(?:[.!?](?=\s|$)|$)")
-# A sentence saying tests are failing as the turn ends (ADR-0021): "2 of the 31
-# tests still fail", "the tests aren't passing yet", "3 failed, 40 passed".
+# A sentence saying tests are failing as the turn ends (ADR-0021, ADR-0033): "2 of
+# the 31 tests still fail", "the tests aren't passing yet", "3 failed, 40 passed".
 _COUNT = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|some|several|a few)"
+_SOME = r"(?:[1-9]\d*|one|two|three|four|five|six|seven|eight|nine|ten|some|several|a few)"
 _TESTS = r"(?:tests?|specs?)"
+# What a failure can be about: tests or the run, or a test by name ("test_refund").
+_CHECK_WORDS = r"(?:tests?|specs?|suite|ci|build)"
+_CHECKS = rf"(?:{_CHECK_WORDS}|test_\w+|\w+_test)"
+# A test summary with failures: "2 failed, 41 passed" or "41 passed, 2 failed".
+_SUMMARY = r"\b[1-9]\d*\s+failed\W+\d+\s+passed\b|\b\d+\s+passed\W+[1-9]\d*\s+failed\b"
+# Words that start a clause about something else ("a test for when login fails").
+_NOT_THE_TEST = r"(?:when|where|if|that|which|so|until|after|before|because)\b"
 _TESTS_FAILING = re.compile(
-    r"\bstill\s+(?:fail\w*|broken)\b"
+    r"\bstill\s+fail\w*\b"
+    # "Broken", "red" and "N failures" only about tests: "the suite is still red".
+    rf"|\b{_CHECKS}\b[^,;]*?\b(?:still\s+(?:broken|red)|(?:is|are)\s+red|{_SOME}\s+failures)\b"
     rf"|\b{_TESTS}\s+(?:are|is|remain)\s+(?:still\s+)?failing\b"
     rf"|\b{_TESTS}\s+(?:do|does|are|is)\s*(?:not|n't)\s+(?:yet\s+)?pass"
     rf"|\b{_COUNT}\s+(?:of\s+(?:the\s+)?\d+\s+)?(?:\w+\s+)?{_TESTS}\s+(?:are\s+)?fail(?:s|ed|ing)?\b"
+    # A test by name or description: "test_a is failing", "the test for leap years fails".
+    r"|\b(?:test_\w+|\w+_test)\s+(?:is\s+)?(?:still\s+)?(?:failing|fails)\b"
+    rf"|\b{_TESTS}\s+(?:for|in|on|of)\s+(?:(?!{_NOT_THE_TEST})[\w.'-]+\s+){{1,4}}?"
+    r"(?:(?:is|are)\s+failing|fails?)\b"
     # "N failed" only about tests: "tests: 2 failed" or a summary, "2 failed, 41 passed".
-    rf"|\b{_TESTS}\W+[1-9]\d*\s+failed\b"
-    r"|\b[1-9]\d*\s+failed\W+\d+\s+passed\b|\b\d+\s+passed\W+[1-9]\d*\s+failed\b"
+    rf"|\b{_TESTS}\W+[1-9]\d*\s+failed\b|{_SUMMARY}"
     r"|\b(?:failing\s+tests?|test\s+failures?)\s+remains?\b",
     re.IGNORECASE,
 )
+# What a clause cut from a long sentence mustn't start with: "and the 2 billing
+# tests still fail" is spoken as "The 2 billing tests still fail".
+_LEADING_CONJUNCTION = re.compile(r"^(?:and|so|yet|or|plus|then)\s+", re.IGNORECASE)
+# A clause that says what failed: names tests or the run, or gives a count of them.
+# Not a test's own name, which may be one of a list ("two tests, test_a and test_b").
+_NAMES_TESTS = re.compile(rf"\b{_CHECK_WORDS}\b|{_SUMMARY}", re.IGNORECASE)
 # ...unless the clause it's in says that failure is over ("no longer fails", "now pass")
 # or was fixed ("Fixed 2 tests failing on CI"). Checked clause by clause, so "31 now
 # pass, but 2 still fail" still counts.
 _FAILURE_OVER = re.compile(r"\bno\s+longer\b|\bnow\b.*\bpass", re.IGNORECASE)
 _CLAUSES = re.compile(r"[;,]|\s(?:but|although|though|while|whereas)\s", re.IGNORECASE)
 # A detail that admits tests are failing: a fail word near "tests" (either way round),
-# "still fail" or "not passing". A fail word about anything else ("Fixed the broken
-# import") doesn't count...
-_CHECKS = r"(?:tests?|specs?|suite|ci|build)"
+# "still fail", "not passing" or a test summary with failures. A fail word about
+# anything else ("Fixed the broken import") doesn't count...
 _ADMITS_FAILURE = re.compile(
     rf"\b{_CHECKS}\b(?:\W+\w+){{0,4}}?\W+(?:fail\w*|broken|red)\b"
     rf"|\bfail\w*\W+(?:\w+\W+){{0,2}}?{_CHECKS}\b"
     r"|\bstill\s+fail"
-    r"|(?:\bnot|n't)\s+(?:yet\s+)?pass",
+    r"|(?:\bnot|n't)\s+(?:yet\s+)?pass"
+    rf"|{_SUMMARY}",
     re.IGNORECASE,
 )
 # ...other than a failure that was fixed ("Fixed the failing auth tests").
@@ -268,12 +285,13 @@ def failing_tests(message: str) -> str | None:
     """The first sentence of a message that says tests are still failing, if any.
 
     A sentence over `MESSAGE_WORDS` gives only its clauses that hold the
-    failure ("2 of the 31 tests still fail"), so the word cap on what's spoken
-    can't cut the failure off the end.
+    failure ("2 of the 31 tests still fail"), from the nearest one that names
+    tests, so the word cap on what's spoken can't cut the failure off the end
+    and what's left still says what failed.
     """
     # Line by line, so a list item or heading isn't run into the next one.
     for line in _CODE_FENCE.sub("\n", message).splitlines():
-        for sentence in _SENTENCES.findall(plain(line)):
+        for sentence in _sentences(plain(line)):
             # Matched on the sentence, since a summary ("2 failed, 41 passed") has a comma.
             for match in _TESTS_FAILING.finditer(sentence):
                 start, end = _clause_at(sentence, match.start())
@@ -281,9 +299,25 @@ def failing_tests(message: str) -> str | None:
                 if _FAILURE_OVER.search(clause) or _FIXED_FAILURE.search(clause):
                     continue
                 if len(sentence.split()) > MESSAGE_WORDS:
-                    sentence = sentence[start : _clause_at(sentence, match.end() - 1)[1]]
+                    end = _clause_at(sentence, match.end() - 1)[1]
+                    start = _naming_clause_start(sentence, start, end)
+                    sentence = _LEADING_CONJUNCTION.sub("", sentence[start:end].strip())
                 return strip_end(sentence.strip()).rstrip(",;: ")
     return None
+
+
+def _sentences(text: str) -> list[str]:
+    """Each sentence of a one-line text, split where `first_sentence` would split it."""
+    sentences: list[str] = []
+    while text := text.strip():
+        sentence = first_sentence(text)
+        sentences.append(sentence)
+        text = text[len(sentence) :]
+    return sentences
+
+
+def _clause_starts(sentence: str) -> list[int]:
+    return [0, *(split.end() for split in _CLAUSES.finditer(sentence))]
 
 
 def _clause_at(sentence: str, index: int) -> tuple[int, int]:
@@ -294,6 +328,19 @@ def _clause_at(sentence: str, index: int) -> tuple[int, int]:
             return start, split.start()
         start = split.end()
     return start, len(sentence)
+
+
+def _naming_clause_start(sentence: str, start: int, end: int) -> int:
+    """Where to start a span ending at `end` so it names tests: `start`, or an earlier clause.
+
+    "Two tests, test_a and test_b, still fail" and "31 of 33 tests now pass;
+    the other 2 still fail" keep the clause that says which tests.
+    """
+    earlier = [s for s in _clause_starts(sentence) if s <= start]
+    for candidate in reversed(earlier):
+        if _NAMES_TESTS.search(sentence[candidate:end]):
+            return candidate
+    return start
 
 
 def admits_failure(text: str) -> bool:
