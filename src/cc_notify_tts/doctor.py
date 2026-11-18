@@ -280,9 +280,11 @@ def check_ollama(wording: config.Wording, ollama: ModelList, endpoint: Endpoint)
     try:
         installed = ollama.installed(model)
     except OllamaError as e:
+        # "not running at <address>" names it already; a timeout or HTTP error doesn't.
+        problem = str(e) if endpoint.url in str(e) else f"at {endpoint.url}: {e}"
         return warn(
             name,
-            f"{e}, so template wording is used{ignored}",
+            f"{problem}, so template wording is used{ignored}",
             "For model-written details, install and start Ollama (`brew install ollama`, "
             f"then `brew services start ollama`) and run `ollama pull {model}`. "
             "To stop this warning, set wording.ollama = false.",

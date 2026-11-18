@@ -215,6 +215,7 @@ def test_ollama() -> None:
     down = doctor.check_ollama(on, FakeOllama(None), LOCAL)
     assert down.level is Level.WARN
     assert "template wording is used" in down.detail
+    assert "http://127.0.0.1:11435" in down.detail
     off = doctor.check_ollama(Wording(ollama=False), FakeOllama(None), LOCAL)
     assert off.level is Level.OK
 
