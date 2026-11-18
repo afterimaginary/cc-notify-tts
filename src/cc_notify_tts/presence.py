@@ -51,14 +51,34 @@ def read_idle_seconds() -> float | None:
 
 # --- following the frontmost app --------------------------------------------------
 
-# Names for the hosts ADR-0006 identified, for reasons a person reads. Any other
-# app is named by its bundle id.
+# Names for reasons a person reads: the hosts ADR-0006 identified, then the apps
+# people most often switch to while a session runs. Any other app is named by its
+# bundle id.
 _APP_NAMES = {
+    # Hosts
     "com.apple.Terminal": "Terminal",
     "com.mitchellh.ghostty": "Ghostty",
     "com.googlecode.iterm2": "iTerm2",
     "com.microsoft.VSCode": "VS Code",
     "com.anthropic.claudefordesktop": "the Claude app",
+    # Browsers
+    "com.google.Chrome": "Chrome",
+    "com.apple.Safari": "Safari",
+    "company.thebrowser.Browser": "Arc",
+    "org.mozilla.firefox": "Firefox",
+    "com.microsoft.edgemac": "Edge",
+    "com.brave.Browser": "Brave",
+    # Editors and terminals
+    "com.microsoft.VSCodeInsiders": "VS Code Insiders",
+    "com.todesktop.230313mzl4w4u92": "Cursor",
+    "dev.zed.Zed": "Zed",
+    "com.apple.dt.Xcode": "Xcode",
+    "dev.warp.Warp-Stable": "Warp",
+    # Everyday apps
+    "com.apple.finder": "Finder",
+    "com.apple.mail": "Mail",
+    "com.apple.MobileSMS": "Messages",
+    "com.tinyspeck.slackmacgap": "Slack",
 }
 
 # An app without a bundle id came to front. It's never a session's host.
