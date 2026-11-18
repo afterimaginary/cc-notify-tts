@@ -64,6 +64,9 @@ _LEAD_IN = re.compile(
     r"):\s+",
     re.IGNORECASE,
 )
+# A lead-in that introduces a choice ("Here are two options:") stays, so what follows
+# isn't heard as an instruction.
+_CHOICE = re.compile(r"\b(?:options?|choices?|alternatives?|ways|approaches)\b", re.IGNORECASE)
 # A mark that may end a sentence: one followed by a space or the end, so decimals
 # and versions ("3.5", "v1.2.3") never do.
 _SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
@@ -285,7 +288,9 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
 def _without_lead_in(sentence: str) -> str:
     """Only what an inline lead-in introduces ("Here's what was done: renamed it.")."""
     lead_in = _LEAD_IN.match(sentence)
-    return capitalize(sentence[lead_in.end() :]) if lead_in else sentence
+    if lead_in is None or _CHOICE.search(lead_in.group()):
+        return sentence
+    return capitalize(sentence[lead_in.end() :])
 
 
 def failing_tests(message: str) -> str | None:
@@ -359,20 +364,43 @@ def admits_failure(text: str) -> bool:
 
 
 def _opening(message: str) -> str:
-    """A message's opening paragraph, past any headings and labels, or its first list item."""
+    """A message's opening paragraph, past any headings and labels, or its first list item.
+
+    A label line that introduces a choice ("Here are two options:") is kept in
+    front of what follows it, so the first option isn't heard as an instruction.
+    """
     paragraph: list[str] = []
+    choice = ""
     for line in _CODE_FENCE.sub("\n\n", message).splitlines():
         line = line.strip()
         if _LIST_ITEM.match(line):
             if paragraph:
                 break
-            return _LIST_ITEM.sub("", line)
+            item = _LIST_ITEM.sub("", line)
+            return f"{choice} {lower_first(item)}" if choice else item
         if not line or (not paragraph and _LABEL.fullmatch(line)):
             if paragraph:
                 break
+            if line:
+                choice = line if _introduces_choice(line) else ""
             continue
+        if not paragraph and choice:
+            paragraph.append(choice)
+            line = lower_first(line)
         paragraph.append(line)
     return " ".join(paragraph)
+
+
+def _introduces_choice(line: str) -> bool:
+    """A short lead-in line ending in a colon that names a choice ("Here are two options:").
+
+    A long one is left out, so it can't push the option past the word cap.
+    """
+    return (
+        line.rstrip("*_ ").endswith(":")
+        and len(line.split()) <= MESSAGE_WORDS // 2
+        and _CHOICE.search(line) is not None
+    )
 
 
 def _background_detail(items: Sequence[BackgroundItem]) -> str | None:
