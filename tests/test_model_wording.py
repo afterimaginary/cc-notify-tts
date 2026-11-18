@@ -328,3 +328,32 @@ def test_request_shape_is_stable() -> None:
     assert isinstance(request, Request)
     assert request.kind is EventKind.FINISHED
     assert request.source in request.user
+
+
+@pytest.mark.parametrize(
+    ("n", "raw"),
+    [
+        (FINISHED, "Here's a summary of what was done:"),
+        (QUESTION, "Here is the question again:"),
+    ],
+)
+def test_a_lead_in_is_rejected(n: Notification, raw: str) -> None:
+    request = request_for(n)
+    assert request is not None
+    assert guard(raw, request, word(n), PROJECT).reason == "a lead-in, not a detail"
+
+
+def test_more_questions_are_still_counted() -> None:
+    payload = fixture("permission_request_question")
+    payload["tool_input"]["questions"] *= 3
+    n = note(EventKind.QUESTION, payload)
+    assert spoken("Should the retry stop after three attempts or five", n) == (
+        "Weather app has a question for you."
+        " Should the retry stop after three attempts or five? And two more questions."
+    )
+
+
+def test_a_leading_to_isnt_doubled() -> None:
+    assert spoken("To force-push the branch to main", PERMISSION) == (
+        "Weather app needs your okay to force-push the branch to main."
+    )

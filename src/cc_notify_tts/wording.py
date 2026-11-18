@@ -220,9 +220,8 @@ def _question_detail(payload: Mapping[str, Any]) -> str | None:
     if not question:
         return None
     detail = end_sentence(_cap_words(question, QUESTION_WORDS), "?")
-    more = len(questions) - 1
-    if more:
-        detail += f" And {_count(more, 'more question')}."
+    if more := more_questions(len(questions)):
+        detail += f" {more}"
     return detail
 
 
@@ -263,6 +262,12 @@ def plain(text: str) -> str:
     text = _URL.sub(lambda m: _host(m.group(1)) + m.group(2), text)
     text = _PATH.sub(lambda m: m.group(1) + m.group(2), text)
     return " ".join(text.split())
+
+
+def more_questions(total: int) -> str:
+    """ "And two more questions." after the first of `total`, or "" for one."""
+    more = total - 1
+    return f"And {_count(more, 'more question')}." if more > 0 else ""
 
 
 def first_sentence(text: str) -> str:

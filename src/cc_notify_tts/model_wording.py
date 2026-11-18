@@ -28,6 +28,7 @@ from cc_notify_tts.wording import (
     end_sentence,
     first_sentence,
     lower_first,
+    more_questions,
     plain,
     project_name,
     strip_end,
@@ -107,6 +108,8 @@ class Request:
     user: str
     # The text given to the model: every name and number in the answer must be in it.
     source: str
+    # Code's own words after the model's detail ("And one more question.").
+    suffix: str = ""
 
 
 @dataclass(frozen=True)
@@ -128,6 +131,7 @@ class Attempt:
 def request_for(note: Notification) -> Request | None:
     """The model request for a notification, or None if this one keeps the template."""
     payload = note.payload
+    suffix = ""
     match note.kind:
         case EventKind.FINISHED:
             message = _text(payload, "last_assistant_message").strip()
@@ -137,6 +141,7 @@ def request_for(note: Notification) -> Request | None:
             if _text(payload, "tool_name") == "ExitPlanMode":
                 return None
             material = _questions(payload)[:INPUT_CHARS]
+            suffix = more_questions(_question_count(payload))
             template = _QUESTION
         case EventKind.PERMISSION:
             material = _tool_call(payload)[:INPUT_CHARS]
@@ -145,7 +150,7 @@ def request_for(note: Notification) -> Request | None:
             return None
     if not material:
         return None
-    return Request(note.kind, SYSTEM_PROMPT, template.format(material=material), material)
+    return Request(note.kind, SYSTEM_PROMPT, template.format(material=material), material, suffix)
 
 
 def guard(raw: str, request: Request, wording: Wording, project: str) -> Checked:
@@ -161,6 +166,9 @@ def guard(raw: str, request: Request, wording: Wording, project: str) -> Checked
     if not text:
         return Checked(None, "empty answer")
     text = first_sentence(text).strip()
+    # A lead-in ("Here's what was done:") introduces a detail; it isn't one.
+    if text.endswith(":"):
+        return Checked(None, "a lead-in, not a detail")
     words = text.split()
     first = words[0].lower().strip(",;:") if words else ""
     if first in _PRONOUNS:
@@ -170,7 +178,8 @@ def guard(raw: str, request: Request, wording: Wording, project: str) -> Checked
         return Checked(None, f"{len(words)} words, not {MIN_WORDS} to {limit}")
     if invented := _not_in_source(text, request.source):
         return Checked(None, f"{invented!r} isn't in the input")
-    return Checked(_finish(text, request.kind), "ok")
+    finished = _finish(text, request.kind)
+    return Checked(f"{finished} {request.suffix}" if request.suffix else finished, "ok")
 
 
 def write_detail(
@@ -208,6 +217,11 @@ def write_detail(
     if checked.detail is None:
         return Attempt(None, f"guard: {checked.reason}: {raw.strip()[:200]!r}")
     return Attempt(checked.detail, "model")
+
+
+def _question_count(payload: Mapping[str, Any]) -> int:
+    raw: Any = _mapping(payload.get("tool_input")).get("questions")
+    return len(raw) if isinstance(raw, list) else 0  # pyright: ignore[reportUnknownArgumentType]
 
 
 def _questions(payload: Mapping[str, Any]) -> str:
@@ -303,7 +317,8 @@ def _not_in_source(text: str, source: str) -> str | None:
 def _finish(text: str, kind: EventKind) -> str:
     match kind:
         case EventKind.PERMISSION:
-            # Inline in the frame, which adds its own full stop.
+            # Inline after "needs your okay to", which adds its own full stop.
+            text = re.sub(r"^to\s+", "", text, flags=re.IGNORECASE)
             return lower_first(strip_end(text))
         case EventKind.QUESTION:
             return end_sentence(capitalize(text), "?")

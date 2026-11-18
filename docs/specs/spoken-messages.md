@@ -106,12 +106,12 @@ The model is asked only when it's already loaded, and gets `wording.timeout_seco
 
 1. Its first non-empty line, without a reasoning block, a label ("Summary:"), quotes or markdown.
 2. A repeat of the frame at the start is removed: the whole frame, its fixed phrases ("needs your okay to", "has a question for you") or the project name.
-3. Its first sentence.
+3. Its first sentence. Rejected if that ends in a colon: a lead-in such as "Here's what was done:" says nothing.
 4. Rejected if it starts with a subject pronoun: I, we, it, he, she, they, or a contraction of one.
 5. Rejected unless it has 2 to 20 words (2 to 12 for `permission`).
 6. Rejected if any name or number in it isn't in what the model was shown. A name is a word with a capital letter (other than the first word's first letter), a digit, or `.`, `_` or `/` inside it. A count matches in digits or words ("3" or "three").
 
-A detail that passes ends in `.` (`?` for a question) with its first letter capitalized; a permission's action has no end mark, since the frame adds one.
+A detail that passes ends in `.` (`?` for a question) with its first letter capitalized. A permission's action loses a leading "to" and has no end mark, since the frame supplies both. A question with more than one keeps code's "And *n* more questions." after the model's question.
 
 The template's detail is spoken, and the reason logged, whenever:
 
