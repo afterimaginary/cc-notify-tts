@@ -448,6 +448,7 @@ class Daemon:
             timeline=timeline,
         )
         timeline.mark("worded")
+        log.info("%s, %s: queued %r", project, note.kind, utterance.text)
         replaced = self._slot.put(utterance)
         if replaced is not None:
             log.info("replaced pending %r with a newer message", replaced.text)

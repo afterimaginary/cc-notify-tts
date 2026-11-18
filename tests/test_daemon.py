@@ -217,6 +217,13 @@ def test_replaced_sentence_logs_its_timeline(
     assert (record["hook"], record["kind"], record["outcome"]) == ("Stop", "finished", "replaced")
 
 
+def test_queued_sentence_is_logged(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    daemon, _ = worded(tmp_path, FakeOllama("Added backoff to the forecast fetcher."))
+    with caplog.at_level(logging.INFO, logger="cc_notify_tts.daemon"):
+        reply = send(daemon, {"type": "fire", "event": "permission", "always": True})
+    assert any(m.endswith(f": queued {reply['text']!r}") for m in caplog.messages)
+
+
 # --- fire -------------------------------------------------------------------------
 
 
