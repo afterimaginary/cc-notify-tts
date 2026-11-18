@@ -473,23 +473,23 @@ def cmd_listen(args: argparse.Namespace) -> dict[str, Any]:
     )
     assert proc.stdout is not None
     events: list[dict[str, Any]] = []
-    first_event_time: float | None = None
+    event_time: float | None = None
     for line in proc.stdout:
         if "kLSNotifyBecameFrontmost" not in line:
             continue
         arrived = time.time()
         match = re.search(r'"CFBundleIdentifier"="([^"]+)"', line)
-        # The first line carries an absolute UTC time; later ones are relative to it.
+        # The first line carries an absolute UTC time; each later one, the time since
+        # the line before it.
         absolute = re.search(r"time=(\d+/\d+/\d+ [\d:.]+)", line)
         relative = re.search(r"time=\+([\d.]+)s", line)
-        lag_ms: float | None = None
         if absolute:
             stamp = time.strptime(absolute.group(1).split(".")[0], "%m/%d/%Y %H:%M:%S")
             fraction = float("0." + absolute.group(1).split(".")[1])
-            first_event_time = calendar.timegm(stamp) + fraction
-            lag_ms = (arrived - first_event_time) * 1000
-        elif relative and first_event_time is not None:
-            lag_ms = (arrived - first_event_time - float(relative.group(1))) * 1000
+            event_time = calendar.timegm(stamp) + fraction
+        elif relative and event_time is not None:
+            event_time += float(relative.group(1))
+        lag_ms = None if event_time is None else (arrived - event_time) * 1000
         events.append(
             {
                 "bundle": match.group(1) if match else None,
