@@ -61,7 +61,7 @@ Three models at the top differ by one or two cases, which ADR-0016 warns says le
 
 - **The default `wording.model` is `granite4:micro`.** It passed the most cases, made no harmful claim the guards let through, ran a p95 of 250–260 ms with its slowest request at 659–680 ms, and holds 2.18 GiB, the same as `llama3.2:3b`. It is Apache 2.0 licensed.
 - **The runner-up is `phi4-mini:3.8b`.** It keeps the most detail and invents nothing; its answers are a little long, and it costs 0.46 GiB more and comes closest to the timeout under load.
-- **For a machine short on memory, `gemma3:1b`** (0.82 GiB) is the one to suggest: every answer spoken and only one invented, with less detail.
+- **For a machine short on memory, `gemma3:1b`** (0.82 GiB) is the one to suggest, with less detail and one known risk: its one invented answer is the same harmful mistake as `llama3.2:3b`'s, rows reported deleted when the assistant stopped before deleting them.
 - The 1 s wording timeout stays. No candidate except `qwen3:4b` exceeded it, which confirms ADR-0003's figure for 3–4 B models at the 4000-character input cap.
 
 ## Consequences
