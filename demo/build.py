@@ -86,12 +86,12 @@ SCENES = (
     ),
     Scene(
         "permission",
-        "It needs your permission. You hear the actual command.",
+        "It needs your permission. You hear what it wants to do.",
         _play("permission"),
     ),
     Scene(
         "silent",
-        "You're at the keyboard, so it stays quiet, and `cc-notify-tts status` says why.",
+        "You're at the keyboard, so it stays quiet, and cc-notify-tts status says why.",
         _play("silent")
         + """Type "cc-notify-tts status"
 Sleep 600ms
