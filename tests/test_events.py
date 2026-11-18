@@ -176,10 +176,39 @@ def test_dev_server_outliving_several_turns_is_announced_once(s: Session) -> Non
     )
     s.send("user_prompt_submit", prompt_id="p7", after=30.0)
     assert s.kind("stop_dev_server_running", prompt_id="p7") is EventKind.FINISHED
+    # That "finished" plays, but the dev server isn't what the latest
+    # "still running" announced, so it doesn't arm "background done".
+    s.store.mark_still_running_heard(SESSION)
 
     # The dev server stopping later, after the user came back, says nothing.
     s.send("user_prompt_submit_task_notification", prompt_id="p8", after=30.0)
     assert s.kind("stop", prompt_id="p8") is None
+
+
+def test_finished_turn_while_announced_work_runs_keeps_background_done_armed(
+    s: Session,
+) -> None:
+    s.send("user_prompt_submit", prompt_id="p1")
+    assert s.kind("stop_background_running", prompt_id="p1") is EventKind.STILL_RUNNING
+    s.store.mark_still_running_heard(SESSION)
+    # A follow-up while the work runs ends "finished", and that plays.
+    s.send("user_prompt_submit", prompt_id="p2", after=10.0)
+    assert s.kind("stop_background_running", prompt_id="p2") is EventKind.FINISHED
+    s.store.mark_still_running_heard(SESSION)
+    # The user stepped away; the work finishing is still announced.
+    s.send("user_prompt_submit_task_notification", prompt_id="p3", after=30.0)
+    assert s.kind("stop_background_done", prompt_id="p3") is EventKind.BACKGROUND_DONE
+
+
+def test_unheard_finished_turn_leaves_background_done_unarmed(s: Session) -> None:
+    s.send("user_prompt_submit", prompt_id="p1")
+    s.send("stop_background_running", prompt_id="p1")
+    s.store.mark_still_running_heard(SESSION)
+    # The follow-up's "finished" isn't played (the user is at the session).
+    s.send("user_prompt_submit", prompt_id="p2", after=10.0)
+    assert s.kind("stop_background_running", prompt_id="p2") is EventKind.FINISHED
+    s.send("user_prompt_submit_task_notification", prompt_id="p3", after=30.0)
+    assert s.kind("stop_background_done", prompt_id="p3") is None
 
 
 def test_wake_up_waits_for_work_started_after_the_announcement(s: Session) -> None:

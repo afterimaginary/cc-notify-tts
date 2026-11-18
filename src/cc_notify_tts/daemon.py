@@ -468,7 +468,7 @@ class Daemon:
                 played = self._say(speaker, utterance)
             finally:
                 self._slot.done()
-            if played and utterance.kind is EventKind.STILL_RUNNING:
+            if played and utterance.kind in (EventKind.STILL_RUNNING, EventKind.FINISHED):
                 self._inbox.put_heard(Heard(utterance.session_id))
 
     def _say(self, speaker: Speaker | None, utterance: Utterance) -> bool:

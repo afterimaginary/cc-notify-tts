@@ -8,7 +8,7 @@ Code: `src/cc_notify_tts/events.py` (classification, dedupe) and `src/cc_notify_
 
 - `classify(store, payload, now, host_app=None) -> Notification | None` reads the session's state, applies the payload, writes the state back and returns at most one notification. `host_app` is the session's host app as the hook shim named it; when given, it replaces the one on record. The daemon feeds each session's events in the order their hooks fired (ADR-0013).
 - `Notification` carries the `kind`, `session_id`, `cwd`, `host_app`, the raw `payload` (for wording), `turn_seconds` (since the user's latest prompt, if known) and, for `still_running`, the live `background` items not announced before.
-- `SessionStore.mark_still_running_heard(session_id)`: the daemon calls it after a `still_running` utterance actually plays. It's ignored once no background work is live.
+- `SessionStore.mark_still_running_heard(session_id)`: the daemon calls it after a `still_running` or `finished` utterance actually plays. It's ignored unless work the latest `still_running` announced is still live.
 - `SessionStore.open_sessions(now)` lists sessions that are open and have had an event in the last 24 hours. `SessionStore.prune(now)` deletes closed and stale sessions; `classify` runs it on every `SessionEnd`.
 
 ## Events
@@ -31,7 +31,7 @@ Code: `src/cc_notify_tts/events.py` (classification, dedupe) and `src/cc_notify_
 - A `Stop` belongs to the user's turn when its `prompt_id` matches the turn's. Without prompt ids, the first `Stop` after a user prompt does.
 - Live background work is the `background_tasks` list of the latest `Stop`, minus items whose `status` says they ended. Items live at one `Stop` and absent from a later one are remembered as finished (the latest 64).
 - Each live item is announced as `still_running` once (ADR-0023). Its id is kept as announced while it stays live; one that disappears and comes back is new again. A user turn ending with only announced items live is `finished`, and one that also has new items announces just those.
-- A `Stop` is a wake-up turn's when its `prompt_id` is a recorded wake-up prompt's or, if that prompt hasn't arrived yet, when it doesn't belong to the user's turn and follows a `Stop` that had live work. A wake-up turn is never `finished`. It says nothing while work it waits on is live: the items the latest `still_running` announced, and any never announced. Once none is, it gives `background_done` if "still running" was heard, and nothing otherwise. Items announced before the latest `still_running`, such as a dev server, don't hold it up.
+- A `Stop` is a wake-up turn's when its `prompt_id` is a recorded wake-up prompt's or, if that prompt hasn't arrived yet, when it doesn't belong to the user's turn and follows a `Stop` that had live work. A wake-up turn is never `finished`. It says nothing while work it waits on is live: the items the latest `still_running` announced, and any never announced. Once none is, it gives `background_done` if "still running" was heard, and nothing otherwise. A `finished` that plays while that work is live counts as heard, so a follow-up turn doesn't silence the work's end. Items announced before the latest `still_running`, such as a dev server, don't hold it up.
 
 ## Out-of-order events
 
@@ -64,7 +64,7 @@ One JSON file per session, `<session_id>.json` under `~/Library/Application Supp
 | `finished_background` | Ids known to have finished |
 | `announced_background` | Live ids already announced as `still_running` |
 | `awaited_background` | Ids the latest `still_running` announced, which `background_done` waits on |
-| `still_running_heard` | A `still_running` announcement played and no `background_done` or new user turn has followed |
+| `still_running_heard` | A `still_running`, or a `finished` while announced work ran, played and no `background_done` or new user turn has followed |
 | `last_emitted` | Kind to time last emitted, for dedupe |
 
 Any event for a session without a file creates it as open, so sessions that started before the plugin was installed still work. `SessionEnd` for an unknown session writes nothing.

@@ -125,9 +125,15 @@ class SessionStore:
         return [s for s in self.all() if s.open and now - s.last_event_at < STALE_OPEN_SECONDS]
 
     def mark_still_running_heard(self, session_id: str) -> None:
-        """Record that a "still running" announcement actually played."""
+        """Record that a "still running" or "finished" announcement actually played.
+
+        It counts only while work the latest "still running" announced is live: a
+        turn that ends "finished" while that work runs keeps "background done" armed.
+        """
         state = self.load(session_id)
-        if state is not None and state.background:
+        if state is not None and any(
+            item.id in state.awaited_background for item in state.background
+        ):
             state.still_running_heard = True
             self.save(state)
 
