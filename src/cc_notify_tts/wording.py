@@ -377,7 +377,8 @@ def _opening(message: str) -> str:
     front of what follows it, so the first option isn't heard as an instruction.
     A label that names an option ("**Option A: Keep the cache**") counts as the
     first option, like a list item, and is kept as "Option A: ..." without such a
-    lead-in. One that only names it ("### Option A") keeps the lead-in for what follows.
+    lead-in. One that only names it ("### Option A") goes in front of what follows,
+    unless a lead-in to the choice already does.
     """
     paragraph: list[str] = []
     choice = ""
@@ -396,7 +397,8 @@ def _opening(message: str) -> str:
                 if choice:
                     return f"{choice} {lower_first(option['title'])}"
                 return f"{option['name']}: {option['title']}"
-            if option and choice:
+            if option:
+                choice = choice or f"{option['name']}:"
                 continue
             if line:
                 choice = line if _introduces_choice(line) else ""
