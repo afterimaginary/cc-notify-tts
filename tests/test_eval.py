@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+import evals.rescore
 import evals.run
 from cc_notify_tts.events import EventKind
 from cc_notify_tts.model_wording import ARGUMENT_CHARS, INPUT_CHARS
@@ -424,6 +425,14 @@ def test_rescore_scores_recorded_answers_with_the_current_guards() -> None:
 def test_rescore_needs_every_case() -> None:
     with pytest.raises(CaseError, match="finished-backoff"):
         rescore(results("Added backoff."), [case("question-retries")], "2026-11-19")
+
+
+def test_rescore_skips_a_run_kept_as_scored(tmp_path: Path) -> None:
+    kept = replace(results("Added backoff."), scoring="Kept as ADR-0021's before run.")
+    path = write_results(kept, tmp_path).with_suffix(".json")
+    before = path.read_text()
+    assert evals.rescore.main([str(path)]) == 0
+    assert path.read_text() == before
 
 
 def test_how_a_run_was_scored_is_in_the_report_and_the_json(tmp_path: Path) -> None:
