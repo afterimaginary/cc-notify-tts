@@ -49,6 +49,16 @@ On earlier versions, add the marketplace first:
 
 Then run `cc-notify-tts doctor` to check that everything a notification needs is in place. Each problem it finds comes with a fix.
 
+### Optional: model wording
+
+For a finished turn, a question or a permission request, a local [Ollama](https://ollama.com) model can write a shorter, more specific detail than the built-in wording. The default model is `granite4:micro`, picked by the [wording eval](evals/README.md) from ten candidates (ADR-0018 in [docs/decisions/](docs/decisions/)). With Ollama installed:
+
+```sh
+ollama pull granite4:micro
+```
+
+It holds about 2.2 GiB of memory while a Claude Code session is open. Without it, the built-in wording is spoken. To use another model, set `wording.model` in the [config file](docs/specs/config.md).
+
 ## Use
 
 New Claude Code sessions are spoken automatically. Nothing needs to stay running: a small background process starts with the first event and exits after two hours without one.

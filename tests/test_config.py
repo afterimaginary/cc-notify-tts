@@ -34,7 +34,7 @@ def test_defaults() -> None:
     assert c.daemon.idle_timeout_minutes == 120.0
     assert (c.wording.ollama, c.wording.model, c.wording.timeout_seconds) == (
         True,
-        "llama3.2:1b",
+        "granite4:micro",
         1.0,
     )
     assert c.speech.voice == "af_heart"

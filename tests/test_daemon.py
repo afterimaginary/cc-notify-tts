@@ -8,6 +8,7 @@ import pytest
 
 from cc_notify_tts import __version__
 from cc_notify_tts.client import MAX_MESSAGE_BYTES
+from cc_notify_tts.config import Wording
 from cc_notify_tts.daemon import Daemon, Paths
 from cc_notify_tts.mute import MuteFile
 from cc_notify_tts.queues import Received, Utterance
@@ -233,4 +234,4 @@ def test_fire_with_no_session_open_never_loads_the_model(tmp_path: Path) -> None
 
 
 def test_fire_with_a_session_open_loads_a_cold_model_for_next_time(tmp_path: Path) -> None:
-    assert ("load", "llama3.2:1b") in cold_fire(tmp_path, session_open=True)
+    assert ("load", Wording().model) in cold_fire(tmp_path, session_open=True)

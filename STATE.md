@@ -4,9 +4,9 @@
 
 ## Where We Are
 
-Milestones 1 and 2 are built: on templates alone, the plugin's hooks reach a local daemon that classifies each event, decides whether to speak from the config and live presence, words it and speaks it with Kokoro, and the README covers install, `status`, `fire`, mute and uninstall. An end-to-end test runs the real hook commands, shim and daemon (with fake speech and presence) through a whole session in `verify`. Ollama wording with guards (ADR-0015) and the wording eval (ADR-0016) are in; what's left is the model comparison, latency instrumentation and the launch.
+Milestones 1 and 2 are built: on templates alone, the plugin's hooks reach a local daemon that classifies each event, decides whether to speak from the config and live presence, words it and speaks it with Kokoro, and the README covers install, `status`, `fire`, mute and uninstall. An end-to-end test runs the real hook commands, shim and daemon (with fake speech and presence) through a whole session in `verify`. Ollama wording with guards (ADR-0015) and the wording eval (ADR-0016) are in, and ten models were compared on it: `granite4:micro` is the default wording model, with `phi4-mini:3.8b` the runner-up (ADR-0018). What's left is latency instrumentation and the launch.
 
-How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured results and decisions are ADR-0001 to ADR-0017 in [docs/decisions/](docs/decisions/).
+How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured results and decisions are ADR-0001 to ADR-0018 in [docs/decisions/](docs/decisions/).
 
 ## Features
 
@@ -15,11 +15,12 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured
 - [x] Local wording with guards, falling back to templates
 - [x] `cc-notify-tts status`, `fire`, `mute`, `doctor`, `setup`
 - [x] `make eval`: reproducible eval of local wording models
-- [ ] Shipped default wording model, chosen by the eval (#19)
+- [x] Shipped default wording model, chosen by the eval (#19)
 - [ ] Measured end-to-end latency (#20)
 
 ## Recently Done
 
+- Model comparison: `granite4:micro` is the default wording model, `phi4-mini:3.8b` the runner-up (ADR-0018) (#19)
 - Templates-only end-to-end test and the README's install and usage docs (#16)
 - CLI: `status`, `fire`, `mute`/`unmute`, `doctor` (ADR-0017) (#13)
 - Wording eval harness and 48 cases, with the noise band measured (ADR-0016) (#18)
@@ -28,8 +29,7 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured
 
 ## Up Next
 
-1. Model comparison and default model (#19)
-2. End-to-end latency instrumentation (#20)
+1. End-to-end latency instrumentation (#20)
 
 ## Needs Your Decision
 
