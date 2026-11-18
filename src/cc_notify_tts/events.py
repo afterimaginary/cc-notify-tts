@@ -64,7 +64,8 @@ def classify(
     """Apply one hook payload to its session and return the notification, if any.
 
     `host_app` is the session's host app as the hook shim named it, sent with
-    the event; when given, it replaces the one on record (ADR-0006).
+    the event; when given, it replaces the one on record (ADR-0006), and ""
+    clears it, because the shim looked and found none (ADR-0030).
     `announcing` says a "still running" or "finished" for this session is
     queued or playing, so whether it's heard isn't known yet (ADR-0026).
     """
@@ -82,7 +83,7 @@ def classify(
     # The folder the session started in names the project; a later `cd` doesn't.
     if not state.cwd and (cwd := _str(payload, "cwd")):
         state.cwd = cwd
-    if host_app:
+    if host_app is not None:
         state.host_app = host_app
 
     kind: EventKind | None = None

@@ -30,6 +30,8 @@ class Received:
     payload: dict[str, Any]
     # Wall-clock time the hook fired, from the shim, or arrival time if it sent none.
     fired_at: float
+    # The host app the shim named: a bundle id, "" when it found none (so it's
+    # unknown now), or None when it didn't look (ADR-0030).
     host_app: str | None
     # Its stage marks, logged when it's done (ADR-0019).
     timeline: Timeline = field(compare=False)

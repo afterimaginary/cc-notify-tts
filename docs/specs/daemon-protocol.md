@@ -38,7 +38,7 @@ One hook event. The reply means it was queued, not that it was classified or spo
 | `payload` | yes | The hook's JSON input, unchanged. |
 | `fired_at` | no | Wall-clock time (Unix seconds) the hook started, read as the shim's first step. Events are classified in this order. Missing, not a number, or later than arrival: arrival time is used. |
 | `sent_at` | no | Wall-clock time (Unix seconds) the shim first sent the event, before any daemon start and retries, for the latency log only. Not a number, or later than arrival: arrival time is logged. |
-| `host_app` | no | Bundle id of the app the session runs in (ADR-0006). The shim sends it at `SessionStart`, and inside tmux on every hook that can announce something. When present and non-empty, it replaces the one on record for the session. |
+| `host_app` | no | Bundle id of the app the session runs in (ADR-0006). The shim sends it at `SessionStart`, and inside tmux on every hook that can announce something. A non-empty string replaces the one on record for the session. `null` says the shim looked and found none, such as in a detached tmux session, and clears it, so the host is unknown (ADR-0030). Missing, or any other value: the one on record is kept. |
 
 ```json
 {"ok": true}

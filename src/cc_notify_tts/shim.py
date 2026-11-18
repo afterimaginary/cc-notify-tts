@@ -13,7 +13,8 @@ disturb Claude Code, so it:
 What it sends is the protocol's `event` request (docs/specs/daemon-protocol.md):
 the payload unchanged, `fired_at` read first thing, `sent_at` just before
 sending (both for the latency log, ADR-0019), and `host_app` at
-`SessionStart` and, inside tmux, on every hook that can announce something.
+`SessionStart` and, inside tmux, on every hook that can announce something:
+`null` when it can't be named, such as a detached tmux session (ADR-0030).
 """
 
 import json
@@ -57,9 +58,8 @@ def handle(hook: str, raw: bytes, env: Mapping[str, str], fired_at: float) -> No
     if event == "SessionStart" or (env.get("TMUX") and event in ANNOUNCING):
         from cc_notify_tts import host_app  # ctypes and plistlib: only when needed
 
-        host = host_app.identify(env, os.getpid())
-        if host:
-            message["host_app"] = host
+        # None goes out as null: the host is unknown now, so the one on record is stale.
+        message["host_app"] = host_app.identify(env, os.getpid())
 
     python = client.daemon_python()
     message["sent_at"] = time.time()

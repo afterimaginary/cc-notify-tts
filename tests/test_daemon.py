@@ -74,6 +74,12 @@ def test_event_is_queued_with_its_hook_time_and_host(daemon: Daemon) -> None:
     )
 
 
+def test_event_with_a_null_host_says_the_host_is_unknown(daemon: Daemon) -> None:
+    payload = {"session_id": "s1", "hook_event_name": "Stop"}
+    send(daemon, {"type": "event", "fired_at": NOW - 2, "host_app": None, "payload": payload})
+    assert queued(daemon).host_app == ""
+
+
 def test_event_timeline_has_the_shim_marks_and_arrival(daemon: Daemon) -> None:
     payload = {"session_id": "s1", "hook_event_name": "Stop"}
     send(daemon, {"type": "event", "fired_at": NOW - 2, "sent_at": NOW - 1, "payload": payload})

@@ -263,13 +263,12 @@ class Daemon:
         if "sent_at" in message:
             timeline.mark("sent", min(_seconds(message["sent_at"], now), now))
         timeline.mark("received", now)
-        host_app = message.get("host_app")
         self._last_event_at = now
         self._inbox.put(
             Received(
                 payload=fields,
                 fired_at=fired_at,
-                host_app=host_app if isinstance(host_app, str) and host_app else None,
+                host_app=_host_app(message),
                 timeline=timeline,
             )
         )
@@ -548,6 +547,14 @@ class Daemon:
 
 def _error(why: str) -> dict[str, Any]:
     return {"ok": False, "error": why}
+
+
+def _host_app(message: dict[str, Any]) -> str | None:
+    """An event's `host_app`: a bundle id, "" when the shim sent null (unknown), else None."""
+    if "host_app" in message and message["host_app"] is None:
+        return ""
+    value = message.get("host_app")
+    return value if isinstance(value, str) and value else None
 
 
 def _seconds(value: Any, default: float) -> float:
