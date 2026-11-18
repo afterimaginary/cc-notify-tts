@@ -386,6 +386,14 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
         ),
         # A label line before it doesn't carry over.
         ("Here are two options:\n## Summary\n\n- Fixed the retry", "Fixed the retry."),
+        # A sub-label under a bare option label keeps the choice.
+        (
+            "Here are two options:\n\n### Option A\n**Pros:**\n- Faster\n\n"
+            "### Option B\n**Pros:**\n- Simpler",
+            "Here are two options: faster.",
+        ),
+        ("### Option A\n**Pros:**\n- Faster\n**Cons:**\n- Uses memory", "Option A: faster."),
+        ("**Option A**\n\n#### Trade-offs\n\nIt's faster.", "Option A: it's faster."),
         # A summary lead-in on its own line still goes.
         ("Here's what changed:\n\n1. Fixed the retry\n2. Added tests", "Fixed the retry."),
         # A summary lead-in that only mentions a choice-like word elsewhere still goes.

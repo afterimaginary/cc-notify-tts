@@ -381,12 +381,16 @@ def _opening(message: str) -> str:
     first option, like a list item, and is kept as "Option A: ..." without such a
     lead-in. One that only names it ("### Option A") goes in front of its own
     description, unless a lead-in to the choice already does; if a code block
-    follows it instead, it goes no further.
+    follows it instead, it goes no further. A sub-label under it ("**Pros:**")
+    leaves the choice in place.
     """
     paragraph: list[str] = []
     choice = ""
     # Whether `choice` is a bare option label's name, which only its description takes.
     named = False
+    # Whether a bare option label was met, so a sub-label under it ("**Pros:**")
+    # keeps the choice instead of replacing it.
+    in_option = False
     for line in _CODE_FENCE.sub(f"\n\n{_CODE_BLOCK}\n\n", message).splitlines():
         line = line.strip()
         if line == _CODE_BLOCK:
@@ -411,8 +415,9 @@ def _opening(message: str) -> str:
             if option:
                 if not choice or named:
                     choice, named = f"{option['name']}:", True
+                in_option = True
                 continue
-            if line:
+            if line and not (in_option and choice):
                 choice = line if _introduces_choice(line) else ""
                 named = False
             continue
