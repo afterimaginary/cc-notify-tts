@@ -4,7 +4,7 @@
 
 ## Where We Are
 
-The repository is set up: brief, build policy, Python toolchain, `make ready` / `make verify` and the `verify` check. No product code yet; milestone 1 (proving the risky parts) is under way. Hook coverage is measured in the CLI (ADR-0001) and synthetic payload fixtures are in `tests/fixtures/hooks/`. The daemon will start on demand from the hook (ADR-0002). The wording model stays warm with a matching ping, and wording waits at most 1 s, only when the model is loaded (ADR-0003). Kokoro synthesizes a 5–20-word sentence in 0.27–0.9 s warm, and nearby playback doesn't slow it (ADR-0005).
+The repository is set up: brief, build policy, Python toolchain, `make ready` / `make verify` and the `verify` check. No product code yet; milestone 1 (proving the risky parts) is under way. Hook coverage is measured in the CLI (ADR-0001) and synthetic payload fixtures are in `tests/fixtures/hooks/`. The daemon will start on demand from the hook (ADR-0002). The wording model stays warm with a matching ping, and wording waits at most 1 s, only when the model is loaded (ADR-0003). Kokoro synthesizes a 5–20-word sentence in 0.27–0.9 s warm, and nearby playback doesn't slow it (ADR-0005). Hook payloads are classified into the seven notification events with per-session state on disk and 5 s dedupe (ADR-0007).
 
 ## Features
 
@@ -16,6 +16,7 @@ The repository is set up: brief, build policy, Python toolchain, `make ready` / 
 
 ## Recently Done
 
+- Event classification, session state and dedupe (ADR-0007) (#14)
 - Spike: small Ollama models answer in 0.07–0.6 s warm and 0.7–1.5 s after a load; `num_ctx` 2048 saves up to 3.5 GiB (ADR-0003) (#5)
 - Spike: Kokoro latency, cold and warm, with and without nearby playback; the daemon keeps the model loaded (ADR-0005) (#4)
 - Spike: a daemon started from a hook outlives its session and runs at foreground priority, so it starts on demand (ADR-0002) (#3)

@@ -12,6 +12,6 @@ Claude Code ── plugin hooks (async) ──▶ hook shim (standard library on
 
 - **Hook shim:** never writes to stdout, always exits 0, and returns quickly. Anything expensive happens in the daemon.
 - **Daemon:** keeps the speech model warm while Claude Code is in use and exits after an idle timeout. The hook shim starts it on demand as a detached process, with no LaunchAgent (ADR-0002).
-- **State:** per-session files (turn start, live background work, what was heard) survive a daemon restart.
+- **Classification and state:** `events.py` turns each hook payload into one of seven notification events (or none), using per-session files from `sessions.py` (turn start, live background work, what was heard), which survive a daemon restart. Duplicates of a kind within 5 s collapse (ADR-0007, [design](designs/event-classification.md)).
 
 Decisions behind these choices are recorded in [decisions/](decisions/) as they're made.
