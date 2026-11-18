@@ -1,3 +1,4 @@
+import logging
 import time
 import wave
 from pathlib import Path
@@ -126,3 +127,33 @@ def test_play_reports_afplay_finishing_early(
     wav = fake_afplay(tmp_path, monkeypatch, "true", seconds=5)
     assert AfplayPlayer().play(wav)
     assert (tmp_path / "exited").exists()
+
+
+def test_espeak_reading_a_number_out_doesnt_log_a_word_count_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # Kokoro's own phonemizer call. espeak reads "e942277" and "12" out as
+    # several words, which used to log a word count mismatch for the sentence.
+    from kokoro_onnx.tokenizer import Tokenizer
+
+    caplog.set_level(logging.INFO, logger="phonemizer")
+    sentence = "Finished up in demo. Landed as e942277 (pull request 12)."
+    phonemes = Tokenizer().phonemize(sentence)  # pyright: ignore[reportUnknownMemberType]
+
+    assert phonemes
+    assert not [r for r in caplog.records if "words count mismatch" in r.getMessage()]
+
+
+def test_other_phonemizer_warnings_and_errors_still_reach_the_log(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    phonemizer = logging.getLogger("phonemizer")
+    with caplog.at_level(logging.WARNING, logger="phonemizer"):
+        phonemizer.warning("words count mismatch on %s%% of the lines (%s/%s)", 100.0, 1, 1)
+        phonemizer.warning("language switch flags have been removed")
+        phonemizer.error("espeak failed")
+
+    assert [r.getMessage() for r in caplog.records] == [
+        "language switch flags have been removed",
+        "espeak failed",
+    ]

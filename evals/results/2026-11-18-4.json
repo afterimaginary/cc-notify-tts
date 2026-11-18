@@ -700,7 +700,7 @@
       "summary": {
         "cases": 48,
         "passed": 41,
-        "spoken": 48,
+        "spoken": 47,
         "kept": 45,
         "invented": 0,
         "over_length": 4,
@@ -709,7 +709,9 @@
         "p50_ms": 185.95920799998567,
         "p95_ms": 351.231665998057,
         "over_budget": 0,
-        "rejections": {},
+        "rejections": {
+          "tests still fail": 1
+        },
         "by_event": {
           "finished": [
             16,
@@ -852,13 +854,11 @@
           "case_id": "finished-tests-still-fail",
           "kind": "finished",
           "answer": "Updated the CSV importer to handle quoted commas.",
-          "detail": "Updated the CSV importer to handle quoted commas.",
-          "reason": "ok",
-          "missing": [
-            "fail*"
-          ],
+          "detail": null,
+          "reason": "leaves out that tests still fail",
+          "missing": [],
           "invented": [],
-          "words": 8,
+          "words": 0,
           "lead_in": false,
           "passed": false
         },
@@ -1371,7 +1371,7 @@
       "summary": {
         "cases": 48,
         "passed": 40,
-        "spoken": 48,
+        "spoken": 47,
         "kept": 42,
         "invented": 2,
         "over_length": 0,
@@ -1380,7 +1380,9 @@
         "p50_ms": 164.49545799696352,
         "p95_ms": 223.14204199938104,
         "over_budget": 0,
-        "rejections": {},
+        "rejections": {
+          "tests still fail": 1
+        },
         "by_event": {
           "finished": [
             19,
@@ -1523,13 +1525,11 @@
           "case_id": "finished-tests-still-fail",
           "kind": "finished",
           "answer": "Updated the CSV importer to handle quoted commas.",
-          "detail": "Updated the CSV importer to handle quoted commas.",
-          "reason": "ok",
-          "missing": [
-            "fail*"
-          ],
+          "detail": null,
+          "reason": "leaves out that tests still fail",
+          "missing": [],
           "invented": [],
-          "words": 8,
+          "words": 0,
           "lead_in": false,
           "passed": false
         },
@@ -2052,7 +2052,7 @@
       "summary": {
         "cases": 48,
         "passed": 36,
-        "spoken": 48,
+        "spoken": 47,
         "kept": 37,
         "invented": 1,
         "over_length": 0,
@@ -2061,7 +2061,9 @@
         "p50_ms": 86.7882919992553,
         "p95_ms": 124.76154100295389,
         "over_budget": 0,
-        "rejections": {},
+        "rejections": {
+          "tests still fail": 1
+        },
         "by_event": {
           "finished": [
             16,
@@ -2208,13 +2210,11 @@
           "case_id": "finished-tests-still-fail",
           "kind": "finished",
           "answer": "Completed the CSV importer, resolving errors.",
-          "detail": "Completed the CSV importer, resolving errors.",
-          "reason": "ok",
-          "missing": [
-            "fail*"
-          ],
+          "detail": null,
+          "reason": "leaves out that tests still fail",
+          "missing": [],
           "invented": [],
-          "words": 6,
+          "words": 0,
           "lead_in": false,
           "passed": false
         },
@@ -2731,5 +2731,6 @@
         }
       ]
     }
-  ]
+  ],
+  "scoring": "Re-scored on 2026-11-18 from the recorded answers, with the guards and case lists of that day. The answers, latency and memory are the run's own."
 }

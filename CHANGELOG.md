@@ -11,7 +11,12 @@ All notable changes to this project are recorded here. Versions follow [Semantic
 ### Fixed
 
 - **Failing tests, more phrasings:** "the test suite still has 2 failures", "tests are still red", "test_a is failing" and "the test for leap years fails" now count as failing tests, while "still broken" about something other than tests no longer does. A failure cut from a long sentence keeps what failed ("Two tests, test_a and test_b, still fail."), model wording that gives a test summary ("41 passed, 2 failed") is accepted, and the guard checks the whole message, not only the part the model sees (ADR-0033, #62).
+- **Eval results match the current guards:** the recorded eval runs in `evals/results/` are re-scored from their recorded answers with today's guards, `python -m evals.rescore` does it again after a guard change, and `make ready` fails until it has. Answers recorded before ADR-0021's guard that report failing tests as a success now count as rejected; no pass count changes (ADR-0016, ADR-0018, #74).
 - **Detached tmux sessions:** a session in a detached tmux no longer keeps the app it was last attached from, so it counts as away and is spoken, and the next hook after reattaching names the new app (ADR-0030, #47).
+- **Abbreviations in the detail:** the spoken detail no longer stops at an abbreviation such as "e.g." or "i.e." as if it ended the first sentence (#36).
+- **Inline lead-ins:** a finished turn whose last message opens with a lead-in such as "Here's what was done:" or "Summary:" is spoken without it, starting at what the lead-in introduces (#50).
+- **App names in reasons:** gate reasons and `status` name common browsers, editors and everyday apps, such as Chrome, Safari, Cursor and Slack, instead of showing their bundle ids (#64).
+- **Phonemizer warning:** speaking a sentence with a number or a commit hash in it no longer logs `words count mismatch` in `daemon.log`. Other speech warnings and errors are still logged (ADR-0034, #65).
 
 ## [0.1.0] - 2026-11-18
 

@@ -22,6 +22,7 @@ def render(results: Results) -> str:
         "output tokens, thinking off. Latency is the client's wall time per request, "
         "after loading the model and one warm-up request.",
         "",
+        *([results.scoring, ""] if results.scoring else []),
         "## Results",
         "",
         "| Model | Pass | Spoken | Detail kept | Invented | Over length | Lead-ins spoken "
