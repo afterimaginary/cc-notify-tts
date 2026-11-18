@@ -1,0 +1,23 @@
+# Runs the project's verify suite on the self-hosted runner for every PR head.
+# The merge step requires this job to pass at the PR head.
+name: verify
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: [self-hosted, macOS, cc-notify-tts]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: uv sync --frozen
+      - run: make verify

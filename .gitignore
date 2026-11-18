@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+.DS_Store
+
+# Model weights and generated audio never go in git.
+*.onnx
+*.bin
+*.wav
+*.mp3
+*.m4a
+
+CLAUDE.local.md

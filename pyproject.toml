@@ -1,0 +1,36 @@
+[project]
+name = "cc-notify-tts"
+version = "0.0.0"
+description = "Configurable, summarized voice notifications for Claude Code on macOS"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+cc-notify-tts = "cc_notify_tts.cli:main"
+
+[dependency-groups]
+dev = ["ruff", "pyright", "pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = [".claude"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.pyright]
+include = ["src", "tests"]
+typeCheckingMode = "strict"
+pythonVersion = "3.13"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: slower tests that still need no model, Ollama or audio device; run by verify only"]
+addopts = "-m 'not integration'"
