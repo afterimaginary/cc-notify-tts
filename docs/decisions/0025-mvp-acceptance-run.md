@@ -1,5 +1,5 @@
 ---
-description: The brief's "Done means" was run on the build Mac from a clean install of this project; the three install commands, the spoken finished turn and permission request, and both hook-cost targets pass, the silent-while-active gate passes with input posted by the run, and `make eval` and template wording without the model pass in part, with the full eval, Ollama stopped, a fresh account and the other checks that need a person listed as owner steps.
+description: The brief's "Done means" was run on the build Mac from a clean install of this project; the three install commands, the spoken finished turn and permission request, and both hook-cost targets pass, the silent-while-active gate passes with input posted by the run, and `make eval` and template wording without the model pass in part, with the full eval, Ollama stopped, a fresh account and the other checks that need a person listed as manual checks not yet run (#91).
 status: accepted
 ---
 
@@ -29,9 +29,9 @@ Run on 2026-11-18 on the build Mac: Apple M3 Max, 48 GiB, macOS 27.2.1, Claude C
 | 1 | Three documented commands install the plugin and its models | Pass, on a Mac that already had a uv Python and `~/.local/bin` on `PATH` |
 | 2 | A multi-step turn, user in a browser, spoken within 3 s with an accurate detail | Pass |
 | 3 | A permission prompt while away is spoken with the action | Pass |
-| 4 | Silent while active with the default setting, `status` says why; spoken with `always` | Pass with a stand-in: input posted by the run, the session's app named as the one in front; typing is an owner step |
-| 5 | With Ollama stopped, template wording is spoken without errors | Partial: run with the model missing; Ollama stopped is an owner step |
-| 6 | `make eval` reproduces the README's table within run-to-run noise | Partial: 2 of the 10 models, both matching; the full table is an owner step |
+| 4 | Silent while active with the default setting, `status` says why; spoken with `always` | Pass with a stand-in: input posted by the run, the session's app named as the one in front; typing is a manual check not yet run |
+| 5 | With Ollama stopped, template wording is spoken without errors | Partial: run with the model missing; Ollama stopped is a manual check not yet run |
+| 6 | `make eval` reproduces the README's table within run-to-run noise | Partial: 2 of the 10 models, both matching; the full eval is a manual check not yet run (check 5 below) |
 | 7 | No hook over 100 ms p95; no process left after the idle timeout | Pass |
 
 ### 1. Install
@@ -58,7 +58,7 @@ ok    Ollama (optional): running, with granite4:micro
 All checks passed.
 ```
 
-Not exercised, because this Mac already had them: uv downloading its own Python 3.13, and `setup` adding `~/.local/bin` to the shell profile. Both are owner steps on a fresh account.
+Not exercised, because this Mac already had them: uv downloading its own Python 3.13, and `setup` adding `~/.local/bin` to the shell profile. Both are manual checks not yet run, on a fresh account.
 
 ### 2. A finished turn, user in a browser
 
@@ -134,7 +134,7 @@ template wording: acceptance-missing-model isn't loaded yet
 weather app, finished: queued 'Finished up in weather app. The folder contains convert.py, README.md, and test_convert.py, plus a .git directory.'
 ```
 
-It was spoken, and no `ERROR` or traceback appeared in `daemon.log` or `shim.log` during the run. The one other line was the expected `couldn't load acceptance-missing-model: model not found` at INFO. The check with Ollama itself stopped is an owner step.
+It was spoken, and no `ERROR` or traceback appeared in `daemon.log` or `shim.log` during the run. The one other line was the expected `couldn't load acceptance-missing-model: model not found` at INFO. The check with Ollama itself stopped is a manual check not yet run.
 
 ### 6. `make eval`
 
@@ -176,7 +176,9 @@ The cold-start hook came in under 100 ms here, against ADR-0014's 116 ms p95 ove
 
 Not failures: `status` and `doctor` report version 0.0.0 until the release sets it (#23). `brew install uv` upgrades an existing uv. A user-scope install speaks for every Claude Code session on the Mac, as designed.
 
-## Owner steps
+## Manual checks not yet run
+
+Items 1–5 are tracked in #91, item 6 in #88, item 7 in #89 and item 8 in #90.
 
 These need a person, a fresh account or an app the run didn't use.
 
@@ -184,13 +186,13 @@ These need a person, a fresh account or an app the run didn't use.
 2. **Hear it (item 2).** In that account, or your own after the three commands, start `claude` in Terminal in any small project. Give it a task that takes a minute, such as "add a function and a test for it, then run the tests", and switch to a browser. You should hear one sentence within about 3 s of the turn ending, naming the project and what was done.
 3. **Typing in the session (item 4).** Run a short task in a Terminal window and keep typing in that window (for example, in another tab) until it finishes. Nothing should be spoken. `cc-notify-tts status` should say `silent: you were active … ago and Terminal is in front`. Add `[events.finished]` with `speak = "always"` to `~/Library/Application Support/cc-notify-tts/config.toml`, repeat, and it should be spoken. Then remove those lines.
 4. **Ollama stopped (item 5).** Quit Ollama from its menu bar icon (or `brew services stop ollama` if Homebrew installed it) and check that `curl -s localhost:11434` fails. Run a short task with the session's window in the background. The sentence should be spoken with template wording, `daemon.log` should show `template wording: …` and no `ERROR` lines, and `doctor` should show Ollama as optional and not running. Start Ollama again (`brew services start ollama` for Homebrew).
-5. **The full eval (item 6).** From a clone, pull the README table's other eight models (`ollama pull` each name in its first column), then run `make eval MODELS="granite4:micro qwen3.5:4b phi4-mini:3.8b llama3.2:3b qwen3.5:2b gemma3:4b gemma3:1b llama3.2:1b qwen3:1.7b qwen3:4b"`. Each model's Pass, Detail kept and Invented counts should match the README exactly, and its p50 and p95 should be within about 5% (p95 varies more). Remove the models you don't keep with `ollama rm`.
+5. **The full eval (item 6).** From a clone, with `granite4:micro` pulled, run `make eval MODELS="granite4:micro"` over all 60 cases. Compare it with the latest committed default-model run, ADR-0036's (`evals/results/2026-11-18-12.md`): it should pass 47 of 60, with the same Detail kept and Invented counts. The README's table is the earlier 48-case run of ten models (ADR-0018), so a rerun today can't match it.
 6. **The listening check:** ADR-0012's five pairs by ear (`uv run python spikes/kokoro_listening/listen.py` from a clone).
-7. **The desktop app:** ADR-0001's and ADR-0002's owner steps, which cover hook coverage and closing a desktop session.
+7. **The desktop app:** ADR-0001's and ADR-0002's manual checks, which cover hook coverage and closing a desktop session.
 8. **Terminal's and iTerm2's environment:** ADR-0006's one-line host check, run in each.
 
 ## Consequences
 
-- Items 1–3 and 7 pass on this Mac, item 4 passes with a stand-in, and items 5 and 6 pass in part. The MVP is ready for the owner steps above and the launch.
+- Items 1–3 and 7 pass on this Mac, item 4 passes with a stand-in, and items 5 and 6 pass in part. The MVP is ready for the manual checks above and the launch.
 - The run's own method can be repeated: mute between checks, drive a tmux session, and read each decision and sentence from `daemon.log`.
 - Three small issues came out of the run. None blocks the launch.

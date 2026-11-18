@@ -109,9 +109,9 @@ Two event-driven trackers, at rest:
 - Idle time counts any keyboard or mouse input on the Mac, including input from remote-control software and "mouse jiggler" tools, which make the user look present.
 - `lsappinfo` has a man page, but its output format isn't a documented interface. The daemon must treat output it can't parse, or a listener that keeps exiting, as "can't follow the frontmost app", which makes it speak, and `doctor` should check it. If a macOS release breaks it, PyObjC's notifications are the replacement.
 - The host app is fixed per session except inside tmux. Moving a session between apps any other way isn't followed, and nothing in normal use does that.
-- iTerm2 and the environment Terminal sets are untested. The owner steps below confirm them; if either fails the ancestry walk, it is listed as not identified.
+- iTerm2 and the environment Terminal sets are untested. The manual checks below confirm them (#90); if either fails the ancestry walk, it is listed as not identified.
 
-## Owner steps for what's untested
+## Manual checks not yet run (#90)
 
 In Terminal, and in iTerm2 if you use it, open a new window and run:
 
@@ -119,4 +119,4 @@ In Terminal, and in iTerm2 if you use it, open a new window and run:
 uv run --script <repo>/spikes/presence/presence_probe.py host --label Terminal
 ```
 
-Paste the `env` and `identified` blocks on the issue. In Terminal, `by_ancestry` should name the app. In iTerm2, `by_ancestry` may be empty, and `by_cfbundleidentifier` should then name it.
+Paste the `env` and `identified` blocks on #90. In Terminal, `by_ancestry` should name the app. In iTerm2, `by_ancestry` may be empty, and `by_cfbundleidentifier` should then name it.
