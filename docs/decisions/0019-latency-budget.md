@@ -90,6 +90,6 @@ The daemon's resident memory was 250–263 MiB once the speech model had loaded 
 ## Consequences
 
 - Synthesis is most of the budget, about 0.5 s; then the model's wording, about 0.2 s; then the 100 ms ordering hold and `afplay`'s 0.1 s start-up. Everything else is a few milliseconds.
-- `afplay` lingers about 0.75 s after each sentence, and the speech worker waits for it, so a second sentence queued behind a first starts that much later than it could. It doesn't affect a single notification.
+- `afplay` lingers about 0.75 s after each sentence, and the speech worker waits for it, so a second sentence queued behind a first starts that much later than it could. It doesn't affect a single notification. ADR-0022 stops waiting for it, and `ended` now marks the end of the sound rather than `afplay`'s exit.
 - The daemon's idle cost is about 450 MiB of resident memory, plus 2.2 GiB in Ollama while a session is open with model wording.
 - Anyone can measure their own machine: `uv run python -m bench.latency summarize` on their `daemon.log`, or `make latency [MODEL=…]`.
