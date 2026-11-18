@@ -98,7 +98,7 @@ def gather(
         idle_seconds=read_idle_seconds(),
         front_app=front_app,
         sessions=sessions,
-        here=here if here is not None else host_app.identify(os.environ, os.getpid()),
+        here=(here if here is not None else host_app.identify(os.environ, os.getpid())) or None,
     )
 
 

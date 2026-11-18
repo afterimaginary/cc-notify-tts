@@ -6,8 +6,8 @@ Code: `src/cc_notify_tts/gate.py` (the decision) and `src/cc_notify_tts/presence
 
 ## Interface
 
-- `decide(kind, config, mute, local_time, presence) -> Decision` is pure: everything it reads is passed in, so `status` can explain a decision the same way the daemon makes it. `Decision` has `speak` and a one-line `reason` starting `speaking:` or `silent:`.
-- `mute` is anything with `is_muted() -> bool`. The CLI's mute command will provide it. Until then, `NeverMuted` stands in.
+- `decide(kind, config, mute, local_time, presence) -> Decision` is pure: everything it reads is passed in, so `cc-notify-tts status` explains a decision the same way the daemon makes it. `Decision` has `speak` and a one-line `reason` starting `speaking:` or `silent:`.
+- `mute` is anything with `is_muted() -> bool`. The daemon passes `MuteFile` (`mute.py`), which reads the mute file that `cc-notify-tts mute` writes in the state folder, on every call ([CLI](../specs/cli.md#mute-and-unmute)).
 - `read_presence(host_app, idle_seconds, tracker, now) -> Readings` combines an idle reading with the frontmost tracker's state for one session's host app. `now` is `time.monotonic()`.
 - `read_idle_seconds()` returns seconds since the last keyboard or mouse input, or `None`.
 - `FrontTracker` holds which app is in front and when each app last lost front. `FrontmostWatcher(tracker).start()` keeps it current from a background thread for as long as the daemon runs, and `stop()` ends the listener.

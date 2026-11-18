@@ -9,7 +9,8 @@ import pytest
 from cc_notify_tts import __version__
 from cc_notify_tts.client import MAX_MESSAGE_BYTES
 from cc_notify_tts.daemon import Daemon, Paths
-from cc_notify_tts.queues import Received
+from cc_notify_tts.mute import MuteFile
+from cc_notify_tts.queues import Received, Utterance
 
 NOW = 1_000_000.0
 
@@ -149,3 +150,65 @@ def test_model_kept_warm_while_a_session_is_open_and_unloaded_after(tmp_path: Pa
     assert daemon._keep_warm is not None  # pyright: ignore[reportPrivateUsage]
     daemon._keep_warm.close()  # pyright: ignore[reportPrivateUsage]
     assert ollama.calls == [("chat", "tiny:1b"), ("load", "tiny:1b"), ("unload", "tiny:1b")]
+
+
+# --- fire -------------------------------------------------------------------------
+
+
+def pending(daemon: Daemon) -> Utterance | None:
+    return daemon._slot.snapshot()[1]  # pyright: ignore[reportPrivateUsage]
+
+
+def test_fire_always_queues_the_sample_sentence(daemon: Daemon) -> None:
+    reply = send(
+        daemon,
+        {"type": "fire", "event": "permission", "always": True, "cwd": "/src/weather-app"},
+    )
+    assert reply == {
+        "ok": True,
+        "speak": True,
+        "reason": "speaking: fired with --always",
+        "text": "Weather app needs your okay to run npm test.",
+        "speech": "loading",
+    }
+    utterance = pending(daemon)
+    assert utterance is not None
+    assert utterance.text == "Weather app needs your okay to run npm test."
+    assert utterance.fired_at == NOW
+
+
+def test_fire_goes_through_the_gate(tmp_path: Path) -> None:
+    paths = Paths(tmp_path / "d.sock", tmp_path / "state", tmp_path / "config.toml")
+    paths.config.write_text('[events.finished]\nspeak = "never"\n')
+    daemon = Daemon(paths, NoSpeaker, follow_front=False, clock=lambda: NOW)
+    reply = send(daemon, {"type": "fire", "event": "finished", "cwd": "/src/app"})
+    assert reply["speak"] is False
+    assert reply["reason"] == "silent: finished is set to never"
+    assert reply["text"] is None
+    assert pending(daemon) is None
+    recent = daemon.status()["recent"]
+    assert [(r["event"], r["reason"]) for r in recent] == [
+        ("finished", "silent: finished is set to never")
+    ]
+
+
+def test_fire_is_silent_while_the_mute_file_says_so(tmp_path: Path) -> None:
+    paths = Paths(tmp_path / "d.sock", tmp_path / "state", tmp_path / "config.toml")
+    MuteFile(paths.state / "mute").mute(None)
+    daemon = Daemon(paths, NoSpeaker, follow_front=False, clock=lambda: NOW)
+    reply = send(daemon, {"type": "fire", "event": "failed"})
+    assert reply["reason"] == "silent: muted"
+    # --always skips the whole gate, mute included.
+    assert send(daemon, {"type": "fire", "event": "failed", "always": True})["speak"] is True
+
+
+def test_fire_leaves_session_state_alone(daemon: Daemon) -> None:
+    send(daemon, {"type": "fire", "event": "still_running", "always": True})
+    assert not daemon.paths.state.exists() or not list(daemon.paths.state.glob("*.json"))
+    assert daemon.status()["sessions"] == []
+
+
+@pytest.mark.parametrize("event", [None, "shout", 3])
+def test_fire_needs_a_known_event(daemon: Daemon, event: Any) -> None:
+    reply = send(daemon, {"type": "fire", "event": event})
+    assert reply == {"ok": False, "error": f"unknown event: {event!r}"}

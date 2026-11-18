@@ -108,7 +108,7 @@ def fire(kind: EventKind, *, always: bool, data: Path | None = None) -> int:
         "cwd": os.getcwd(),
         "host_app": host_app.identify(os.environ, os.getpid()) or "",
     }
-    timeout = FIRE_TIMEOUT + config.load().config.wording.timeout_seconds
+    timeout = FIRE_TIMEOUT + config.load(data / "config.toml").config.wording.timeout_seconds
     try:
         reply = client.request(socket, message, timeout)
     except (OSError, ValueError) as e:

@@ -43,6 +43,27 @@ One hook event. The reply means it was queued, not that it was classified or spo
 {"ok": true}
 ```
 
+### `fire`
+
+A sample notification for `cc-notify-tts fire` ([CLI](cli.md#fire-event)). It skips classification and session state, goes through the gate unless `always` is true, and is worded and queued like any other. It's handled on the socket thread, and the reply comes once the sentence is queued (after any model wording), not once it's spoken. It doesn't count as an event for the idle timeout.
+
+```json
+{"type": "fire", "event": "permission", "always": false, "cwd": "/src/weather-app", "host_app": "com.apple.Terminal"}
+```
+
+| Field | Required | Meaning |
+| - | - | - |
+| `event` | yes | One of the seven events. Anything else is refused: `unknown event: …`. |
+| `always` | no | `true` skips the gate (mute and quiet hours included). |
+| `cwd` | no | The folder that names the project in the sentence. |
+| `host_app` | no | Bundle id of the app the CLI runs in, which the gate treats as the session's host. |
+
+```json
+{"ok": true, "speak": true, "reason": "speaking: fired with --always", "text": "Weather app needs your okay to run npm test.", "speech": "ready"}
+```
+
+`text` is `null` when `speak` is `false`. `speech` is as in `status`.
+
 ### `status`
 
 What the daemon is doing, for `cc-notify-tts status`.
@@ -78,7 +99,7 @@ What the daemon is doing, for `cc-notify-tts status`.
 | `speaking`, `pending` | The sentence playing now and the one waiting, or `null`. |
 | `front_app` | Bundle id of the app in front, or `null` when the frontmost app can't be followed. |
 | `sessions` | Open sessions, with how long each one's host app has been out of front (`null` when unknown). |
-| `recent` | The last 20 gate decisions, oldest first, with the gate's reason. |
+| `recent` | The last 20 gate decisions, oldest first, with the gate's reason. Decisions for `fire` have the session id `fire`. |
 
 ## Processing
 
@@ -93,6 +114,6 @@ What the daemon is doing, for `cc-notify-tts status`.
 
 - **Start:** `<data>/venv/bin/python -I -m cc_notify_tts.daemon`, detached (ADR-0002, ADR-0011). The shim sends its event straight away, without a `ping` first. When nothing answers within 200 ms, it starts the daemon and retries the event every 25 ms for up to 5 s (ADR-0014). Retrying at least every 50 ms keeps events from several hooks within the 100 ms ordering window. A reply with `ok: false` isn't retried.
 - **Single instance:** the daemon holds an exclusive `flock` on `daemon.sock.lock` for its whole life. A daemon that can't take it exits with status 0: at once if the socket answers a `ping`, otherwise after waiting up to 3 s for the lock, in case the holder is exiting. The holder removes any socket file before binding, since it can only be a dead daemon's.
-- **Idle exit:** once no event has arrived for `daemon.idle_timeout_minutes` (config, default 120) and nothing is waiting or playing, the daemon removes its socket and exits with status 0. A session ends with an event, and a session without `SessionEnd` counts as closed once the timeout has passed since its last event, so this is also "no session open for the timeout". `ping` and `status` don't count as events.
+- **Idle exit:** once no event has arrived for `daemon.idle_timeout_minutes` (config, default 120) and nothing is waiting or playing, the daemon removes its socket and exits with status 0. A session ends with an event, and a session without `SessionEnd` counts as closed once the timeout has passed since its last event, so this is also "no session open for the timeout". `ping`, `status` and `fire` don't count as events.
 - **Signals:** `SIGTERM` and `SIGINT` stop it the same way.
 - **Log:** `~/Library/Logs/cc-notify-tts/daemon.log`, rotated at 1 MB with two old files kept. Each gate decision is logged with its reason.

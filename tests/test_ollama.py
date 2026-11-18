@@ -65,6 +65,17 @@ def server() -> Iterator[tuple[StandIn, Ollama]]:
         httpd.server_close()
 
 
+def test_installed_reads_tags(server: tuple[StandIn, Ollama]) -> None:
+    stand_in, client = server
+    stand_in.reply = {"models": [{"name": "other:1b"}, {"name": "tiny:latest", "model": "tiny"}]}
+    assert client.installed("tiny")
+    assert not client.installed("missing:1b")
+    assert stand_in.requests[0][:2] == ("GET", "/api/tags")
+    stand_in.status = 500
+    with pytest.raises(OllamaError):
+        client.installed("tiny")
+
+
 def test_loaded_context_reads_ps(server: tuple[StandIn, Ollama]) -> None:
     stand_in, client = server
     stand_in.reply = {
