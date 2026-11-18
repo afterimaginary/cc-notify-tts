@@ -114,12 +114,15 @@ class Daemon:
         mute: MuteState | None = None,
         read_idle: Callable[[], float | None] = read_idle_seconds,
         follow_front: bool = True,
+        front: FrontTracker | None = None,
         clock: Callable[[], float] = time.time,
         ollama: Client | None = None,
     ) -> None:
         """`ollama` is None for template wording only, whatever the config says.
 
-        `mute` defaults to the mute file in the state folder.
+        `mute` defaults to the mute file in the state folder. `front` is the
+        frontmost-app state the gate reads, fed by `lsappinfo` when `follow_front`
+        is set; tests pass their own with `follow_front=False` and feed it.
         """
         self.paths = paths
         self._make_speaker = make_speaker
@@ -132,7 +135,7 @@ class Daemon:
         self._store = SessionStore(paths.state)
         self._inbox = EventInbox(HOLD_SECONDS)
         self._slot = PendingSlot()
-        self._tracker = FrontTracker(time.monotonic())
+        self._tracker = front if front is not None else FrontTracker(time.monotonic())
         self._stop = threading.Event()
         self._started_at = clock()
         self._last_event_at = self._started_at
