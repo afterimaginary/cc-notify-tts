@@ -380,8 +380,12 @@ class Daemon:
         """A model-written detail, or None to keep the template's."""
         if self._ollama is None or not cfg.ollama or note.kind not in MODEL_EVENTS:
             return None
+        # Load a cold model for next time only while a session is open, as
+        # `_update_keep_warm` would; a `fire` with none open mustn't leave it loaded.
+        open_session = bool(self._store.open_sessions(self._clock()))
+        keep_warm = self._keep_warm if open_session else None
         attempt = write_detail(
-            note, wording, self._ollama, cfg.model, cfg.timeout_seconds, self._keep_warm
+            note, wording, self._ollama, cfg.model, cfg.timeout_seconds, keep_warm
         )
         if attempt.detail is None:
             log.info("template wording: %s", attempt.reason)

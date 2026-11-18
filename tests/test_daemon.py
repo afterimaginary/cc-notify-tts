@@ -11,6 +11,7 @@ from cc_notify_tts.client import MAX_MESSAGE_BYTES
 from cc_notify_tts.daemon import Daemon, Paths
 from cc_notify_tts.mute import MuteFile
 from cc_notify_tts.queues import Received, Utterance
+from cc_notify_tts.sessions import SessionState, SessionStore
 
 NOW = 1_000_000.0
 
@@ -212,3 +213,24 @@ def test_fire_leaves_session_state_alone(daemon: Daemon) -> None:
 def test_fire_needs_a_known_event(daemon: Daemon, event: Any) -> None:
     reply = send(daemon, {"type": "fire", "event": event})
     assert reply == {"ok": False, "error": f"unknown event: {event!r}"}
+
+
+def cold_fire(tmp_path: Path, session_open: bool) -> list[tuple[str, str]]:
+    """What a cold model is asked to do after a `fire --always finished`."""
+    ollama = FakeOllama("Fixed it.", context=None)
+    paths = Paths(tmp_path / "d.sock", tmp_path / "state", tmp_path / "config.toml")
+    if session_open:
+        SessionStore(paths.state).save(SessionState("s1", last_event_at=NOW))
+    daemon = Daemon(paths, NoSpeaker, follow_front=False, clock=lambda: NOW, ollama=ollama)
+    send(daemon, {"type": "fire", "event": "finished", "always": True})
+    assert daemon._keep_warm is not None  # pyright: ignore[reportPrivateUsage]
+    daemon._keep_warm.close()  # pyright: ignore[reportPrivateUsage]
+    return ollama.calls
+
+
+def test_fire_with_no_session_open_never_loads_the_model(tmp_path: Path) -> None:
+    assert cold_fire(tmp_path, session_open=False) == []
+
+
+def test_fire_with_a_session_open_loads_a_cold_model_for_next_time(tmp_path: Path) -> None:
+    assert ("load", "llama3.2:1b") in cold_fire(tmp_path, session_open=True)

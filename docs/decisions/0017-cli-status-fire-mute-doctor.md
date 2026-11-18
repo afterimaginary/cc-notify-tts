@@ -27,7 +27,7 @@ The CLI's commands are fixed by the brief and the plan: `status` (would it speak
 
 - `gate.decide` is pure, so the CLI calls it with the same inputs the daemon would use: the config file, the mute file, idle time read now, and a host app with its out-of-front time.
 - **Host apps and out-of-front times come from the daemon** when it's running: its `status` reply already lists open sessions with both. Sessions in the same host app get the same answer, so they're shown as one group.
-- **When the daemon isn't running,** sessions come from the state folder and a host counts as out of front for 0 s, which is what a daemon started by the next event would see. With no session open, the app `status` runs in stands in for the host, so the answer is about a session there.
+- **When the daemon isn't running,** sessions come from the state folder and a host that isn't in front counts as having left it a moment ago, which is what a daemon started by the next event would see. With no session open, the app `status` runs in stands in for the host, so the answer is about a session there.
 - The daemon's recent decisions are shown too, because "why was that turn silent" is answered by the decision the daemon actually made, not by a new one.
 - `status` never starts the daemon: it reports, it doesn't change anything.
 

@@ -28,6 +28,8 @@ from cc_notify_tts.wording import project_name
 
 # How many of the daemon's recent decisions to show.
 RECENT_SHOWN = 5
+# A host out of front, as a daemon that started a moment ago would count it.
+FRESH_START_SECONDS = 0.1
 # How long to wait for the daemon's status reply.
 STATUS_TIMEOUT = 1.0
 
@@ -83,8 +85,7 @@ def gather(
             Session(
                 project_name(s.cwd),
                 s.host_app or None,
-                # A daemon starting now would count from its start.
-                None if front_app is None or not s.host_app else 0.0,
+                _fresh_out_of_front(s.host_app, front_app) if s.host_app else None,
             )
             for s in store.open_sessions(time.time())
         ]
@@ -100,6 +101,16 @@ def gather(
         sessions=sessions,
         here=(here if here is not None else host_app.identify(os.environ, os.getpid())) or None,
     )
+
+
+def _fresh_out_of_front(host: str, front_app: str | None) -> float | None:
+    """How long a daemon starting now would count `host` as out of front.
+
+    0 is in front; a host that isn't counts from the daemon's start, a moment ago.
+    """
+    if front_app is None:
+        return None
+    return 0.0 if host == front_app else FRESH_START_SECONDS
 
 
 def _daemon_sessions(reply: dict[str, Any]) -> list[Session]:
@@ -219,7 +230,7 @@ def _groups(facts: Facts) -> list[tuple[str, Readings]]:
         here = facts.here
         if here is None:
             return [("(no session is open)", Readings(facts.idle_seconds, None, None))]
-        out = None if facts.front_app is None else 0.0
+        out = _fresh_out_of_front(here, facts.front_app)
         title = f"(no session is open; as if one were in {app_name(here)})"
         return [(title, Readings(facts.idle_seconds, here, out))]
     groups: dict[str | None, tuple[list[str], float | None]] = {}

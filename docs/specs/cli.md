@@ -50,7 +50,7 @@ Where the readings come from:
 
 - Idle time is read when `status` runs. Running it is input, so a reading of a few seconds is normal.
 - When the daemon is running, sessions, the app in front and each host's out-of-front time come from its `status` reply, since only the daemon follows the frontmost app over time.
-- When it isn't, sessions come from the state folder, the app in front is read once, and a host out of front counts as out of front for 0 s, which is what a daemon starting with the next event would see.
+- When it isn't, sessions come from the state folder, the app in front is read once, and a host that isn't in front counts as having left it a moment ago, which is what a daemon starting with the next event would see.
 
 `status` never starts the daemon. Exit code 0.
 

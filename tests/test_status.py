@@ -97,6 +97,12 @@ def test_with_no_session_this_terminal_stands_in(tmp_path: Path) -> None:
     assert "silent: you were active 3 s ago and Terminal is in front" in out
 
 
+def test_with_no_session_and_this_terminal_behind_another_app(tmp_path: Path) -> None:
+    out = render(facts(tmp_path, front_app="com.google.Chrome"))
+    assert "Terminal is in front" not in out
+    assert "silent: you were active 3 s ago and Terminal has been out of front for only 0 s" in out
+
+
 def test_with_no_session_and_no_known_app(tmp_path: Path) -> None:
     out = render(facts(tmp_path, here=None))
     assert "Would it speak now? (no session is open)" in out
@@ -157,6 +163,9 @@ def test_gather_without_a_daemon_reads_sessions_from_disk(tmp_path: Path) -> Non
     store = SessionStore(tmp_path / "state")
     store.save(SessionState("s1", cwd="/src/weather-app", host_app=TERMINAL, last_event_at=9e9))
     store.save(SessionState("s2", open=False, cwd="/src/old", last_event_at=9e9))
+    store.save(
+        SessionState("s3", cwd="/src/docs", host_app="com.microsoft.VSCode", last_event_at=9e9)
+    )
     MuteFile(tmp_path / "mute").mute(None)
     got = gather(
         tmp_path / "none.sock",
@@ -166,7 +175,11 @@ def test_gather_without_a_daemon_reads_sessions_from_disk(tmp_path: Path) -> Non
         here="",
     )
     assert got.daemon is None
-    assert got.sessions == [Session("weather app", TERMINAL, 0.0)]
+    # VS Code isn't in front, so it left front a moment ago, as a new daemon would count it.
+    assert sorted(got.sessions, key=lambda s: s.project) == [
+        Session("docs", "com.microsoft.VSCode", 0.1),
+        Session("weather app", TERMINAL, 0.0),
+    ]
     assert got.mute == Muted(None)
     assert got.idle_seconds == 5.0
     assert got.front_app == TERMINAL
