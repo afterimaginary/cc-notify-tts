@@ -97,7 +97,7 @@ def load(path: Path | None = None) -> Loaded:
         with path.open("rb") as f:
             data = tomllib.load(f)
     except FileNotFoundError:
-        return Loaded(Config(), ())
+        loaded = Loaded(Config(), ())
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as e:
         loaded = Loaded(Config(), (f"{path}: can't read it, using all defaults: {e}",))
     else:

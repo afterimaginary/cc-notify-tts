@@ -218,8 +218,14 @@ def test_problems_are_logged_once_until_they_change(
         load(path)
         path.write_text("pitch = 3\n")
         load(path)
+        # Deleted, then restored with the same problem: logged again.
+        path.unlink()
+        load(path)
+        path.write_text("pitch = 3\n")
+        load(path)
     assert [r.getMessage() for r in caplog.records] == [
         "config: volume: unknown key, ignored",
+        "config: pitch: unknown key, ignored",
         "config: pitch: unknown key, ignored",
     ]
 
