@@ -2,7 +2,9 @@
 
 import sys
 
-from cc_notify_tts import __version__
+from cc_notify_tts import __version__, setup
+
+USAGE = "usage: cc-notify-tts --version | setup"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -10,5 +12,7 @@ def main(argv: list[str] | None = None) -> int:
     if args == ["--version"]:
         print(__version__)
         return 0
-    print("usage: cc-notify-tts --version", file=sys.stderr)
+    if args == ["setup"]:
+        return setup.run()
+    print(USAGE, file=sys.stderr)
     return 2

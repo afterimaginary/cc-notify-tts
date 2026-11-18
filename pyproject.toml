@@ -5,7 +5,9 @@ description = "Configurable, summarized voice notifications for Claude Code on m
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "kokoro-onnx>=0.6.1,<0.7",
+]
 
 [project.scripts]
 cc-notify-tts = "cc_notify_tts.cli:main"
@@ -32,5 +34,8 @@ pythonVersion = "3.13"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["integration: slower tests that still need no model, Ollama or audio device; run by verify only"]
-addopts = "-m 'not integration'"
+markers = [
+    "integration: slower tests that still need no model, Ollama or audio device; run by verify only",
+    "model: needs the downloaded speech model and an audio device; opt-in with `-m model`",
+]
+addopts = "-m 'not integration and not model'"
