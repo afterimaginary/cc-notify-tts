@@ -1,6 +1,6 @@
 ---
 description: The daemon reads idle time from CoreGraphics through ctypes and follows the frontmost app with a long-running `lsappinfo listen`; the hook shim names the host app from its process ancestry (or the tmux client's), and any presence signal that can't be read counts as away, so the daemon speaks.
-status: proposed
+status: accepted
 ---
 
 # ADR-0006: Reading presence from a hook
