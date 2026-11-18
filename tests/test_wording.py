@@ -325,6 +325,10 @@ def test_finished_detail_isnt_cut_at_an_abbreviation() -> None:
             "Here are a few alternatives: pin the version, vendor it or drop it.",
             "Here are a few alternatives: pin the version, vendor it or drop it.",
         ),
+        (
+            "Here are two ways to fix it: retry the request or raise the timeout.",
+            "Here are two ways to fix it: retry the request or raise the timeout.",
+        ),
         # A summary lead-in that only mentions a choice-like word elsewhere still goes.
         (
             "Here's what was done: added an option to drop the cache.",

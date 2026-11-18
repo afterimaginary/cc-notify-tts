@@ -66,7 +66,7 @@ _LEAD_IN = re.compile(
 )
 # A lead-in that introduces a choice ("Here are two options:") stays, so what follows
 # isn't heard as an instruction.
-_CHOICE = re.compile(r"\b(?:options?|choices?|alternatives?)\b", re.IGNORECASE)
+_CHOICE = re.compile(r"\b(?:options?|choices?|alternatives?|ways|approaches)\b", re.IGNORECASE)
 # A mark that may end a sentence: one followed by a space or the end, so decimals
 # and versions ("3.5", "v1.2.3") never do.
 _SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
