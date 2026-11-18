@@ -31,7 +31,7 @@ The first rule that applies decides.
 | `away`: the host app out of front for at least `away_seconds` | speak | `speaking: Terminal has been out of front for 30 s` |
 | Otherwise | silent | `silent: you were active 3 s ago and Terminal is in front` |
 
-Being in front never silences by itself: it only means the second reason to speak is missing. A threshold of 0 always counts as away, and the reason says so (`speaking: away_seconds is 0, so the app always counts as out of front`). Seconds in reasons are rounded down to whole seconds, so a reading just under a threshold never prints as the threshold. Hosts ADR-0006 identified are named (Terminal, Ghostty, iTerm2, VS Code, the Claude app); any other app by its bundle id.
+Being in front never silences by itself: it only means the second reason to speak is missing. A threshold of 0 always counts as away, and the reason says so (`speaking: away_seconds is 0, so the app always counts as out of front`). Seconds in reasons are rounded down to whole seconds, so a reading just under a threshold never prints as the threshold. Hosts ADR-0006 identified (Terminal, Ghostty, iTerm2, VS Code, the Claude app) and the apps people most often switch to (common browsers such as Chrome, Safari, Arc and Firefox, editors such as Cursor, Zed and Xcode, and Finder, Mail, Messages and Slack) are named; any other app by its bundle id.
 
 ## Following the frontmost app
 

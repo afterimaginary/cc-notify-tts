@@ -96,6 +96,8 @@ def test_front_never_known_is_unknown() -> None:
 
 def test_app_names() -> None:
     assert app_name(TERMINAL) == "Terminal"
+    assert app_name("com.google.Chrome") == "Chrome"
+    assert app_name("company.thebrowser.Browser") == "Arc"
     assert app_name("dev.example.term") == "dev.example.term"
     assert app_name(UNNAMED_APP) == "an unnamed app"
 
