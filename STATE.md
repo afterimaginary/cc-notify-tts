@@ -22,6 +22,7 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured
 
 ## Recently Done
 
+- Version 0.1.0 with release notes in `CHANGELOG.md`, the run's numbers in the README's "How this was built", and the repo's description, website and topics set; the plugin manifests stay unversioned (ADR-0014) (#23)
 - MVP acceptance run on a real install: the three install commands, spoken turns and permission requests, the gate and the hook targets pass, and `make eval` matches for the two models run; the daemon now logs each sentence it queues (ADR-0025) (#24)
 - A turn that ends with failing tests is never spoken as a success: a guard rejects model wording that leaves the failure out, and the template adds it; five eval cases, ten models measured before and after (ADR-0021) (#53)
 - Background work that ends while its "still running" is still queued or playing gets "background done" once that has played (ADR-0026) (#42)
@@ -39,7 +40,8 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured
 
 ## Up Next
 
-1. Milestone 4: show and launch
+1. Tag `v0.1.0` on main and publish its GitHub release with the full demo cut (#23, once this merges)
+2. The `priority:low` fixes left in milestone 4
 
 ## Needs Your Decision
 
