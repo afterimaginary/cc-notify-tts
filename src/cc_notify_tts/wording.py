@@ -1,8 +1,8 @@
 """Template wording: the sentence spoken for each notification, written by code alone.
 
 `word` turns a notification into a frame (the fixed part, naming the project)
-and an optional detail taken from the payload. A local model may later replace
-the detail for some events; the frame always comes from here. Every template is
+and an optional detail taken from the payload. A local model may replace the
+detail for some events (`model_wording.py`); the frame always comes from here. Every template is
 listed in docs/specs/spoken-messages.md.
 """
 
@@ -74,7 +74,7 @@ class Wording:
         chosen = detail or self.detail
         if SLOT in self.frame:
             return self.frame.replace(SLOT, chosen or "do something")
-        return f"{self.frame} {_capitalize(chosen)}" if chosen else self.frame
+        return f"{self.frame} {capitalize(chosen)}" if chosen else self.frame
 
 
 def word(note: Notification) -> Wording:
@@ -92,17 +92,17 @@ def word(note: Notification) -> Wording:
             return Wording(f"Background work's all done in {project}.", _message_detail(payload))
         case EventKind.PERMISSION:
             return Wording(
-                f"{_capitalize(project)} needs your okay to {SLOT}.", describe_action(payload)
+                f"{capitalize(project)} needs your okay to {SLOT}.", describe_action(payload)
             )
         case EventKind.QUESTION:
             if _text(payload, "tool_name") == "ExitPlanMode":
-                return Wording(f"{_capitalize(project)} has a plan ready for you to review.")
+                return Wording(f"{capitalize(project)} has a plan ready for you to review.")
             return Wording(
-                f"{_capitalize(project)} has a question for you.", _question_detail(payload)
+                f"{capitalize(project)} has a question for you.", _question_detail(payload)
             )
         case EventKind.DENIED:
             return Wording(
-                f"{_capitalize(project)} was refused permission to {SLOT}.",
+                f"{capitalize(project)} was refused permission to {SLOT}.",
                 describe_action(payload),
             )
         case EventKind.FAILED:
@@ -170,15 +170,14 @@ def describe_action(payload: Mapping[str, Any]) -> str:
 
 def _message_detail(payload: Mapping[str, Any]) -> str | None:
     """The first sentence of the turn's last message, cleaned up for speech."""
-    text = _plain(_opening(_text(payload, "last_assistant_message")))
+    text = plain(_opening(_text(payload, "last_assistant_message")))
     if not text:
         return None
-    match = _SENTENCE.match(text)
-    sentence = match.group(1) if match else text
+    sentence = first_sentence(text)
     # A lead-in to a list ("Here's what changed:") says nothing on its own.
     if sentence.rstrip().endswith(":"):
         return None
-    return _end(_cap_words(sentence, MESSAGE_WORDS))
+    return end_sentence(_cap_words(sentence, MESSAGE_WORDS))
 
 
 def _opening(message: str) -> str:
@@ -202,7 +201,7 @@ def _background_detail(items: Sequence[BackgroundItem]) -> str | None:
     if not items:
         return None
     if len(items) <= LISTED_BACKGROUND and all(item.description for item in items):
-        names = [_lower_first(_strip_end(item.description)) for item in items]
+        names = [lower_first(strip_end(item.description)) for item in items]
         return f"Still going: {' and '.join(names)}."
     agents = sum(1 for item in items if item.type == "subagent")
     commands = len(items) - agents
@@ -217,10 +216,10 @@ def _question_detail(payload: Mapping[str, Any]) -> str | None:
     if not questions:
         return None
     first = _mapping(questions[0])
-    question = _plain(_text(first, "question") or _text(first, "header"))
+    question = plain(_text(first, "question") or _text(first, "header"))
     if not question:
         return None
-    detail = _end(_cap_words(question, QUESTION_WORDS), "?")
+    detail = end_sentence(_cap_words(question, QUESTION_WORDS), "?")
     more = len(questions) - 1
     if more:
         detail += f" And {_count(more, 'more question')}."
@@ -229,7 +228,7 @@ def _question_detail(payload: Mapping[str, Any]) -> str | None:
 
 def _phrase(description: str) -> str:
     """A tool call's own description ("Run the tests.") as a verb phrase."""
-    return _lower_first(_cap_words(_strip_end(description), ACTION_WORDS))
+    return lower_first(_cap_words(strip_end(description), ACTION_WORDS))
 
 
 def _short_command(command: str) -> str:
@@ -256,7 +255,7 @@ def _host(url: str) -> str:
     return host.removeprefix("www.")
 
 
-def _plain(text: str) -> str:
+def plain(text: str) -> str:
     """Markdown reduced to plain prose on one line, with URLs and paths shortened."""
     text = _CODE_FENCE.sub(" ", text)
     text = _MD_LINK.sub(r"\1", text)
@@ -264,6 +263,12 @@ def _plain(text: str) -> str:
     text = _URL.sub(lambda m: _host(m.group(1)) + m.group(2), text)
     text = _PATH.sub(lambda m: m.group(1) + m.group(2), text)
     return " ".join(text.split())
+
+
+def first_sentence(text: str) -> str:
+    """Text up to the first `.`, `!` or `?` followed by a space or the end, or all of it."""
+    match = _SENTENCE.match(text)
+    return match.group(1) if match else text
 
 
 def _cap_words(text: str, limit: int) -> str:
@@ -294,24 +299,24 @@ def _mcp_server(server: str) -> str:
     return " ".join(words)
 
 
-def _strip_end(text: str) -> str:
+def strip_end(text: str) -> str:
     return text.strip().rstrip(".!?")
 
 
-def _end(text: str, mark: str = ".") -> str:
+def end_sentence(text: str, mark: str = ".") -> str:
     """Make sure a detail ends like a sentence, so the voice lands it."""
     text = text.rstrip(",;: ")
     return text if text.endswith((".", "!", "?")) else text + mark
 
 
-def _lower_first(text: str) -> str:
+def lower_first(text: str) -> str:
     # Keep acronyms and names like "API" or "README" capitalized.
     if len(text) > 1 and text[1].isupper():
         return text
     return text[:1].lower() + text[1:]
 
 
-def _capitalize(text: str) -> str:
+def capitalize(text: str) -> str:
     return text[:1].upper() + text[1:]
 
 

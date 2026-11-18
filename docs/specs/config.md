@@ -29,7 +29,7 @@ Each problem is a one-line message naming the key, for example `presence.idle_se
 | `presence.idle_seconds` | number of seconds, 0 or more | `20` | No keyboard or mouse input for this long counts as away. |
 | `presence.away_seconds` | number of seconds, 0 or more | `10` | The app the session runs in out of front for this long counts as away. |
 | `daemon.idle_timeout_minutes` | number of minutes, above 0 | `120` | The background process exits after this long with no event, and starts again with the next one. |
-| `wording.ollama` | `true` or `false` | `true` | Let a local Ollama model write the detail of a notification. When it's off, missing, slow or its answer fails a check, the built-in template wording is used. |
+| `wording.ollama` | `true` or `false` | `true` | Let a local Ollama model write the detail of a finished turn, a question or a permission request. When it's off, missing, slow or its answer fails a check, the built-in template wording is used. |
 | `wording.model` | Ollama model name | `"llama3.2:1b"` | The Ollama model that writes the detail. This default is a placeholder: the model comparison of the wording eval picks the shipped default. |
 | `wording.timeout_seconds` | number of seconds, above 0 | `1` | How long to wait for the model before using the template. |
 | `speech.voice` | Kokoro voice name | `"af_heart"` | The voice that speaks every notification. |

@@ -9,8 +9,9 @@ Run as `python -m cc_notify_tts.daemon`; the hook shim starts it on demand
   shim start a second daemon (ADR-0004).
 - **Event worker:** takes events from the `EventInbox` in the order their hooks
   fired, then classifies, gates and words each one and puts the sentence in the
-  `PendingSlot`. It also records "heard" and checks the idle timeout. All
-  session state changes happen on this one thread (ADR-0007).
+  `PendingSlot`. It also records "heard", keeps the wording model warm while a
+  session is open and checks the idle timeout. All session state changes happen
+  on this one thread (ADR-0007).
 - **Speech worker:** loads the speech model, then speaks pending utterances one
   at a time, dropping any more than 30 s old.
 
@@ -41,12 +42,14 @@ from types import FrameType
 from typing import Any, Protocol
 
 from cc_notify_tts import __version__, config
-from cc_notify_tts.events import EventKind, classify
+from cc_notify_tts.events import EventKind, Notification, classify
 from cc_notify_tts.gate import MuteState, NeverMuted, decide, read_presence
+from cc_notify_tts.model_wording import MODEL_EVENTS, write_detail
+from cc_notify_tts.ollama import Client, KeepWarm, Ollama
 from cc_notify_tts.presence import FrontmostWatcher, FrontTracker, read_idle_seconds
 from cc_notify_tts.queues import EventInbox, Heard, PendingSlot, Received, Utterance
 from cc_notify_tts.sessions import SessionStore, default_state_dir
-from cc_notify_tts.wording import project_name, word
+from cc_notify_tts.wording import Wording, project_name, word
 
 # Named, not __name__, which is "__main__" when run with -m.
 log = logging.getLogger("cc_notify_tts.daemon")
@@ -141,13 +144,17 @@ class Daemon:
         read_idle: Callable[[], float | None] = read_idle_seconds,
         follow_front: bool = True,
         clock: Callable[[], float] = time.time,
+        ollama: Client | None = None,
     ) -> None:
+        """`ollama` is None for template wording only, whatever the config says."""
         self.paths = paths
         self._make_speaker = make_speaker
         self._mute = mute if mute is not None else NeverMuted()
         self._read_idle = read_idle
         self._follow_front = follow_front
         self._clock = clock
+        self._ollama = ollama
+        self._keep_warm = KeepWarm(ollama) if ollama is not None else None
         self._store = SessionStore(paths.state)
         self._inbox = EventInbox(HOLD_SECONDS)
         self._slot = PendingSlot()
@@ -193,6 +200,9 @@ class Daemon:
             # A timeout keeps the main thread responsive to signals.
             while not self._stop.wait(1.0):
                 pass
+            # Let the event worker finish an event, so nothing loads the model
+            # again after it's unloaded below.
+            threads[1].join(timeout=3.0)
         finally:
             # Remove the socket before releasing the lock, so a shim that finds
             # no socket starts a daemon that can take the lock.
@@ -201,6 +211,8 @@ class Daemon:
             self.paths.socket.unlink(missing_ok=True)
             if watcher is not None:
                 watcher.stop()
+            if self._keep_warm is not None:
+                self._keep_warm.close()
         log.info("daemon exiting")
         return 0
 
@@ -304,6 +316,10 @@ class Daemon:
                     self._handle_event(item)
                 elif isinstance(item, Heard):
                     self._store.mark_still_running_heard(item.session_id)
+                if isinstance(item, Received) or (
+                    self._keep_warm is not None and self._keep_warm.ping_due()
+                ):
+                    self._update_keep_warm()
             except Exception:
                 log.exception("event worker: failed on %r", item)
             if self._is_idle(timeout):
@@ -326,8 +342,9 @@ class Daemon:
         )
         if not decision.speak:
             return
+        wording = word(note)
         utterance = Utterance(
-            text=word(note).text(),
+            text=wording.text(self._model_detail(note, wording, cfg.wording)),
             voice=cfg.speech.voice,
             session_id=note.session_id,
             kind=note.kind,
@@ -336,6 +353,27 @@ class Daemon:
         replaced = self._slot.put(utterance)
         if replaced is not None:
             log.info("replaced pending %r with a newer message", replaced.text)
+
+    def _model_detail(
+        self, note: Notification, wording: Wording, cfg: config.Wording
+    ) -> str | None:
+        """A model-written detail, or None to keep the template's."""
+        if self._ollama is None or not cfg.ollama or note.kind not in MODEL_EVENTS:
+            return None
+        attempt = write_detail(
+            note, wording, self._ollama, cfg.model, cfg.timeout_seconds, self._keep_warm
+        )
+        if attempt.detail is None:
+            log.info("template wording: %s", attempt.reason)
+        return attempt.detail
+
+    def _update_keep_warm(self) -> None:
+        """Keep the model warm while wording is on and a session is open; otherwise unload it."""
+        if self._keep_warm is None:
+            return
+        cfg = config.load(self.paths.config).config.wording
+        wanted = cfg.ollama and bool(self._store.open_sessions(self._clock()))
+        self._keep_warm.update(cfg.model if wanted else None)
 
     def _idle_timeout(self) -> float:
         return config.load(self.paths.config).config.daemon.idle_timeout_minutes * 60
@@ -452,7 +490,7 @@ def main() -> int:
     handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=1_000_000, backupCount=2)
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
     logging.basicConfig(level=logging.INFO, handlers=[handler])
-    daemon = Daemon(Paths.default(), _speaker)
+    daemon = Daemon(Paths.default(), _speaker, ollama=Ollama())
 
     def on_signal(signum: int, _frame: FrameType | None) -> None:
         log.info("signal %d, stopping", signum)
