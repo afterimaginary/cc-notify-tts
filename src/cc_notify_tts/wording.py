@@ -52,6 +52,9 @@ _LIST_ITEM = re.compile(r"^(?:[-*+]|\d+[.)])\s+")
 # A line that only labels what follows: a heading, a bold label or a lead-in ending in a colon.
 _LABEL = re.compile(r"#+\s.*|(\*\*|__)[^*_]+\1:?|.*:")
 _SENTENCE = re.compile(r"(.+?[.!?])(?=\s|$)")
+# A URL or a path, and any punctuation that ends the sentence after it.
+_URL = re.compile(r"\b([a-z][a-z0-9+.-]*://[^\s)>\]]*?)([.,;:!?]*)(?=[\s)>\]]|$)")
+_PATH = re.compile(r"(?<![\w/])(?:~|\.{1,2})?/(?:[\w.-]+/)*([\w.-]+?)([.,;:!?]*)(?=\s|$)")
 _CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 
 
@@ -157,8 +160,8 @@ def describe_action(payload: Mapping[str, Any]) -> str:
         case _ if tool.startswith("mcp__"):
             server, _, name = tool.removeprefix("mcp__").partition("__")
             if name:
-                return f"use {_speakable(name)} from {_speakable(server)}"
-            return f"use {_speakable(server)}"
+                return f"use {_speakable(name)} from {_mcp_server(server)}"
+            return f"use {_mcp_server(server)}"
         case "":
             return "use a tool"
         case _:
@@ -254,10 +257,12 @@ def _host(url: str) -> str:
 
 
 def _plain(text: str) -> str:
-    """Markdown reduced to plain prose on one line."""
+    """Markdown reduced to plain prose on one line, with URLs and paths shortened."""
     text = _CODE_FENCE.sub(" ", text)
     text = _MD_LINK.sub(r"\1", text)
     text = _MD_MARKS.sub("", text)
+    text = _URL.sub(lambda m: _host(m.group(1)) + m.group(2), text)
+    text = _PATH.sub(lambda m: m.group(1) + m.group(2), text)
     return " ".join(text.split())
 
 
@@ -276,7 +281,17 @@ def _count(n: int, noun: str) -> str:
 
 
 def _speakable(name: str) -> str:
-    return " ".join(_CAMEL.sub(" ", name.replace("_", " ").replace("-", " ")).lower().split())
+    spaced = re.sub(r"[_\-:]", " ", name)
+    return " ".join(_CAMEL.sub(" ", spaced).lower().split())
+
+
+def _mcp_server(server: str) -> str:
+    """An MCP server's name; a plugin's server ("plugin_docs_docs") is named after its plugin."""
+    words = _speakable(server.removeprefix("plugin_")).split()
+    half = len(words) // 2
+    if len(words) % 2 == 0 and words[:half] == words[half:]:
+        words = words[:half]
+    return " ".join(words)
 
 
 def _strip_end(text: str) -> str:

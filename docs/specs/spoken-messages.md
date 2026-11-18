@@ -58,15 +58,15 @@ A permission request or denial names what the tool call would do, from `tool_nam
 | `WebFetch` | "fetch a page from" and the host, without `www.` |
 | `WebSearch` | "search the web for" and the query, up to 12 words |
 | `Agent`, `Task` | "start an agent to" and its description |
-| `Skill` | "use the *name* skill" |
-| `mcp__server__tool` | "use *tool* from *server*" |
+| `Skill` | "use the *name* skill", with `-`, `_` and `:` spoken as spaces |
+| `mcp__server__tool` | "use *tool* from *server*"; a plugin's server (`plugin_<plugin>_<server>`) drops `plugin_` and a repeated name ("use query docs from docs") |
 | Anything else | "use" and the tool name as words ("use todo write") |
 
 A missing argument gives a general phrase instead ("edit a file", "run a shell command", "use a tool"). The Bash description is preferred over the command because Claude usually writes one, and it reads as speech where a command often doesn't.
 
 ## Details from text
 
-- **Last message:** code blocks are removed, and so are headings, bold labels ("**Summary**") and lead-in lines ending in a colon ("Here's what changed:") before the first paragraph. If a list comes first, its first item counts on its own; otherwise the opening paragraph does, up to a blank line or a list. Links and emphasis are reduced to their text. The first sentence is taken and capped at 20 words. A sentence ending in a colon gives no detail. A detail always ends in `.`, `!` or `?`.
+- **Last message:** code blocks are removed, and so are headings, bold labels ("**Summary**") and lead-in lines ending in a colon ("Here's what changed:") before the first paragraph. If a list comes first, its first item counts on its own; otherwise the opening paragraph does, up to a blank line or a list. Links and emphasis are reduced to their text, bare URLs to their host and paths (starting with `/`, `~/`, `./` or `../`) to their file name. The first sentence is taken and capped at 20 words. A sentence ending in a colon gives no detail. A detail always ends in `.`, `!` or `?`.
 - **Background work:** up to two items are listed by description ("audit the forecast cache and run the integration test suite"). With more, or with an item that has no description, they're counted: "one agent and two commands".
 - **Questions:** the first question's text (or its header), capped at 20 words and ending in `?` if it has no end mark.
 - **Errors:** the `StopFailure` `error` value, spoken as a phrase:
