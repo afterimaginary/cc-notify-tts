@@ -1,0 +1,5 @@
+{
+  "name": "cc-notify-tts-hook-logger",
+  "version": "0.0.0",
+  "description": "Spike only, never shipped: logs every hook event Claude Code sends, with its payload and the host environment."
+}

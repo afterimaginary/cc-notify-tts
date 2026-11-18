@@ -1,0 +1,11 @@
+{
+  "session_id": "5f0c2d1e-8a7b-4c3d-9e2f-1a2b3c4d5e6f",
+  "transcript_path": "/Users/dev/.claude/projects/-Users-dev-src-weather-app/5f0c2d1e-8a7b-4c3d-9e2f-1a2b3c4d5e6f.jsonl",
+  "cwd": "/Users/dev/src/weather-app",
+  "scratchpad_dir": "/private/tmp/claude-501/-Users-dev-src-weather-app/5f0c2d1e-8a7b-4c3d-9e2f-1a2b3c4d5e6f/scratchpad",
+  "prompt_id": "0b9e7c52-3f1a-4d8e-a6c4-2e5f7a9b1c3d",
+  "permission_mode": "default",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "<agent-message from=\"a3f9c2e17b4d5e6f8\">\nThe forecast cache has no stale entries.\n</agent-message>",
+  "session_title": "Forecast fetcher retry"
+}
