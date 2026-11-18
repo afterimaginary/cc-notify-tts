@@ -379,7 +379,16 @@ def test_failing_tests_are_spoken_alone_when_both_dont_fit() -> None:
         "Rewrote the calendar slot generator so that bookings across daylight saving changes"
         " land on the right local hour every time. Test run: 2 failed, 41 passed."
     )
-    assert finished_text(message) == "Finished up in weather app. Test run: 2 failed."
+    assert finished_text(message) == "Finished up in weather app. Test run: 2 failed, 41 passed."
+
+
+@pytest.mark.parametrize(
+    "failing", ["Test run: 41 passed, 2 failed.", "Two tests, test_a and test_b, still fail."]
+)
+def test_a_short_failing_sentence_is_spoken_whole(failing: str) -> None:
+    assert finished_text(f"Moved the retry logic. {failing}") == (
+        f"Finished up in weather app. Moved the retry logic. {failing}"
+    )
 
 
 def test_a_failure_at_the_end_of_a_long_sentence_isnt_cut_off() -> None:

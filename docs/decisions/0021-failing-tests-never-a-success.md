@@ -1,5 +1,5 @@
 ---
-description: A finished turn whose last message says tests are still failing is never spoken as a success; a guard rejects model wording that leaves the failure out, so the template is spoken, and the template adds the clause that says so when its own first sentence doesn't mention it.
+description: A finished turn whose last message says tests are still failing is never spoken as a success; a guard rejects model wording that leaves the failure out, so the template is spoken, and the template adds the sentence that says so when its own first sentence doesn't mention it.
 status: accepted
 ---
 
@@ -15,7 +15,7 @@ Only `granite4:micro`, the default, kept the failure. A stronger prompt might he
 
 - **Code decides whether tests are still failing, from the turn's last message.** A clause counts when it says tests still fail or are failing, aren't passing, a count of tests fail ("2 of the 31 tests still fail"), or holds a test summary ("2 failed, 41 passed"), unless it also says the failure is over ("no longer fails", "now pass") or was fixed ("Fixed 2 tests failing on CI"). So "31 of 33 tests now pass; the other 2 still fail" counts, and "Retried the 3 failed uploads" doesn't. The patterns, their examples and counter-examples are in `wording.failing_tests` and its tests; the behaviour is in the spoken-messages spec.
 - **A guard rejects model wording that leaves the failure out.** For a finished turn whose input has such a sentence, the model's detail must say tests are failing: a fail word near tests, the suite, CI or the build, "still fails" or "not passing". A failure it says was fixed ("Fixed the failing auth tests") or one about something other than tests ("Fixed the broken import") doesn't count. Otherwise the guard rejects it and the template is spoken. The guard checks the answer, not the model, so it holds for any model a user configures.
-- **The template keeps the failure.** If the message's first sentence doesn't mention it, the clause that says tests fail is added after it, or spoken alone when the two together pass the 20-word cap: the failure is the part a listener most needs. The frame, "Finished up in …", stays: it says the turn ended, not that it succeeded.
+- **The template keeps the failure.** If the message's first sentence doesn't mention it, the sentence that says tests fail (only its failing clauses, if it passes 20 words) is added after it, or spoken alone when the two together pass the 20-word cap: the failure is the part a listener most needs. The frame, "Finished up in …", stays: it says the turn ended, not that it succeeded.
 - **The prompt is unchanged.** A prompt change would change every model's answers to every case and need its own comparison; the guard alone meets the outcome, and the default model already gets these cases right more often than any other.
 
 ## Results

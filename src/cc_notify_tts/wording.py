@@ -233,30 +233,35 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
 
 
 def failing_tests(message: str) -> str | None:
-    """The first clause of a message that says tests are still failing, if any.
+    """The first sentence of a message that says tests are still failing, if any.
 
-    The clause alone ("2 of the 31 tests still fail"), so a word cap on what's
-    spoken can't cut the failure off the end of a long sentence.
+    A sentence over `MESSAGE_WORDS` gives only its clauses that hold the
+    failure ("2 of the 31 tests still fail"), so the word cap on what's spoken
+    can't cut the failure off the end.
     """
     # Line by line, so a list item or heading isn't run into the next one.
     for line in _CODE_FENCE.sub("\n", message).splitlines():
         for sentence in _SENTENCES.findall(plain(line)):
             # Matched on the sentence, since a summary ("2 failed, 41 passed") has a comma.
             for match in _TESTS_FAILING.finditer(sentence):
-                clause = _clause_at(sentence, match.start())
-                if not _FAILURE_OVER.search(clause) and not _FIXED_FAILURE.search(clause):
-                    return strip_end(clause).rstrip(",;: ")
+                start, end = _clause_at(sentence, match.start())
+                clause = sentence[start:end]
+                if _FAILURE_OVER.search(clause) or _FIXED_FAILURE.search(clause):
+                    continue
+                if len(sentence.split()) > MESSAGE_WORDS:
+                    sentence = sentence[start : _clause_at(sentence, match.end() - 1)[1]]
+                return strip_end(sentence.strip()).rstrip(",;: ")
     return None
 
 
-def _clause_at(sentence: str, index: int) -> str:
-    """The clause of `sentence` that holds the character at `index`."""
+def _clause_at(sentence: str, index: int) -> tuple[int, int]:
+    """Where the clause of `sentence` that holds the character at `index` starts and ends."""
     start = 0
     for split in _CLAUSES.finditer(sentence):
         if split.start() > index:
-            return sentence[start : split.start()].strip()
+            return start, split.start()
         start = split.end()
-    return sentence[start:].strip()
+    return start, len(sentence)
 
 
 def admits_failure(text: str) -> bool:
