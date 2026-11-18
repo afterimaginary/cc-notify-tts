@@ -29,6 +29,7 @@ The brief sets two latency targets: a finished turn is spoken within 3 s of the 
 | `ended` | `afplay` exited | speech worker |
 
 - `dequeued` and `synthesizing` go beyond the issue's list so that the ordering hold and any wait behind earlier speech show up as their own stages rather than inside the gate and synthesis. `ended`, with the synthesized length, bounds how long `afplay` takes to start.
+- The shim stamps `sent` before it tries the socket, so when nothing answers and it starts the daemon, `sent → received` includes the daemon's start-up. In an everyday `daemon.log` that shows as a large maximum in that row.
 - All marks are wall-clock `time.time()`, the clock the shim already uses for `fired_at`, so marks from the hook process and the daemon compare directly.
 - The log is always on. A line is under 500 bytes per event, against the log's 1 MB rotation.
 - **`bench/latency.py`** reads the lines back (`summarize`, for any daemon log, including a user's own), drives a measured session (`run`, also `make latency`), and times `afplay` on its own (`afplay`). Its docstring has the method; `run` plays sound, so it stays out of `ready` and `verify`.
@@ -43,12 +44,12 @@ Run once with templates only and once with `granite4:micro` (ADR-0018) on 2026-1
 
 ### Stage by stage
 
-p50 / p95 in ms, over the 30 measured rounds (60 spoken events per run; the first four rows also count the 31 events that are never spoken).
+p50 / p95 in ms, over the 30 measured rounds (60 spoken events per run; the first three rows also count the 31 events that are never spoken).
 
 | Stage | Templates | `granite4:micro` |
 | - | - | - |
 | hook → sent: the shim's imports, parsing, building the request | 10.7 / 12.8 | 10.9 / 12.9 |
-| sent → received: the socket | 0.3 / 0.5 | 0.4 / 0.5 |
+| sent → received: the socket (and, on the event that starts the daemon, its start) | 0.3 / 0.5 | 0.4 / 0.5 |
 | received → dequeued: the ordering hold | 105.8 / 110.1 | 105.0 / 105.1 |
 | dequeued → gated: classification, session state, config, gate | 1.3 / 2.2 | 1.4 / 2.1 |
 | gated → worded: wording | 0.2 / 0.3 | 186.2 / 213.1 |
@@ -84,7 +85,7 @@ The daemon's resident memory was 250–263 MiB once the speech model had loaded 
 
 - **Spoken within 3 s of the turn ending: holds.** From the hook's start to the first sound is `hook → playing` plus `afplay`'s start-up: about 0.74 s p95 with templates (637 + 103 ms) and 0.99 s with `granite4:micro` (891 + 103 ms). Two parts are outside the measurement and both are small: the hook process's interpreter start before `fired_at` (less than the whole process's 58 ms p95), and the audio device's own output latency. How long Claude Code takes to run the `Stop` hook after a turn ends isn't measured either. The margin is about 2 s with the model.
 - **No hook adds more than 100 ms p95: holds.** Every steady-state hook was at most 58 ms p95 (71 ms max), and hooks are async (ADR-0001), so Claude Code doesn't wait for them. The cold-start event is #46.
-- No target missed, so no new issue.
+- No new target missed, so no new issue. The one miss, the cold-start hook at 116 ms p95 (ADR-0014), is tracked in #46.
 
 ## Consequences
 
