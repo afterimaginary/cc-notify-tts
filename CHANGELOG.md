@@ -2,6 +2,16 @@
 
 All notable changes to this project are recorded here. Versions follow [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### Added
+
+- **`OLLAMA_HOST` on this machine:** wording asks Ollama at `OLLAMA_HOST` when it names this machine (`localhost`, a loopback address, `0.0.0.0` or `::`), so Ollama on another local port still writes the detail. An `OLLAMA_HOST` on another machine is ignored with a log line, so wording stays local, and `doctor` shows the address in use (ADR-0029, #44).
+
+### Fixed
+
+- **Detached tmux sessions:** a session in a detached tmux no longer keeps the app it was last attached from, so it counts as away and is spoken, and the next hook after reattaching names the new app (ADR-0030, #47).
+
 ## [0.1.0] - 2026-11-18
 
 The first release: Claude Code speaks one sentence about what it finished or what it needs from you, at the moments you choose, with the speech and the wording made on your Mac.
@@ -22,4 +32,5 @@ The first release: Claude Code speaks one sentence about what it finished or wha
 
 The Python package is versioned 0.1.0. The plugin manifests deliberately carry no version, so Claude Code treats each commit as the plugin's version: every push reaches `claude plugin update`, and the hooks stay in step with the package that `uv tool upgrade` installs from the same repository (ADR-0014).
 
+[Unreleased]: https://github.com/afterimaginary/cc-notify-tts/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/afterimaginary/cc-notify-tts/releases/tag/v0.1.0

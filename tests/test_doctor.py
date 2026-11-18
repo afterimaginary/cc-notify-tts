@@ -8,7 +8,7 @@ import pytest
 from cc_notify_tts import __version__, doctor, models
 from cc_notify_tts.config import Wording
 from cc_notify_tts.doctor import PLUGIN_ID, Check, Level
-from cc_notify_tts.ollama import OllamaError
+from cc_notify_tts.ollama import ENDPOINT, Endpoint, OllamaError
 
 
 def test_macos() -> None:
@@ -198,17 +198,39 @@ class FakeOllama:
         return model in self.models
 
 
+LOCAL = Endpoint("http://127.0.0.1:11435")
+IGNORED = Endpoint(ENDPOINT, ignored="192.168.1.20:11434")
+
+
 def test_ollama() -> None:
     on = Wording(model="llama3.2:1b")
-    assert doctor.check_ollama(on, FakeOllama(["llama3.2:1b"])).level is Level.OK
-    missing = doctor.check_ollama(on, FakeOllama([]))
+    running = doctor.check_ollama(on, FakeOllama(["llama3.2:1b"]), LOCAL)
+    assert running == Check(
+        Level.OK, "Ollama (optional)", "running at http://127.0.0.1:11435, with llama3.2:1b"
+    )
+    missing = doctor.check_ollama(on, FakeOllama([]), LOCAL)
     assert missing.level is Level.WARN
+    assert "running at http://127.0.0.1:11435" in missing.detail
     assert "ollama pull llama3.2:1b" in (missing.fix or "")
-    down = doctor.check_ollama(on, FakeOllama(None))
+    down = doctor.check_ollama(on, FakeOllama(None), LOCAL)
     assert down.level is Level.WARN
     assert "template wording is used" in down.detail
-    off = doctor.check_ollama(Wording(ollama=False), FakeOllama(None))
+    assert "http://127.0.0.1:11435" in down.detail
+    off = doctor.check_ollama(Wording(ollama=False), FakeOllama(None), LOCAL)
     assert off.level is Level.OK
+
+
+def test_ollama_says_when_ollama_host_is_ignored() -> None:
+    on = Wording(model="llama3.2:1b")
+    note = "OLLAMA_HOST='192.168.1.20:11434' is ignored, since it isn't on this machine"
+    running = doctor.check_ollama(on, FakeOllama(["llama3.2:1b"]), IGNORED)
+    assert running.level is Level.WARN
+    assert running.detail == f"running at {ENDPOINT}, with llama3.2:1b; {note}"
+    assert "Unset OLLAMA_HOST" in (running.fix or "")
+    for fake in (FakeOllama([]), FakeOllama(None)):
+        check = doctor.check_ollama(on, fake, IGNORED)
+        assert check.level is Level.WARN
+        assert check.detail.endswith(note)
 
 
 def test_render_and_exit_code() -> None:

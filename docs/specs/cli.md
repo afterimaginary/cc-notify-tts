@@ -93,7 +93,7 @@ Checks everything a notification needs, one line each, marked `ok`, `warn` or `F
 | Idle time | keyboard and mouse idle time can't be read | run it in a logged-in desktop session |
 | Frontmost app | `lsappinfo` can't name the app in front | run it in a logged-in desktop session |
 | Config | each unknown key or invalid value, one line each | edit the file |
-| Ollama (optional) | never fails. Warns when wording is on but Ollama isn't running or the model isn't pulled. | start Ollama, `ollama pull <model>`, or `wording.ollama = false` |
+| Ollama (optional) | never fails. Shows the address in use (ADR-0029). Warns when wording is on but Ollama isn't running or the model isn't pulled, or when `OLLAMA_HOST` names another machine and is ignored. | start Ollama, `ollama pull <model>`, `wording.ollama = false`, or point `OLLAMA_HOST` at this machine |
 
 When the daemon isn't running, `doctor` starts it with the interpreter `setup` linked for the hooks (`<data>/venv/bin/python`), so the check covers the path hooks use. It exits on its own after the idle timeout. While the speech model is loading, `doctor` waits up to 20 s for it to load or fail, and warns if it's still loading then.
 

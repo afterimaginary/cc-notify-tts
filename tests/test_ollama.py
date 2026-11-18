@@ -1,6 +1,7 @@
 """The Ollama client against a stand-in HTTP server, and keeping the model warm."""
 
 import json
+import logging
 import threading
 import time
 from collections.abc import Iterator
@@ -10,12 +11,15 @@ from typing import Any
 import pytest
 
 from cc_notify_tts.ollama import (
+    ENDPOINT,
     KEEP_ALIVE,
     NUM_CTX,
     PING_SECONDS,
+    Endpoint,
     KeepWarm,
     Ollama,
     OllamaError,
+    endpoint_from_env,
     same_model,
 )
 
@@ -159,6 +163,80 @@ def test_bad_replies(server: tuple[StandIn, Ollama], raw: bytes, error: str) -> 
 def test_not_running() -> None:
     with pytest.raises(OllamaError, match="not running"):
         Ollama("http://127.0.0.1:1").loaded_context("tiny:1b")
+
+
+# --- OLLAMA_HOST --------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("env", [{}, {"OLLAMA_HOST": ""}, {"OLLAMA_HOST": "  "}])
+def test_default_address_without_ollama_host(env: dict[str, str]) -> None:
+    assert ENDPOINT == "http://127.0.0.1:11434"
+    assert endpoint_from_env(env) == Endpoint(ENDPOINT)
+
+
+@pytest.mark.parametrize(
+    ("value", "url"),
+    [
+        ("127.0.0.1:11435", "http://127.0.0.1:11435"),
+        ("localhost:11435", "http://localhost:11435"),
+        ("LOCALHOST:11435", "http://localhost:11435"),
+        (":11435", "http://127.0.0.1:11435"),
+        ("127.0.0.1", "http://127.0.0.1:11434"),
+        ("localhost", "http://localhost:11434"),
+        ("http://127.0.0.1:11435", "http://127.0.0.1:11435"),
+        ("http://localhost:11435/", "http://localhost:11435"),
+        ("https://localhost:8443", "https://localhost:8443"),
+        ("http://localhost", "http://localhost:80"),
+        ("127.0.0.2:11435", "http://127.0.0.2:11435"),
+        ("[::1]:11435", "http://[::1]:11435"),
+        ("::1", "http://[::1]:11434"),
+        ("0.0.0.0:11435", "http://127.0.0.1:11435"),
+        ("0.0.0.0", "http://127.0.0.1:11434"),
+        ('"127.0.0.1:11435"', "http://127.0.0.1:11435"),
+    ],
+)
+def test_ollama_host_on_this_machine_is_used(value: str, url: str) -> None:
+    assert endpoint_from_env({"OLLAMA_HOST": value}) == Endpoint(url)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "192.168.1.20:11434",
+        "http://10.0.0.5:11434",
+        "gpu-box.local:11434",
+        "https://ollama.example.com",
+        "[2001:db8::1]:11434",
+        "ftp://127.0.0.1:11434",
+        "localhost:99999",
+    ],
+)
+def test_ollama_host_elsewhere_falls_back_to_the_default(value: str) -> None:
+    assert endpoint_from_env({"OLLAMA_HOST": value}) == Endpoint(ENDPOINT, ignored=value)
+
+
+def test_client_uses_a_local_ollama_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OLLAMA_HOST", "127.0.0.1:11435")
+    assert Ollama().endpoint == "http://127.0.0.1:11435"
+    assert Ollama("http://127.0.0.1:9").endpoint == "http://127.0.0.1:9"
+
+
+def test_client_ignores_a_remote_ollama_host_with_a_log_line(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setenv("OLLAMA_HOST", "192.168.1.20:11434")
+    with caplog.at_level(logging.WARNING, logger="cc_notify_tts.ollama"):
+        assert Ollama().endpoint == ENDPOINT
+    assert "OLLAMA_HOST='192.168.1.20:11434' isn't an address on this machine" in caplog.text
+
+
+def test_client_logs_nothing_for_a_local_ollama_host(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setenv("OLLAMA_HOST", "localhost:11435")
+    with caplog.at_level(logging.DEBUG, logger="cc_notify_tts.ollama"):
+        Ollama()
+    assert caplog.text == ""
 
 
 @pytest.mark.parametrize(

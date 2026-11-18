@@ -5,22 +5,30 @@ loaded at one small context (ADR-0003). `KeepWarm` loads the model while a
 session is open, repeats a load-only ping inside the `keep_alive`, and unloads
 it once no session is open or the daemon exits.
 
+The address is `OLLAMA_HOST` when it names this machine, and the default
+otherwise, so wording never leaves the machine (ADR-0029).
+
 Standard library only: four small JSON requests don't need an HTTP library.
 """
 
+import ipaddress
 import json
 import logging
+import os
 import queue
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 log = logging.getLogger(__name__)
 
-ENDPOINT = "http://127.0.0.1:11434"
+DEFAULT_PORT = 11434
+ENDPOINT = f"http://127.0.0.1:{DEFAULT_PORT}"
 # Context length for every request and ping. Leaving it out reloads the model at
 # Ollama's default context, which costs up to 3.5 GiB more (ADR-0003).
 NUM_CTX = 2048
@@ -38,6 +46,63 @@ TAGS_TIMEOUT = 2.0
 
 class OllamaError(Exception):
     """Ollama is missing, not running, slow, lacks the model or answered badly."""
+
+
+@dataclass(frozen=True)
+class Endpoint:
+    url: str
+    # OLLAMA_HOST's value when it was set but isn't an address on this machine,
+    # so the default is used instead.
+    ignored: str | None = None
+
+
+def endpoint_from_env(environ: Mapping[str, str] | None = None) -> Endpoint:
+    """Ollama's address: `OLLAMA_HOST` when it names this machine, otherwise the default.
+
+    Reads the value as Ollama's own CLI does: `host`, `host:port`, `:port` or a
+    URL. The port is 11434 unless a scheme is given without one. `0.0.0.0` and
+    `::`, a server's listen-everywhere address, mean this machine too.
+    """
+    env = os.environ if environ is None else environ
+    value = env.get("OLLAMA_HOST", "").strip().strip("\"'")
+    if not value:
+        return Endpoint(ENDPOINT)
+    url = _local_url(value)
+    return Endpoint(ENDPOINT, ignored=value) if url is None else Endpoint(url)
+
+
+def _local_url(value: str) -> str | None:
+    """`value` as a URL if it's an address on this machine, otherwise None."""
+    scheme, has_scheme, rest = value.partition("://")
+    if not has_scheme:
+        scheme, rest, port = "http", value, DEFAULT_PORT
+    elif scheme == "http":
+        port = 80
+    elif scheme == "https":
+        port = 443
+    else:
+        return None
+    hostport = rest.split("/", 1)[0]
+    try:
+        host = str(ipaddress.ip_address(hostport.strip("[]")))
+    except ValueError:
+        try:
+            parts = urllib.parse.urlsplit(f"//{hostport}")
+            port = parts.port or port
+        except ValueError:
+            return None
+        host = parts.hostname or "127.0.0.1"
+    if host != "localhost":
+        try:
+            ip = ipaddress.ip_address(host)
+        except ValueError:
+            return None
+        if ip.is_unspecified:
+            host = "127.0.0.1"
+        elif not ip.is_loopback:
+            return None
+    netloc = f"[{host}]" if ":" in host else host
+    return f"{scheme}://{netloc}:{port}"
 
 
 class Client(Protocol):
@@ -59,7 +124,18 @@ class Client(Protocol):
 class Ollama:
     """Ollama's HTTP API. Every method raises `OllamaError` on any failure."""
 
-    def __init__(self, endpoint: str = ENDPOINT) -> None:
+    def __init__(self, endpoint: str | None = None) -> None:
+        """`endpoint` defaults to `endpoint_from_env()`, logging an OLLAMA_HOST it ignores."""
+        if endpoint is None:
+            resolved = endpoint_from_env()
+            if resolved.ignored is not None:
+                log.warning(
+                    "OLLAMA_HOST=%r isn't an address on this machine, so using %s; "
+                    "wording stays local",
+                    resolved.ignored,
+                    resolved.url,
+                )
+            endpoint = resolved.url
         self.endpoint = endpoint.rstrip("/")
 
     def loaded_context(self, model: str) -> int | None:
