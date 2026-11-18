@@ -14,7 +14,7 @@ fire without a model: SessionStart and SessionEnd.
 - SessionEnd: the time from closing Claude Code's input to the process exiting.
 
 Each variant's figure minus the no-hook floor is the wait the hook adds.
-Variants: the spike shim (sync and async) and the shim plus a 300 ms sleep (sync
+Variants: the spike shim (sync and async) and a 300 ms sleep followed by the shim (sync
 and async), which shows the method sees a wait. This script serves the shim's
 daemon socket and counts the messages that got through: an async hook that
 Claude Code kills on exit never arrives.
@@ -167,13 +167,14 @@ def main() -> None:
 
     q = shlex.quote
     shim = f"{q(args.python)} -I -S {q(str(SHIM))}"
-    slow = f"{shim}; sleep {SLEEP_MS / 1000}"
+    # The sleep comes first, so a delivered message proves the hook outlived the wait.
+    slow = f"sleep {SLEEP_MS / 1000}; {shim}"
     variants: list[tuple[str, str | None, bool]] = [
         ("no hook (floor)", None, False),
         ("shim, sync", shim, False),
         ("shim, async", shim, True),
-        (f"shim + {SLEEP_MS} ms sleep, sync", slow, False),
-        (f"shim + {SLEEP_MS} ms sleep, async", slow, True),
+        (f"{SLEEP_MS} ms sleep, then shim, sync", slow, False),
+        (f"{SLEEP_MS} ms sleep, then shim, async", slow, True),
     ]
     env = {
         **os.environ,
