@@ -32,3 +32,4 @@ The rules and the state fields are in [the event classification design](../desig
 - A turn that only checks on long-running work says "finished", even though the work is still going.
 - A dev server that runs all session also holds up "background done" for later work, such as a test run, until the server stops. "Background done" can't tell a server from a slow test run any better than "still running" can: letting long-announced work stop holding it up said "all done" while tests started a turn earlier still ran.
 - When the dev server stops, "background done" is spoken if a "still running" or "finished" played since the user's last prompt.
+- With `finished` set to `never`, a follow-up turn while work runs plays nothing, so "background done" stays disarmed and the work's end is silent. Before, that turn was a "still running", which played and re-armed it.

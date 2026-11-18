@@ -17,7 +17,7 @@ Code: `src/cc_notify_tts/events.py` (classification, dedupe) and `src/cc_notify_
 | - | - |
 | `finished` | `Stop` ending the user's turn with no live background work, or only work already announced |
 | `still_running` | `Stop` ending the user's turn with live background work not announced before |
-| `background_done` | `Stop` of a wake-up turn that leaves no live background work, if `still_running` was heard |
+| `background_done` | `Stop` of a wake-up turn that leaves no live background work, if `still_running`, or a `finished` while it ran, was heard |
 | `permission` | `PermissionRequest` for any tool except the two below |
 | `question` | `PermissionRequest` for `AskUserQuestion` or `ExitPlanMode` |
 | `denied` | `PermissionDenied` |
