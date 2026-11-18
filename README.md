@@ -20,7 +20,7 @@ Open a new terminal, start a Claude Code session, give it a task that takes a mi
 
 ## Evidence
 
-Every number here was measured, and each links to the decision record (ADR) with its method, raw results and caveats. All were measured on 2026-11-18 on one machine: an Apple M3 Max with 48 GiB, macOS 27.2.1, with other work running.
+Every number here was measured, and each links to the decision record (ADR) with its method, raw results and caveats. All were measured on 2026-11-18 on one machine, an Apple M3 Max with 48 GiB, with other work running; macOS 27.2.1 except where a row's ADR says otherwise.
 
 ### Which local model writes the sentence
 
@@ -39,7 +39,7 @@ The wording eval sends 48 hand-written hook payloads (finished turns, questions 
 | `qwen3:1.7b` | `8f68893c685c` | 33 | 35 | 0 | 107 | 231 | 1.13 GiB |
 | `qwen3:4b` | `359d7dd4bcda` | 0 | 0 | 0 | 471 | 622 | 2.68 GiB |
 
-`granite4:micro` is the default because it passed the most cases and its wrong answers were vague rather than harmful; `llama3.2:3b`, two cases behind, said rows were deleted when they weren't ([ADR-0018](docs/decisions/0018-default-wording-model.md)). The full report, with every failing answer and the full digests, is [evals/results/2026-11-18-3.md](evals/results/2026-11-18-3.md). `make eval MODELS="…"` reruns it ([evals/README.md](evals/README.md)).
+`granite4:micro` is the default because it passed the most cases and its wrong answers were vague rather than harmful. `qwen3.5:4b` tied on passes but holds 9.24 GiB for as long as a session is open, and `llama3.2:3b`, two cases behind, said rows were deleted when they weren't ([ADR-0018](docs/decisions/0018-default-wording-model.md)). The full report, with every failing answer and the full digests, is [evals/results/2026-11-18-3.md](evals/results/2026-11-18-3.md). `make eval MODELS="…"` reruns it ([evals/README.md](evals/README.md)).
 
 ### How fast it speaks, and what it costs
 
@@ -183,7 +183,7 @@ Orchestral turned the brief into GitHub issues and ran up to three Claude Code w
 - **Model wording can be wrong in ways the guards can't see.** The guards reject names and numbers that aren't in Claude's reply, but not a wrong claim made of the right words. The default model passed 42 of 48 eval cases. Nearly every model tested reports a turn that ended with tests still failing as a plain success ([#53](https://github.com/afterimaginary/cc-notify-tts/issues/53)).
 - **Measured on one Mac.** The eval and the latency budget come from one Apple M3 Max; a slower Mac will be slower. From a clone, `make eval` and `make latency` measure your own.
 - **Tested in the Claude Code CLI.** The desktop app runs the same hooks, but its event coverage and closing a desktop session haven't been checked by hand ([ADR-0001](docs/decisions/0001-plugin-hook-events.md), [ADR-0002](docs/decisions/0002-on-demand-daemon-start.md)).
-- **Some sessions can't be tied to an app**, such as sessions over SSH and detached tmux sessions, and iTerm2 is untested. Those fall back to keyboard and mouse idle time alone ([ADR-0006](docs/decisions/0006-presence-from-a-hook.md)).
+- **Some sessions can't be tied to an app**, such as sessions over SSH and detached tmux sessions, and iTerm2 is untested. Those always count as away, so they're spoken even while you're typing ([ADR-0006](docs/decisions/0006-presence-from-a-hook.md)).
 - **English only.** The templates and the wording prompt are English.
 
 ## Roadmap
