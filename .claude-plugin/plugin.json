@@ -1,0 +1,9 @@
+{
+  "name": "cc-notify-tts",
+  "description": "Speaks a one-sentence summary when Claude Code finishes or needs you, through a local daemon. Install the daemon with `cc-notify-tts setup`.",
+  "author": { "name": "afterimaginary" },
+  "homepage": "https://github.com/afterimaginary/cc-notify-tts",
+  "repository": "https://github.com/afterimaginary/cc-notify-tts",
+  "license": "MIT",
+  "keywords": ["notifications", "text-to-speech", "macos"]
+}

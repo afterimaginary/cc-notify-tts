@@ -28,7 +28,6 @@ import logging.handlers
 import math
 import os
 import signal
-import socket
 import socketserver
 import sys
 import threading
@@ -42,6 +41,7 @@ from types import FrameType
 from typing import Any, Protocol
 
 from cc_notify_tts import __version__, config
+from cc_notify_tts.client import MAX_MESSAGE_BYTES, is_answering, socket_path
 from cc_notify_tts.events import EventKind, Notification, classify
 from cc_notify_tts.gate import MuteState, NeverMuted, decide, read_presence
 from cc_notify_tts.model_wording import MODEL_EVENTS, write_detail
@@ -59,8 +59,6 @@ STALE_SECONDS = 30.0
 # How long the inbox holds each event so one that fired earlier but arrived
 # later can go first. A shim takes about 35 ms p95 from start to send (ADR-0004).
 HOLD_SECONDS = 0.1
-# Largest request accepted. Hook payloads carry tool input, such as a file to write.
-MAX_MESSAGE_BYTES = 8 * 1024 * 1024
 # A client that hasn't sent its request within this long is dropped.
 CONNECTION_TIMEOUT = 2.0
 # A starting daemon that finds the lock held waits this long for it before
@@ -70,37 +68,8 @@ LOCK_WAIT_SECONDS = 3.0
 RECENT_DECISIONS = 20
 
 
-def data_dir() -> Path:
-    return Path.home() / "Library" / "Application Support" / "cc-notify-tts"
-
-
-def default_socket_path() -> Path:
-    return data_dir() / "daemon.sock"
-
-
 def default_log_path() -> Path:
     return Path.home() / "Library" / "Logs" / "cc-notify-tts" / "daemon.log"
-
-
-def request(path: Path, message: dict[str, Any], timeout: float = 2.0) -> dict[str, Any]:
-    """Send one request to the daemon and return its reply. Raises OSError or ValueError."""
-    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-        sock.settimeout(timeout)
-        sock.connect(str(path))
-        sock.sendall(json.dumps(message).encode() + b"\n")
-        with sock.makefile("rb") as f:
-            line = f.readline(MAX_MESSAGE_BYTES)
-    reply = json.loads(line)
-    if not isinstance(reply, dict):
-        raise ValueError(f"reply isn't a JSON object: {line!r}")
-    return reply  # pyright: ignore[reportUnknownVariableType]
-
-
-def is_answering(path: Path, timeout: float = 0.2) -> bool:
-    try:
-        return request(path, {"type": "ping"}, timeout).get("ok") is True
-    except (OSError, ValueError):
-        return False
 
 
 class Speaker(Protocol):
@@ -121,7 +90,7 @@ class Paths:
 
     @classmethod
     def default(cls) -> "Paths":
-        return cls(default_socket_path(), default_state_dir(), config.default_config_path())
+        return cls(socket_path(), default_state_dir(), config.default_config_path())
 
 
 @dataclass(frozen=True)

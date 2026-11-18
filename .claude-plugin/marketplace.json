@@ -1,0 +1,12 @@
+{
+  "name": "cc-notify-tts",
+  "description": "Spoken, summarized notifications for Claude Code on macOS.",
+  "owner": { "name": "afterimaginary" },
+  "plugins": [
+    {
+      "name": "cc-notify-tts",
+      "description": "Speaks a one-sentence summary when Claude Code finishes or needs you.",
+      "source": "./"
+    }
+  ]
+}

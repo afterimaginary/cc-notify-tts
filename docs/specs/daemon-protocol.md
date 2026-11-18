@@ -2,7 +2,7 @@
 
 How the hook shim and the CLI talk to the daemon. The protocol is internal: the shim and the CLI ship with the daemon, so there's no versioning. The decisions behind it are in ADR-0013.
 
-Code: `src/cc_notify_tts/daemon.py` (`Daemon.handle_request`, and `request()` / `is_answering()` for Python clients).
+Code: `src/cc_notify_tts/daemon.py` (`Daemon.handle_request`) and `src/cc_notify_tts/client.py` (`request()`, `is_answering()` and `deliver()` for the shim and the CLI).
 
 ## Transport
 
@@ -91,7 +91,7 @@ What the daemon is doing, for `cc-notify-tts status`.
 
 ## Lifetime
 
-- **Start:** `<data>/venv/bin/python -I -m cc_notify_tts.daemon`, detached (ADR-0002, ADR-0011). The shim starts it when `ping` gets no answer, then retries sending its event until the socket answers. Retrying at least every 50 ms keeps events from several hooks within the 100 ms ordering window.
+- **Start:** `<data>/venv/bin/python -I -m cc_notify_tts.daemon`, detached (ADR-0002, ADR-0011). The shim sends its event straight away, without a `ping` first. When nothing answers within 200 ms, it starts the daemon and retries the event every 25 ms for up to 5 s (ADR-0014). Retrying at least every 50 ms keeps events from several hooks within the 100 ms ordering window. A reply with `ok: false` isn't retried.
 - **Single instance:** the daemon holds an exclusive `flock` on `daemon.sock.lock` for its whole life. A daemon that can't take it exits with status 0: at once if the socket answers a `ping`, otherwise after waiting up to 3 s for the lock, in case the holder is exiting. The holder removes any socket file before binding, since it can only be a dead daemon's.
 - **Idle exit:** once no event has arrived for `daemon.idle_timeout_minutes` (config, default 120) and nothing is waiting or playing, the daemon removes its socket and exits with status 0. A session ends with an event, and a session without `SessionEnd` counts as closed once the timeout has passed since its last event, so this is also "no session open for the timeout". `ping` and `status` don't count as events.
 - **Signals:** `SIGTERM` and `SIGINT` stop it the same way.
