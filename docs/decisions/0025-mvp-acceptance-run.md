@@ -1,5 +1,5 @@
 ---
-description: The brief's "Done means" was run on a real Mac from a clean state; the three install commands, the spoken finished turn and permission request, the silent-while-active gate, `make eval` and both hook-cost targets pass as written, template wording without the model passes with the model missing rather than Ollama stopped, and the checks that need a person, a fresh account or another app are listed as owner steps.
+description: The brief's "Done means" was run on the build Mac from a clean install of this project; the three install commands, the spoken finished turn and permission request, and both hook-cost targets pass, the silent-while-active gate passes with input posted by the run, and `make eval` and template wording without the model pass in part, with the full eval, Ollama stopped, a fresh account and the other checks that need a person listed as owner steps.
 status: accepted
 ---
 
@@ -19,18 +19,19 @@ Run on 2026-11-18 on the build Mac: Apple M3 Max, 48 GiB, macOS 27.2.1, Claude C
 - **Away, for real.** Items 2 and 3 ran with Chrome in front and the Terminal-hosted session out of front, as if the user had switched to a browser.
 - **Active input.** Item 4 needs recent keyboard or mouse input. The run posted a mouse-moved event at the pointer's own position every 2 s (`CGEventPost`, nothing moves on screen), which CoreGraphics counts as input, so the idle reading was 0–2 s while the turn ran.
 - **Little sound.** With the plugin installed for the user, every Claude Code session on the Mac reaches the daemon. It was muted between checks and unmuted only while each check ran.
-- **What was spoken.** The daemon logged each gate decision but not the sentence. This PR adds a `queued` line with the text (see Failures), and the run's daemon was installed from this branch so the sentences below come from the log.
+- **What was spoken.** The daemon logged each gate decision but not the sentence. This PR adds a `queued` line with the text (see Failures), and the run's daemon was installed from that commit so the sentences below come from the log.
+- **Build tested.** `a3128f5` (main before #33's and #42's fixes merged) plus this PR's logging commit, installed with `uv tool install … git+https://github.com/afterimaginary/cc-notify-tts@issue-24` before the branch was rebased onto them. The plugin's hooks were `a3128f5`'s.
 
 ## Results
 
 | # | Check | Result |
 | - | - | - |
-| 1 | Three documented commands install the plugin and its models | Pass |
+| 1 | Three documented commands install the plugin and its models | Pass, on a Mac that already had a uv Python and `~/.local/bin` on `PATH` |
 | 2 | A multi-step turn, user in a browser, spoken within 3 s with an accurate detail | Pass |
 | 3 | A permission prompt while away is spoken with the action | Pass |
-| 4 | Silent while active with the default setting, `status` says why; spoken with `always` | Pass, with input posted rather than typed |
+| 4 | Silent while active with the default setting, `status` says why; spoken with `always` | Pass with a stand-in: input posted by the run, the session's app named as the one in front; typing is an owner step |
 | 5 | With Ollama stopped, template wording is spoken without errors | Partial: run with the model missing; Ollama stopped is an owner step |
-| 6 | `make eval` reproduces the README's table within run-to-run noise | Pass, for the two models already pulled |
+| 6 | `make eval` reproduces the README's table within run-to-run noise | Partial: 2 of the 10 models, both matching; the full table is an owner step |
 | 7 | No hook over 100 ms p95; no process left after the idle timeout | Pass |
 
 ### 1. Install
@@ -179,16 +180,17 @@ Not failures: `status` and `doctor` report version 0.0.0 until the release sets 
 
 These need a person, a fresh account or an app the run didn't use.
 
-1. **Fresh macOS user account (item 1).** In System Settings, Users & Groups, add a Standard user and log in to it. Install [Homebrew](https://brew.sh) and Claude Code, and log in to Claude Code. Run the README's three commands. `setup` should say it changed your shell profile to add `~/.local/bin` (`uv tool update-shell`), and uv should download its own Python 3.13 during `uv tool install`. Open a new terminal and run `cc-notify-tts doctor`: every line should be `ok`, with Ollama shown as optional.
+1. **Fresh macOS user account (item 1).** In System Settings, Users & Groups, add a Standard user and log in to it. Install [Homebrew](https://brew.sh) and Claude Code, and log in to Claude Code. Run the README's three commands. `setup` should say it changed your shell profile to add `~/.local/bin` (`uv tool update-shell`), and uv should download its own Python 3.13 during `uv tool install`. Open a new terminal and run `cc-notify-tts doctor`: every line should be `ok` except, without Ollama, a `warn` for Ollama (optional), and it should end with "0 problems, 1 warning." (or "All checks passed." with Ollama and `granite4:micro`).
 2. **Hear it (item 2).** In that account, or your own after the three commands, start `claude` in Terminal in any small project. Give it a task that takes a minute, such as "add a function and a test for it, then run the tests", and switch to a browser. You should hear one sentence within about 3 s of the turn ending, naming the project and what was done.
 3. **Typing in the session (item 4).** Run a short task in a Terminal window and keep typing in that window (for example, in another tab) until it finishes. Nothing should be spoken. `cc-notify-tts status` should say `silent: you were active … ago and Terminal is in front`. Add `[events.finished]` with `speak = "always"` to `~/Library/Application Support/cc-notify-tts/config.toml`, repeat, and it should be spoken. Then remove those lines.
 4. **Ollama stopped (item 5).** Quit Ollama from its menu bar icon and check that `curl -s localhost:11434` fails. Run a short task with the session's window in the background. The sentence should be spoken with template wording, `daemon.log` should show `template wording: …` and no `ERROR` lines, and `doctor` should show Ollama as optional and not running. Start Ollama again.
-5. **The listening check:** ADR-0012's five pairs by ear (`uv run python spikes/kokoro_listening/listen.py` from a clone).
-6. **The desktop app:** ADR-0001's and ADR-0002's owner steps, which cover hook coverage and closing a desktop session.
-7. **Terminal's and iTerm2's environment:** ADR-0006's one-line host check, run in each.
+5. **The full eval (item 6).** From a clone, pull the README table's other eight models (`ollama pull` each name in its first column), then run `make eval MODELS="granite4:micro qwen3.5:4b phi4-mini:3.8b llama3.2:3b qwen3.5:2b gemma3:4b gemma3:1b llama3.2:1b qwen3:1.7b qwen3:4b"`. Each model's Pass, Detail kept and Invented counts should match the README exactly, and its p50 and p95 should be within about 5% (p95 varies more). Remove the models you don't keep with `ollama rm`.
+6. **The listening check:** ADR-0012's five pairs by ear (`uv run python spikes/kokoro_listening/listen.py` from a clone).
+7. **The desktop app:** ADR-0001's and ADR-0002's owner steps, which cover hook coverage and closing a desktop session.
+8. **Terminal's and iTerm2's environment:** ADR-0006's one-line host check, run in each.
 
 ## Consequences
 
-- Every brief check a worker can run passes as written on this Mac, apart from item 5's literal form. The MVP is ready for the owner steps above and the launch.
+- Every brief check passes on this Mac, in full or in the stand-in form described above. The MVP is ready for the owner steps above and the launch.
 - The run's own method can be repeated: mute between checks, drive a tmux session, and read each decision and sentence from `daemon.log`.
 - Three small issues came out of the run. None blocks the launch.
