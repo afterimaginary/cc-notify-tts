@@ -58,8 +58,9 @@ _LABEL = re.compile(r"#+\s.*|(\*\*|__)[^*_]+\1:?|.*:")
 _SENTENCE_END = re.compile(r"[.!?](?=\s|$)")
 # Words a period follows without ending the sentence, besides letters joined by
 # periods ("e.g.", "i.e.", "U.S."). "etc." ends one unless lower case follows.
+# Not "ms": in these messages it's milliseconds ("took 120 ms."), not a title.
 _ABBREVIATIONS = frozenset(
-    {"vs", "cf", "approx", "incl", "esp", "viz", "eg", "ie", "mr", "mrs", "ms", "dr"}
+    {"vs", "cf", "approx", "incl", "esp", "viz", "eg", "ie", "mr", "mrs", "dr"}
 )
 _INITIALISM = re.compile(r"(?:[a-z]\.)+[a-z]", re.IGNORECASE)
 # A URL or a path, and any punctuation that ends the sentence after it.

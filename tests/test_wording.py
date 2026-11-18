@@ -279,6 +279,8 @@ def test_finished_detail(message: str, detail: str | None) -> None:
         ("Cut latency from 3.5s to 1.2s. Done.", "Cut latency from 3.5s to 1.2s."),
         ("Bumped it to v1.2.3 and Node to 20.x. Done.", "Bumped it to v1.2.3 and Node to 20.x."),
         ("Removed version 0.9. Then tested.", "Removed version 0.9."),
+        # "ms" is milliseconds, not a title.
+        ("Startup now takes 120 ms. Tests pass.", "Startup now takes 120 ms."),
         # Real ends still do, and a text without one is all one sentence.
         ("Done. Everything passes.", "Done."),
         ("Is it fixed? Yes.", "Is it fixed?"),
