@@ -16,7 +16,7 @@ The repository is set up: brief, build policy, Python toolchain, `make ready` / 
 
 ## Recently Done
 
-- Spike: small Ollama models answer in about 0.2 s warm and 0.7–1.5 s after a load; `num_ctx` 2048 saves up to 3.5 GiB (ADR-0003) (#5)
+- Spike: small Ollama models answer in 0.07–0.6 s warm and 0.7–1.5 s after a load; `num_ctx` 2048 saves up to 3.5 GiB (ADR-0003) (#5)
 - Spike: Kokoro latency, cold and warm, with and without nearby playback; the daemon keeps the model loaded (ADR-0005) (#4)
 - Spike: a daemon started from a hook outlives its session and runs at foreground priority, so it starts on demand (ADR-0002) (#3)
 - Repository setup

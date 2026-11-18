@@ -56,6 +56,60 @@ PROMPT = (
     "message was: I split the auth module into three files, moved token refresh "
     "into a background task, and all 214 tests pass. Say what was done."
 )
+# A long final message after a multi-step task: about 3300 characters, 800 tokens.
+LONG_MESSAGE = " ".join(
+    [
+        "Here's a summary of everything I changed in this session.",
+        "First, I split the auth module. auth/core.py had grown to about 1,400 lines and",
+        "mixed session handling, token issuing and password hashing. It's now three files:",
+        "auth/sessions.py owns session creation, lookup and expiry; auth/tokens.py issues,",
+        "verifies and refreshes access and refresh tokens; and auth/passwords.py wraps the",
+        "hashing library and the rehash-on-login check. The public functions keep their",
+        "names and are re-exported from auth/__init__.py, so no caller had to change.",
+        "Second, token refresh no longer happens inside the request. Before, a request with",
+        "an access token close to expiry called the identity provider synchronously, which",
+        "added 300 to 900 milliseconds to roughly one request in forty. Refresh now runs in",
+        "a background task that wakes every 60 seconds, refreshes any token expiring in the",
+        "next five minutes, and records failures in the refresh_failures table. A request",
+        "that finds an expired token still refreshes inline as a fallback, and logs a",
+        "warning so we can see how often the background task falls behind.",
+        "Third, I fixed two bugs I found on the way. The session cleanup job compared",
+        "expiry times in local time instead of UTC, so on servers outside UTC it deleted",
+        "sessions up to eight hours early. And the password rehash check ran on every",
+        "request instead of only at login, which is where most of the hashing time in the",
+        "profile came from. Both have regression tests now.",
+        "Fourth, the migration. Sessions gain a refreshed_at column, nullable, with no",
+        "default, so the migration is instant on the production table. I added a down",
+        "migration and ran both directions against a copy of the staging schema.",
+        "Fifth, tests. I moved the auth tests to match the new layout: tests/auth/",
+        "test_sessions.py, test_tokens.py and test_passwords.py. I added 23 tests: the",
+        "background refresh loop with a fake clock, the inline fallback, the UTC cleanup",
+        "fix, the login-only rehash, and the migration in both directions. The whole suite",
+        "passes, 214 tests, in 41 seconds, down from 58 because of the rehash fix. Lint and",
+        "type checks are clean.",
+        "Things I didn't do: I left the OAuth callback handler where it was, because",
+        "moving it would change a public URL. I didn't touch the rate limiter, although it",
+        "reads the session twice per request and could share the lookup. And the refresh",
+        "interval of 60 seconds is a constant in auth/tokens.py; if you want it in the",
+        "config file, that's a small follow-up.",
+        "What you should check: the refresh_failures table is new, so the dashboard won't",
+        "show it until someone adds a panel. The background task starts from the app",
+        "factory, so any script that builds the app without running it, such as the admin",
+        "shell, will start it too; it's harmless but noisy in the logs. If that's a",
+        "problem, I can gate it behind a flag.",
+        "I also updated the README section on authentication, the architecture diagram in",
+        "docs/auth.md, and the changelog under Unreleased. Nothing is committed yet; the",
+        "changes are staged on the auth-split branch so you can review the diff first.",
+        "Overall the change touches 27 files, adds 1,180 lines and removes 1,045. The",
+        "largest single change is the move itself, which git shows as renames for most of",
+        "the code, so the diff should be easier to read with rename detection on.",
+    ]
+)
+LONG_PROMPT = (
+    "A coding assistant finished a turn in the project accounts-api. Its last "
+    f"message was: {LONG_MESSAGE} Say what was done."
+)
+LONG_RUNS = 15
 
 Json = dict[str, Any]
 _request_no = 0
@@ -90,6 +144,7 @@ def ask(
     thinks: bool,
     num_ctx: int | None = NUM_CTX,
     keep_alive: str | int | None = "10m",
+    prompt: str = PROMPT,
 ) -> Json:
     """One fixed chat request. Returns wall time and Ollama's own timings, in ms.
 
@@ -106,7 +161,7 @@ def ask(
         "stream": False,
         "messages": [
             {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": f"Request {_request_no}. {PROMPT}"},
+            {"role": "user", "content": f"Request {_request_no}. {prompt}"},
         ],
         "options": options,
     }
@@ -123,6 +178,7 @@ def ask(
         "prompt_ms": round(resp.get("prompt_eval_duration", 0) / 1e6, 1),
         "eval_ms": round(resp.get("eval_duration", 0) / 1e6, 1),
         "eval_count": resp.get("eval_count", 0),
+        "prompt_count": resp.get("prompt_eval_count", 0),
         "text": resp["message"]["content"].strip(),
     }
 
@@ -198,6 +254,11 @@ def measure(info: Json, log: Log) -> Json:
         log.write({"model": model, "phase": "warm", "run": i, **r})
     out["warm"] = warm
     out["sample_text"] = warm[0]["text"]
+
+    long = [ask(model, thinks, prompt=LONG_PROMPT) for _ in range(LONG_RUNS)]
+    for i, r in enumerate(long):
+        log.write({"model": model, "phase": "warm_long", "run": i, **r})
+    out["warm_long"] = long
 
     sweep: list[Json] = []
     for ctx in CTX_SWEEP:
@@ -337,6 +398,26 @@ def summarize(env: Json, results: list[Json]) -> str:
         )
     lines += [
         "",
+        "## Warm latency by input length (wall ms)",
+        "",
+        f"Short is the warm phase above; long is {LONG_RUNS} back-to-back requests with a "
+        f"final message of {len(LONG_MESSAGE)} characters, at num_ctx {NUM_CTX}. Tokens in is "
+        "`prompt_eval_count`: what Ollama evaluated after reusing its prompt cache.",
+        "",
+        "| Model | Short p50 | Short p95 | Tokens in | Long p50 | Long p95 | Tokens in |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for r in results:
+        warm = [w["wall_ms"] for w in r["warm"]]
+        long = [w["wall_ms"] for w in r["warm_long"]]
+        short_in = statistics.median(w["prompt_count"] for w in r["warm"])
+        long_in = statistics.median(w["prompt_count"] for w in r["warm_long"])
+        lines.append(
+            f"| `{r['info']['model']}` | {pct(warm, 50):.0f} | {pct(warm, 95):.0f} "
+            f"| {short_in:.0f} | {pct(long, 50):.0f} | {pct(long, 95):.0f} | {long_in:.0f} |"
+        )
+    lines += [
+        "",
         "## num_ctx: resident memory and latency",
         "",
         "`size` and `context_length` from /api/ps. Switch is the request that changed "
@@ -406,7 +487,8 @@ def main() -> None:
         sys.exit(__doc__)
     out_dir = Path(sys.argv[1])
     out_dir.mkdir(parents=True, exist_ok=True)
-    models = sys.argv[2:] or DEFAULT_MODELS
+    # Ollama lists an untagged model as `<name>:latest`.
+    models = [m if ":" in m else f"{m}:latest" for m in sys.argv[2:]] or DEFAULT_MODELS
     try:
         env = environment()
     except urllib.error.URLError as e:

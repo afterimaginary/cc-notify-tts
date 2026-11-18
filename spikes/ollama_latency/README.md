@@ -29,12 +29,13 @@ The script is not part of `make ready` or `make verify`, because it needs Ollama
 
 ## What each phase does
 
-Every request is the same fixed chat prompt (a finished turn to describe in one sentence), with temperature 0, `num_predict` 40 and `num_ctx` 2048 unless the phase says otherwise. Models that can think get `think: false`.
+Every request is a fixed chat prompt (a finished turn to describe in one sentence), short unless the phase says otherwise,, with temperature 0, `num_predict` 40 and `num_ctx` 2048 unless the phase says otherwise. Models that can think get `think: false`.
 
 | Phase | What it measures |
 | --- | --- |
 | cold | Three requests, each after unloading the model with `keep_alive: 0`. The first is the first load in the run; the files may or may not be in the OS page cache. |
 | warm | 30 back-to-back requests. p50 and p95 of wall time. |
+| warm, long | 15 back-to-back requests whose final message is about 3300 characters (800 tokens), like the summary at the end of a multi-step task. |
 | num_ctx | For `num_ctx` 2048, 8192 and Ollama's default (not sent): the request that switches context, 10 warm requests, then `size`, `size_vram` and `context_length` from `/api/ps`. |
 | evicted | Three times: a request with `keep_alive: 5s`, wait until `/api/ps` no longer lists the model, then time the next request. |
 | keep-warm | `expires_at` after a request with `keep_alive: 1h`; after reading `/api/ps` and `/api/show`; after a request with no `keep_alive`. Then a load-only ping (`/api/generate` with no prompt), with and without `num_ctx`, and the context the model is left with. |
