@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -14,9 +15,19 @@ from cc_notify_tts.ollama import NUM_CTX, OllamaError
 from evals.cases import CASES_DIR, Case, CaseError, load_cases
 from evals.compare import compare
 from evals.report import render
+from evals.rescore import rescore
 from evals.results import Results, load_results
 from evals.run import run_model, write_results
-from evals.score import Score, contains, is_lead_in, percentile, rejection, score, summarize
+from evals.score import (
+    Score,
+    contains,
+    failed,
+    is_lead_in,
+    percentile,
+    rejection,
+    score,
+    summarize,
+)
 
 CASES = {case.id: case for case in load_cases()}
 
@@ -393,6 +404,33 @@ def test_the_report_has_the_table_and_the_failures() -> None:
     assert "| `tiny:1b` | 1/2 (50%) | 2/2 (100%) | 1/2 (50%) | 0 | 0 | 0 | 0 |" in text
     assert "| `tiny:1b` | `abc123` | 2048 | 1.00 GiB | 1.00 GiB | 0 | 2.5 |" in text
     assert "| `question-retries` | missing 'retr*' | Did something. |" in text
+
+
+def test_rescore_scores_recorded_answers_with_the_current_guards() -> None:
+    recorded = results("Added backoff to the fetcher.")
+    run = recorded.runs[0]
+    # As if an older guard had rejected the first answer, and Ollama never answered the second.
+    stale = (
+        replace(run.scores[0], detail=None, reason="an older guard's reason"),
+        failed(case("question-retries"), "no answer within 30 s"),
+    )
+    old = replace(recorded, runs=(replace(run, scores=stale),))
+    new = rescore(old, list(CASES.values()), "2026-11-19")
+    assert new.runs[0].scores == (run.scores[0], stale[1])
+    assert new.runs[0].latencies_ms == run.latencies_ms
+    assert new.scoring.startswith("Re-scored on 2026-11-19 from the recorded answers")
+
+
+def test_rescore_needs_every_case() -> None:
+    with pytest.raises(CaseError, match="finished-backoff"):
+        rescore(results("Added backoff."), [case("question-retries")], "2026-11-19")
+
+
+def test_how_a_run_was_scored_is_in_the_report_and_the_json(tmp_path: Path) -> None:
+    noted = replace(results("Added backoff to the fetcher."), scoring="Scored with old guards.")
+    assert "\n\nScored with old guards.\n\n## Results\n" in render(noted)
+    path = write_results(noted, tmp_path)
+    assert load_results(path.with_suffix(".json")) == noted
 
 
 def test_compare_shows_differences_and_changed_answers() -> None:

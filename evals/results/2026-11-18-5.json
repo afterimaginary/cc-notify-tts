@@ -7533,5 +7533,6 @@
         }
       ]
     }
-  ]
+  ],
+  "scoring": "Scored with the guards from before ADR-0021's failing-tests guard, and kept that way as that ADR's \"before\" run. `2026-11-18-6.md` holds the same answers scored with it, which is how today's guards score this run too."
 }

@@ -10,6 +10,7 @@ All notable changes to this project are recorded here. Versions follow [Semantic
 
 ### Fixed
 
+- **Eval results match the current guards:** the recorded eval runs in `evals/results/` are re-scored from their recorded answers with today's guards, and `python -m evals.rescore` does it again after any guard change. Answers recorded before ADR-0021's guard that report failing tests as a success now count as rejected; no pass count changes (ADR-0016, ADR-0018, #74).
 - **Detached tmux sessions:** a session in a detached tmux no longer keeps the app it was last attached from, so it counts as away and is spoken, and the next hook after reattaching names the new app (ADR-0030, #47).
 
 ## [0.1.0] - 2026-11-18

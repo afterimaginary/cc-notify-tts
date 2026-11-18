@@ -39,6 +39,9 @@ class Results:
     case_counts: dict[str, int]
     settings: dict[str, Any]
     runs: tuple[ModelRun, ...]
+    # How the answers were scored, when not by the guards of the run's own day:
+    # set by `evals.rescore`, or written by hand for a run kept as a "before".
+    scoring: str = ""
 
     def to_json(self) -> dict[str, Any]:
         runs = [
@@ -90,4 +93,5 @@ def load_results(path: Path) -> Results:
         case_counts=data["case_counts"],
         settings=data["settings"],
         runs=runs,
+        scoring=data.get("scoring", ""),
     )

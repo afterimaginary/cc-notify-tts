@@ -18,6 +18,16 @@ To compare two runs, for example the same model on two days:
 uv run python -m evals.compare evals/results/2026-11-18.json evals/results/2026-11-18-2.json
 ```
 
+## Re-score a run
+
+The guards and the cases' lists change after a run is recorded, so its report can score answers the way the daemon no longer would. Re-score the recorded answers with the current code, without asking a model again:
+
+```sh
+uv run python -m evals.rescore evals/results/2026-11-18-3.json
+```
+
+It rewrites the run's `.json` and `.md` in place (git keeps the earlier scoring) and the report says when it was re-scored. The answers, latency and memory stay the run's own. A case's payload must not have changed since the run, since the answer was written for that prompt: add cases rather than edit them. `2026-11-18-5` is left scored with the guards of its day, as ADR-0021's "before" run, and its report says so.
+
 ## What a run does
 
 For each model:
