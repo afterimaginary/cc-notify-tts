@@ -24,9 +24,9 @@
       "load_average": 9.20703125,
       "summary": {
         "cases": 59,
-        "passed": 46,
+        "passed": 45,
         "spoken": 50,
-        "kept": 47,
+        "kept": 46,
         "invented": 1,
         "over_length": 0,
         "lead_ins_spoken": 0,
@@ -40,7 +40,7 @@
         },
         "by_event": {
           "finished": [
-            24,
+            23,
             33
           ],
           "permission": [
@@ -351,11 +351,13 @@
           "answer": "Explained the issue with 12 null customer_id rows in orders table.",
           "detail": "Explained the issue with 12 null customer_id rows in orders table.",
           "reason": "ok",
-          "missing": [],
+          "missing": [
+            "stop*"
+          ],
           "invented": [],
           "words": 11,
           "lead_in": false,
-          "passed": true
+          "passed": false
         },
         {
           "case_id": "finished-we-pronoun",
@@ -1663,5 +1665,5 @@
       ]
     }
   ],
-  "scoring": ""
+  "scoring": "Re-scored on 2026-11-18 from the recorded answers, with the guards and case lists of that day. The answers, latency and memory are the run's own."
 }

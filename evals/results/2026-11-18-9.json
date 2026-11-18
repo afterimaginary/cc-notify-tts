@@ -849,7 +849,7 @@
         "cases": 59,
         "passed": 43,
         "spoken": 51,
-        "kept": 46,
+        "kept": 45,
         "invented": 3,
         "over_length": 0,
         "lead_ins_spoken": 0,
@@ -1174,7 +1174,9 @@
           "answer": "Deleted the 12 rows with null customer_id from the orders table.",
           "detail": "Deleted the 12 rows with null customer_id from the orders table.",
           "reason": "ok",
-          "missing": [],
+          "missing": [
+            "stop*"
+          ],
           "invented": [
             "deleted"
           ],
@@ -1665,5 +1667,5 @@
       ]
     }
   ],
-  "scoring": ""
+  "scoring": "Re-scored on 2026-11-18 from the recorded answers, with the guards and case lists of that day. The answers, latency and memory are the run's own."
 }

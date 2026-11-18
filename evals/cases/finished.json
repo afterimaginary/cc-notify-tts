@@ -271,7 +271,7 @@
       "cwd": "/Users/dev/src/invoice-tool",
       "last_assistant_message": "Started the database migration but stopped: the `orders` table has 12 rows with a null `customer_id`, which the new foreign key rejects. Should I delete them or backfill a placeholder customer?"
     },
-    "required": [["migrat*", "orders", "customer_id", "null"]],
+    "required": [["migrat*", "orders", "customer_id", "null"], ["stop*", "paus*", "halt*", "wait*", "ask*", "should i", "need* your", "decid*", "or backfill"]],
     "forbidden": ["migrated the", "completed", "finished the migration", "deleted"]
   },
   {
@@ -383,6 +383,17 @@
     },
     "required": [["flak*", "clock", "midnight", "time"]],
     "forbidden": ["froze", "fixed", "added freezegun", "installed", "made it stable", "stabiliz*", "now stable"]
+  },
+  {
+    "id": "finished-stopped-to-ask",
+    "traps": ["names", "numbers", "partial success", "question at the end"],
+    "payload": {
+      "hook_event_name": "Stop",
+      "cwd": "/Users/dev/src/accounts",
+      "last_assistant_message": "Started renaming `UserService` to `AccountService`, but stopped: 3 plugins outside this repo import it by the old name. Should I keep an alias for the old name, or rename it everywhere and break them?"
+    },
+    "required": [["renam*", "userservice", "accountservice", "alias"], ["stop*", "paus*", "halt*", "wait*", "ask*", "should i", "need* your", "decid*", "or rename", "or keep"]],
+    "forbidden": ["renamed userservice to", "renamed it everywhere", "added an alias", "kept an alias", "four plugins", "4 plugins"]
   },
   {
     "id": "finished-tests-partly-fixed",
