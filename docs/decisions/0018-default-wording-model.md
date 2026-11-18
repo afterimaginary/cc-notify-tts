@@ -35,17 +35,17 @@ From the full run; slowest is the slowest single request. Resident memory is `si
 | Model | Pass | Detail kept | Invented | Rejected by guards | Over length | p50 ms | p95 ms | Slowest ms | Resident |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `granite4:micro` | **42** | 43 | 1 | 2 | 0 | 176 | 250 | 659 | 2.18 GiB |
-| `qwen3.5:4b` | **42** | 43 | 0 | 3 | 1 | 248 | 362 | 734 | 9.24 GiB |
-| `phi4-mini:3.8b` | 41 | **45** | 0 | 0 | 4 | 197 | 336 | 918 | 2.64 GiB |
-| `llama3.2:3b` | 40 | 42 | 2 | 0 | 0 | 166 | 242 | 680 | 2.16 GiB |
-| `qwen3.5:2b` | 40 | 40 | 0 | 4 | 0 | 140 | 256 | 371 | 5.01 GiB |
-| `gemma3:4b` | 39 | 39 | 0 | 4 | 0 | 271 | 379 | 861 | 2.17 GiB |
-| `gemma3:1b` | 36 | 37 | 1 | 0 | 0 | 84 | 162 | 265 | 0.82 GiB |
-| `llama3.2:1b` | 34 | 34 | 0 | 5 | 0 | 74 | 103 | 203 | 1.35 GiB |
+| `qwen3.5:4b` | **42** | 43 | 0 | 4 | 1 | 248 | 362 | 734 | 9.24 GiB |
+| `phi4-mini:3.8b` | 41 | **45** | 0 | 1 | 4 | 197 | 336 | 918 | 2.64 GiB |
+| `llama3.2:3b` | 40 | 42 | 2 | 1 | 0 | 166 | 242 | 680 | 2.16 GiB |
+| `qwen3.5:2b` | 40 | 40 | 0 | 5 | 0 | 140 | 256 | 371 | 5.01 GiB |
+| `gemma3:4b` | 39 | 39 | 0 | 5 | 0 | 271 | 379 | 861 | 2.17 GiB |
+| `gemma3:1b` | 36 | 37 | 1 | 1 | 0 | 84 | 162 | 265 | 0.82 GiB |
+| `llama3.2:1b` | 34 | 34 | 0 | 6 | 0 | 74 | 103 | 203 | 1.35 GiB |
 | `qwen3:1.7b` | 33 | 35 | 0 | 8 | 2 | 107 | 231 | 303 | 1.13 GiB |
 | `qwen3:4b` | 0 | 0 | 0 | 32 | 0 | 471 | 622 | 1218 | 2.68 GiB |
 
-Pass counts out of 48. The confirming run gave `granite4:micro` p50 182 ms and p95 260 ms, `phi4-mini:3.8b` 186 and 351, `llama3.2:3b` 164 and 223, `gemma3:1b` 87 and 125.
+Pass counts out of 48. *Updated 2026-11-18:* the run was re-scored from its recorded answers with ADR-0021's failing-tests guard, which rejects the seven answers that reported `finished-tests-still-fail` as a success, so seven models' "Rejected by guards" went up by one. No other figure here changed: those answers had already failed the `required` check. The confirming run gave `granite4:micro` p50 182 ms and p95 260 ms, `phi4-mini:3.8b` 186 and 351, `llama3.2:3b` 164 and 223, `gemma3:1b` 87 and 125.
 
 Three models at the top differ by one or two cases, which ADR-0016 warns says less than it seems, so the choice rests on what their failing answers would have sounded like:
 
