@@ -18,8 +18,14 @@ eval:
 	@test -n "$(MODELS)" || { echo 'Usage: make eval MODELS="llama3.2:1b gemma3:1b"'; exit 2; }
 	$(UV) run --frozen python -m evals.run $(MODELS)
 
+# Records the demo from scratch: build/demo/cc-notify-tts-demo.mp4 (1080p, with
+# Kokoro's real audio) and docs/demo.gif (short, silent). Needs vhs, ffmpeg and
+# ImageMagick; plays nothing out loud. See demo/README.md.
+demo:
+	$(UV) run --frozen python demo/build.py
+
 # Installs a git pre-push hook that runs `make ready`.
 hooks:
 	./scripts/install-pre-push.sh
 
-.PHONY: ready verify eval hooks
+.PHONY: ready verify eval demo hooks
