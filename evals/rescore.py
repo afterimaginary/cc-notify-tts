@@ -8,6 +8,7 @@ a run is recorded, which leaves its report scoring answers the way the daemon no
 longer would. This scores every recorded answer again and rewrites the run's
 `.json` and `.md` in place; git keeps the earlier scoring. Answers, latency,
 memory and digests stay as recorded, and the report says when it was re-scored.
+A run whose scores don't move is left as it is.
 
 A run that shows a change's "before" keeps the scoring it was recorded with:
 `--before NOTE` marks it so, with a note on which guards scored it, and a re-score
@@ -85,6 +86,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             continue
         else:
             updated = rescore(recorded, cases, today)
+            if [r.scores for r in updated.runs] == [r.scores for r in recorded.runs]:
+                continue  # No score moved, so the file keeps its date.
         path.write_text(json.dumps(updated.to_json(), indent=2) + "\n")
         path.with_suffix(".md").write_text(render(updated))
         print(path.with_suffix(".md"))

@@ -427,6 +427,13 @@ def test_rescore_needs_every_case() -> None:
         rescore(results("Added backoff."), [case("question-retries")], "2026-11-19")
 
 
+def test_a_run_whose_scores_dont_move_is_left_as_it_is(tmp_path: Path) -> None:
+    path = write_results(results("Added backoff."), tmp_path).with_suffix(".json")
+    written = path.read_text()
+    assert evals.rescore.main([str(path)]) == 0
+    assert path.read_text() == written
+
+
 def test_a_before_run_is_marked_and_then_skipped(tmp_path: Path) -> None:
     path = write_results(results("Added backoff."), tmp_path).with_suffix(".json")
     assert evals.rescore.main([str(path), "--before", "scored with old guards."]) == 0
