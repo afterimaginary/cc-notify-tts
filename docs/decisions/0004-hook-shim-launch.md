@@ -17,7 +17,7 @@ The spike in `spikes/hook-shim-bench/` has the scripts and the commands to rerun
 
 - **The shim** does what the shipped one will per event: read the payload from stdin, write a small state file, send one line to the daemon's Unix socket and read a one-line answer. If nothing answers, it starts the daemon as a detached process (ADR-0002) and exits without waiting.
 - **Launch cost:** `bench.py` runs the shim 200 times per launch option and per case (socket answering, socket absent) after 5 warm-up runs, through `/bin/sh -c` as Claude Code runs hook commands, with the options interleaved. It times each process from spawn to exit and checks that every run reached the stand-in daemon, wrote its state file and printed nothing.
-- **Claude Code's wait:** `claude_wait.py` runs `claude -p` 50 times per variant with only its own hooks loaded. A hook blocks the prompt, so no model request is made. The hook under test runs on the two events that fire without a model: `SessionStart` (time from the event's hooks starting to the prompt's `UserPromptSubmit`) and `SessionEnd` (time from closing Claude Code's input to the process exiting). A 300 ms sleep run before the shim shows the method can see a wait, and its delivery shows whether an async hook outlives Claude Code's exit.
+- **Claude Code's wait:** `claude_wait.py` runs `claude -p` 50 times per variant with only its own hooks loaded. A hook blocks the prompt, so no model request is made. The hook under test runs on the two events that fire without a model: `SessionStart` (time from the event's hooks starting to the prompt's `UserPromptSubmit`) and `SessionEnd` (time from closing Claude Code's input to the process exiting). A 2 s sleep run before the shim shows the method can see a wait. Claude Code takes well under 2 s to exit, so when that hook is async, the time its message reaches the stand-in daemon, before or after the `claude` process has exited, shows whether the hook outlives the exit.
 
 Machine: Apple M3 Max, macOS 27.2.1, Claude Code 2.1.327, uv 0.11. Other work was running, as in normal use.
 
@@ -52,17 +52,17 @@ On the uv-managed interpreter, `-X importtime` shows the shim's imports cost abo
 
 ms, 50 runs per variant. "Added" is the variant's p50 minus the no-hook floor.
 
-| Hook under test | `SessionStart` held p50 / p95 | Added | Exit after `SessionEnd` p50 / p95 | Added | Shim delivered (start / end) |
-| - | - | - | - | - | - |
-| None (floor) | 41 / 53 | 0 | 615 / 770 | 0 | n/a |
-| Shim, sync | 57 / 70 | +16 | 718 / 833 | +103 | 50/50, 50/50 |
-| Shim, `async` | 44 / 54 | +3 | 621 / 821 | +6 | 50/50, 50/50 |
-| 300 ms sleep, then shim, sync | 377 / 389 | +336 | 932 / 1105 | +317 | 50/50, 50/50 |
-| 300 ms sleep, then shim, `async` | 43 / 55 | +3 | 607 / 749 | −9 | 50/50, 50/50 |
+| Hook under test | `SessionStart` held p50 / p95 | Added | Exit after `SessionEnd` p50 / p95 | Added | Shim delivered (start / end) | `SessionEnd` message arrived after exit |
+| - | - | - | - | - | - | - |
+| None (floor) | 39 / 45 | 0 | 609 / 726 | 0 | n/a | n/a |
+| Shim, sync | 55 / 63 | +16 | 669 / 807 | +60 | 50/50, 50/50 | 0/50 |
+| Shim, `async` | 41 / 46 | +2 | 615 / 809 | +6 | 50/50, 50/50 | 0/50 |
+| 2 s sleep, then shim, sync | 2086 / 2092 | +2047 | 2599 / 2799 | +1990 | 50/50, 50/50 | 0/50 |
+| 2 s sleep, then shim, `async` | 40 / 49 | +1 | 562 / 722 | −47 | 50/50, 50/50 | 50/50 |
 
-- **Sync:** Claude Code waits for the whole hook. The 300 ms sleep adds 320–340 ms on both events.
-- **`async`:** Claude Code doesn't wait. The shim and even the 300 ms hook add 3 ms or less at session start, which is within noise.
-- **At exit**, exit time is noisy (p95 about 150–200 ms above p50), so differences under about 50 ms there aren't meaningful, and even the sync shim's +103 ms is mostly noise. The async 300 ms hook didn't delay the exit, and its message, sent only after the sleep, still arrived every time. So Claude Code exits without waiting for async hooks, and they survive the exit. ADR-0001 saw an async `StopFailure` handler lost when `claude -p` exited; that was a different event and may have been killed some other way. The shipped daemon doesn't need `SessionEnd` delivered to work correctly.
+- **Sync:** Claude Code waits for the whole hook. The 2 s sleep adds about 2 s on both events.
+- **`async`:** Claude Code doesn't wait. The shim and even the 2 s hook add 2 ms or less at session start, which is within noise.
+- **At exit**, exit time is noisy (p95 about 100–200 ms above p50), so differences under about 50 ms there aren't meaningful. The async 2 s hook didn't delay the exit: `claude` exited about 0.6 s after its input closed, and the hook's message, sent only after the sleep, arrived after the process had exited in all 50 runs. So Claude Code exits without waiting for async hooks, and they keep running after it has gone. Sync hooks finish before the exit, as expected. ADR-0001 saw an async `StopFailure` handler lost when `claude -p` exited; that was a different event and may have been killed some other way. The shipped daemon doesn't need `SessionEnd` delivered to work correctly.
 
 `UserPromptSubmit`, `Stop` and the permission events need a model turn, which costs tokens, so they weren't measured. Claude Code runs every event's hooks the same way, so `SessionStart` stands in for them.
 

@@ -14,10 +14,12 @@ fire without a model: SessionStart and SessionEnd.
 - SessionEnd: the time from closing Claude Code's input to the process exiting.
 
 Each variant's figure minus the no-hook floor is the wait the hook adds.
-Variants: the spike shim (sync and async) and a 300 ms sleep followed by the shim (sync
+Variants: the spike shim (sync and async) and a 2 s sleep followed by the shim (sync
 and async), which shows the method sees a wait. This script serves the shim's
 daemon socket and counts the messages that got through: an async hook that
-Claude Code kills on exit never arrives.
+Claude Code kills on exit never arrives. The sleep is longer than Claude Code
+takes to exit, so an async SessionEnd message that arrives after the process
+has exited shows the hook outlived it.
 """
 
 from __future__ import annotations
@@ -39,7 +41,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 SHIM = HERE / "shim.py"
-SLEEP_MS = 300
+SLEEP_MS = 2000
 
 MARKER = """\
 import sys, time
@@ -53,10 +55,12 @@ BLOCK = """cat >/dev/null; printf '{"decision":"block","reason":"benchmark"}'"""
 
 class AnswerOk(socketserver.StreamRequestHandler):
     received = 0
+    last_at = 0.0  # perf_counter() when the latest message arrived
 
     def handle(self) -> None:
         self.rfile.readline()
         AnswerOk.received += 1
+        AnswerOk.last_at = time.perf_counter()
         self.wfile.write(b"ok\n")
 
 
@@ -92,11 +96,13 @@ def wait_for(condition: Callable[[], bool], timeout: float) -> bool:
 
 
 class Run:
-    def __init__(self, start_held: float, exit_after: float, at_start: int, at_end: int) -> None:
+    def __init__(self, start_held: float, exit_after: float, at_start: int, at_end: int,
+                 end_after_exit: int) -> None:  # fmt: skip
         self.start_held = start_held
         self.exit_after = exit_after
         self.at_start = at_start  # shim messages that arrived from SessionStart
         self.at_end = at_end  # and from SessionEnd
+        self.end_after_exit = end_after_exit  # SessionEnd messages that arrived after exit
 
 
 def one_run(claude: str, cwd: Path, env: dict[str, str], settings_json: str, log: Path,
@@ -125,19 +131,22 @@ def one_run(claude: str, cwd: Path, env: dict[str, str], settings_json: str, log
 
     ok = wait_for(lambda: len(markers()) == 2, 15)
     # Let the SessionStart shim (async included) land before the session ends.
-    wait_for(lambda: AnswerOk.received - before >= int(has_hook), 2)
+    wait_for(lambda: AnswerOk.received - before >= int(has_hook), SLEEP_MS / 1000 + 2)
     at_start = AnswerOk.received - before
     closed = time.perf_counter()
     proc.stdin.close()
     proc.wait(timeout=30)
-    exit_after = (time.perf_counter() - closed) * 1000
+    exited = time.perf_counter()
+    exit_after = (exited - closed) * 1000
     err = proc.stderr.read()
-    time.sleep(0.5)  # an async SessionEnd hook that survived the exit lands now
+    # An async SessionEnd hook that survived the exit lands now.
+    wait_for(lambda: AnswerOk.received - before - at_start >= int(has_hook), SLEEP_MS / 1000 + 2)
     at_end = AnswerOk.received - before - at_start
+    end_after_exit = int(at_end > 0 and AnswerOk.last_at > exited)
     if not ok:
         raise SystemExit(f"markers missing: {markers()}; {err.decode()[-500:]}")
     m = markers()
-    return Run((m["prompt"] - m["start"]) / 1e6, exit_after, at_start, at_end)
+    return Run((m["prompt"] - m["start"]) / 1e6, exit_after, at_start, at_end, end_after_exit)
 
 
 def p50_p95(samples: list[float]) -> tuple[float, float]:
@@ -173,8 +182,8 @@ def main() -> None:
         ("no hook (floor)", None, False),
         ("shim, sync", shim, False),
         ("shim, async", shim, True),
-        (f"{SLEEP_MS} ms sleep, then shim, sync", slow, False),
-        (f"{SLEEP_MS} ms sleep, then shim, async", slow, True),
+        (f"{SLEEP_MS / 1000:g} s sleep, then shim, sync", slow, False),
+        (f"{SLEEP_MS / 1000:g} s sleep, then shim, async", slow, True),
     ]
     env = {
         **os.environ,
@@ -202,20 +211,21 @@ def main() -> None:
     print(f"\n{args.runs} runs per variant; ms\n")
     print(
         "| Hook under test | SessionStart held p50 / p95 | Added | Exit after SessionEnd "
-        "p50 / p95 | Added | Shim delivered at start / end |"
+        "p50 / p95 | Added | Shim delivered at start / end | End delivered after exit |"
     )
-    print("| - | - | - | - | - | - |")
+    print("| - | - | - | - | - | - | - |")
     for name, hook, _ in variants:
         s50, s95 = p50_p95([r.start_held for r in runs[name]])
         e50, e95 = p50_p95([r.exit_after for r in runs[name]])
-        delivered = "n/a"
+        delivered = after_exit = "n/a"
         if hook is not None:
             starts = sum(r.at_start for r in runs[name])
             ends = sum(r.at_end for r in runs[name])
             delivered = f"{starts}/{args.runs} / {ends}/{args.runs}"
+            after_exit = f"{sum(r.end_after_exit for r in runs[name])}/{args.runs}"
         print(
             f"| {name} | {s50:.0f} / {s95:.0f} | {s50 - floor_start:+.0f} "
-            f"| {e50:.0f} / {e95:.0f} | {e50 - floor_end:+.0f} | {delivered} |"
+            f"| {e50:.0f} / {e95:.0f} | {e50 - floor_end:+.0f} | {delivered} | {after_exit} |"
         )
 
 
