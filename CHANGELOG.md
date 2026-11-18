@@ -15,6 +15,7 @@ All notable changes to this project are recorded here. Versions follow [Semantic
 - **Detached tmux sessions:** a session in a detached tmux no longer keeps the app it was last attached from, so it counts as away and is spoken, and the next hook after reattaching names the new app (ADR-0030, #47).
 - **Abbreviations in the detail:** the spoken detail no longer stops at an abbreviation such as "e.g." or "i.e." as if it ended the first sentence (#36).
 - **Inline lead-ins:** a finished turn whose last message opens with a lead-in such as "Here's what was done:" or "Summary:" is spoken without it, starting at what the lead-in introduces (#50).
+- **One-line choices:** a lead-in that introduces options or ways to do something, such as "Here are two options: keep the cache or drop it.", is kept, inline or on its own line above a list, so the choice isn't heard as an instruction (#73).
 - **App names in reasons:** gate reasons and `status` name common browsers, editors and everyday apps, such as Chrome, Safari, Cursor and Slack, instead of showing their bundle ids (#64).
 - **Phonemizer warning:** speaking a sentence with a number or a commit hash in it no longer logs `words count mismatch` in `daemon.log`. Other speech warnings and errors are still logged (ADR-0034, #65).
 
