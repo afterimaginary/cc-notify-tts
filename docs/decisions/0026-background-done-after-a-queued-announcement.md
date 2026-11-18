@@ -19,7 +19,7 @@ Two fixes were considered:
 - **The wake-up `Stop` checks for an announcement still queued or playing.** The event worker counts, per session, the "still running" and "finished" sentences it has queued and not yet seen end. When a wake-up `Stop` ends all the work, nothing was heard yet, the session had live work and one of those is in flight, classification gives a "background done" that waits.
 - **It's spoken when the announcement plays, and dropped when the announcement is dropped.** A sentence replaced in the pending slot, dropped as stale, or one that fails to play doesn't count as heard. If another announcement for the session is still coming, the wait passes to it.
 - **The gate decides when it's spoken,** with presence at that moment, as for any other sentence.
-- **A new user prompt, or a newer `Stop` for the session, cancels the wait,** as a new prompt clears "heard" (ADR-0007).
+- **A new user prompt, or a newer `Stop` for the session, cancels the wait,** as a new prompt clears "heard" (ADR-0007). A second wake-up `Stop` with nothing live, from two items finishing together, keeps it.
 - **The count lives on the event worker,** which applies every "heard" record (ADR-0013). The speech worker reports each announcement's end, played or not, through the event inbox before it frees the slot, so the count and the session state change on one thread in one order.
 
 The rules and the state field are in [the event classification design](../designs/event-classification.md).

@@ -64,7 +64,7 @@ One JSON file per session, `<session_id>.json` under `~/Library/Application Supp
 | `finished_background` | Ids known to have finished |
 | `announced_background` | Live ids already announced as `still_running` |
 | `still_running_heard` | A `still_running`, or a `finished` while background work was live, played and no `background_done` or new user turn has followed |
-| `background_done_owed` | A wake-up `Stop` ended all background work while an announcement was queued or playing; cleared when that ends, by the next `Stop` or by a new user turn |
+| `background_done_owed` | A wake-up `Stop` ended all background work while an announcement was queued or playing; cleared when that ends, by a new user turn, or by the next `Stop` unless it's another wake-up with nothing live |
 | `last_emitted` | Kind to time last emitted, for dedupe |
 
 Any event for a session without a file creates it as open, so sessions that started before the plugin was installed still work. `SessionEnd` for an unknown session writes nothing.

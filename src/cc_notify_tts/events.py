@@ -183,8 +183,9 @@ def _stop(
         own_turn = state.turn_open
     if _is_stale(state, prompt_id, live_ids, own_turn):
         return None, ()
-    # A newer Stop settles any background done still waiting on an announcement.
-    state.background_done_owed = False
+    # A newer Stop settles any background done still waiting on an announcement,
+    # except another wake-up with nothing live, below.
+    owed, state.background_done_owed = state.background_done_owed, False
     had_background = bool(state.background)
 
     # A wake-up turn is known from its prompt, or, if that hasn't arrived yet,
@@ -211,6 +212,11 @@ def _stop(
         # A wake-up turn after background work: only the end of all of it matters,
         # and only if the user heard that it was still running.
         if live:
+            return None, ()
+        if owed:
+            # A second wake-up as the work ends; the first one's background done
+            # still waits on the announcement (ADR-0026).
+            state.background_done_owed = True
             return None, ()
         if state.still_running_heard:
             state.still_running_heard = False

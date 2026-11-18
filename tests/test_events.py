@@ -155,6 +155,13 @@ def test_dropped_announcement_leaves_the_wait_to_one_still_coming(s: Session) ->
     assert announcement_ended(s.store, SESSION, played=True, more_coming=False)
 
 
+def test_second_wake_up_with_nothing_live_keeps_the_wait(s: Session) -> None:
+    assert wake_up_while_announcing(s) is not None
+    s.send("user_prompt_submit_agent_message", prompt_id="p3")
+    assert s.send("stop_background_done", prompt_id="p3", announcing=True) is None
+    assert announcement_ended(s.store, SESSION, played=True, more_coming=False)
+
+
 def test_new_user_prompt_cancels_a_waiting_background_done(s: Session) -> None:
     assert wake_up_while_announcing(s) is not None
     s.send("user_prompt_submit", prompt_id="p3")
