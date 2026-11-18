@@ -59,8 +59,8 @@ class Daemon:
 @dataclass(frozen=True)
 class Wording:
     ollama: bool = True
-    # A placeholder until the model comparison picks the default.
-    model: str = "llama3.2:1b"
+    # Picked by the model comparison of the wording eval (ADR-0018).
+    model: str = "granite4:micro"
     timeout_seconds: float = 1.0
 
 
