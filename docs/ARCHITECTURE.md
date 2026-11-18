@@ -24,4 +24,6 @@ Claude Code ── plugin hooks (async) ──▶ hook shim (standard library on
 - **Install:** `uv tool install` puts the package, its dependencies and the CLI in uv's tool folder; `cc-notify-tts setup` links uv's Python 3.13 (for the hooks) and the tool's environment (for the daemon) into the data folder, fetches the model and installs the plugin. Nothing lasting lives in the plugin's versioned cache folder (ADR-0011).
 - **Wording eval:** `evals/` sits outside the package. It runs hand-written synthetic hook payloads through the daemon's own classification, request and guards against real Ollama models, scores each answer with deterministic checks, and writes dated results to `evals/results/` (`make eval MODELS=…`, ADR-0016, [README](../evals/README.md)). Only its scoring runs in `ready` and `verify`.
 
+- **Tests:** `make ready` runs the unit tests. `make verify` adds integration tests, which never need a model, Ollama or an audio device. The end-to-end one (`tests/test_end_to_end.py`) runs a whole session's hook commands as Claude Code would, through the real shim and the real daemon it starts, with only speech and presence faked (`tests/fake_speech_daemon.py`), and checks what is spoken and what stays silent.
+
 Decisions behind these choices are recorded in [decisions/](decisions/) as they're made.
