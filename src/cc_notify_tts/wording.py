@@ -228,9 +228,10 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
     # Never repeat what the detail already says.
     if detail is not None and failing.lower() in detail.lower():
         return detail
+    cut = len(failing.split()) > MESSAGE_WORDS
     failing = end_sentence(_cap_words(failing, MESSAGE_WORDS))
     # The cap can cut the failure off a long clause; say it plainly instead.
-    if not admits_failure(failing):
+    if cut and not admits_failure(failing):
         failing = STILL_FAILING
     if detail is not None and len(detail.split()) + len(failing.split()) <= MESSAGE_WORDS:
         return f"{detail} {capitalize(failing)}"

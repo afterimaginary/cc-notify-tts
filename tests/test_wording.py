@@ -1,6 +1,7 @@
 """Template wording for every notification event."""
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,7 @@ import pytest
 from cc_notify_tts.events import EventKind, Notification, classify
 from cc_notify_tts.sessions import BackgroundItem, SessionStore
 from cc_notify_tts.wording import Wording, describe_action, failing_tests, project_name, word
+from evals.cases import load_cases
 
 FIXTURES = Path(__file__).parent / "fixtures" / "hooks"
 SESSION = "5f0c2d1e-8a7b-4c3d-9e2f-1a2b3c4d5e6f"
@@ -408,6 +410,83 @@ def test_a_short_failing_sentence_is_spoken_whole(failing: str) -> None:
 )
 def test_a_failure_the_cap_would_cut_off_is_said_plainly(message: str, text: str) -> None:
     assert finished_text(message) == text
+
+
+@pytest.mark.parametrize(
+    ("message", "text"),
+    [
+        (
+            "Fixed the date parser. The CSV import is still broken for files with a BOM.",
+            "Finished up in weather app. Fixed the date parser."
+            " The CSV import is still broken for files with a BOM.",
+        ),
+        (
+            "Moved the retry logic. Ran it again: 41 passed, 2 failed.",
+            "Finished up in weather app. Moved the retry logic. Ran it again: 41 passed, 2 failed.",
+        ),
+    ],
+)
+def test_the_plain_fallback_is_only_for_a_cut_sentence(message: str, text: str) -> None:
+    assert finished_text(message) == text
+
+
+# Every failing-tests phrasing the template handles, and every phrasing a review
+# round found mishandled: failing ones, and successes that mention a failure.
+SHORT_SENTENCES = [
+    "Updated the importer, but 2 of the 31 tests still fail: test_a and test_b.",
+    "Three tests in test_slots.py still fail because they expect UTC.",
+    "Added the endpoint, but its tests aren't passing yet.",
+    "The tests are still failing on CI.",
+    "Test run: 2 failed, 41 passed.",
+    "Two integration tests fail on the new schema.",
+    "Some failing tests remain in the parser.",
+    "31 of 33 tests now pass; the other 2 still fail on leap years.",
+    "Most tests now pass, but 3 still fail.",
+    "It no longer crashes on empty input, but 2 tests still fail.",
+    "The 2 billing tests still fail without a database.",
+    "Test run: 41 passed, 2 failed.",
+    "Tests: 41 passed, 2 failed, 43 total.",
+    "Ran cargo test: 41 passed; 2 failed; 0 ignored.",
+    "Two tests, test_a and test_b, still fail.",
+    "The CSV import is still broken for files with a BOM.",
+    "Ran it again: 41 passed, 2 failed.",
+    "Fixed the failing auth tests.",
+    "Fixed the broken import in the CLI.",
+    "Added retry on upload failure.",
+    "Handled failed payments in checkout.",
+    "Added a fail-fast check to the loader.",
+    "Fixed the 2 failed tests; all 40 pass now.",
+    "Fixed 2 tests failing on CI by pinning the clock.",
+    "Retried the 3 failed uploads.",
+    "The importer now gives up after 5 failed attempts.",
+    "The two upload tests that were still failing now pass.",
+    "The flaky test no longer fails.",
+]
+
+
+@pytest.mark.parametrize("sentence", SHORT_SENTENCES)
+def test_a_sentence_of_20_words_or_fewer_is_spoken_as_written(sentence: str) -> None:
+    assert len(sentence.split()) <= 20
+    assert finished_text(sentence) == f"Finished up in weather app. {sentence}"
+    # After another first sentence it's either added as written or left out, never changed.
+    spoken = finished_text(f"Moved the retry logic. {sentence}")
+    assert spoken in (
+        "Finished up in weather app. Moved the retry logic.",
+        f"Finished up in weather app. Moved the retry logic. {sentence}",
+        f"Finished up in weather app. {sentence}",
+    )
+    if failing_tests(sentence) is not None:
+        assert spoken.endswith(sentence)
+
+
+def test_eval_cases_keep_a_short_failing_sentence_as_written() -> None:
+    for case in load_cases():
+        if case.kind is not EventKind.FINISHED:
+            continue
+        sentences = re.findall(r"\S.*?[.!?](?=\s|$)", case.request.source)
+        failing = next((s for s in sentences if failing_tests(s) is not None), None)
+        if failing is not None and len(failing.split()) <= 20:
+            assert failing in case.wording.text(), case.id
 
 
 def test_a_failure_at_the_end_of_a_long_sentence_isnt_cut_off() -> None:

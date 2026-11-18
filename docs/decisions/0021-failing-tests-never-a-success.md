@@ -44,6 +44,12 @@ The last two columns count spoken answers to the four failing-tests cases that l
 - **Answers that report the failure are still spoken.** Across the ten models, every answer that says tests failed ("Implemented the CSV export endpoint, but tests failed due to date serialization.") is spoken, and no answer to the two success cases is rejected. Two vaguer answers that hint at a problem without saying tests fail ("testing remains unresolved", "date serialization needs fixing") are rejected, and the template, which says so plainly, is spoken instead. Re-scoring the 480 recorded answers of ADR-0018's run with the new guard rejects exactly the seven answers that report the CSV fix as done, and nothing else.
 - **Latency isn't comparable between these two runs.** The second ran at a load average of 9–13 while a demo was recording, and p50 rose 26–58% for every model with identical answers. The guard adds no request, only a regular expression over the input.
 
+## What review found
+
+Six review rounds tested the change with hand-written messages. The model guard held in every round: no message made it accept wording that hid a failure. Every defect found was in the template's rules for finding and quoting the failing-tests sentence. In turn, they were a "now pass" earlier in the sentence cancelling the failure, a fixed failure or one about something other than tests counting as admitting it, a success sentence spoken twice, the word cap cutting the failure off, a summary ("41 passed, 2 failed") split at its comma, and a fallback that replaced short sentences. Each fix was re-scored against both eval runs and changed no answer.
+
+So the template rules are the fragile part, and they're now pinned by an invariant test: any sentence of 20 words or fewer, whether a failing one or a success that mentions a failure, from every detection rule and every phrasing a round found mishandled, is spoken exactly as written. Only a longer sentence is shortened, to the clauses that hold the failure, and if the cap would still cut the failure off, "Some tests are still failing." is spoken in its place.
+
 ## Consequences
 
 - A turn that ends with failing tests is spoken as such whichever model writes the detail, at the cost of the template's wording for models that leave it out. On these cases that's most of them, `granite4:micro` included.
