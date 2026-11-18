@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+import evals.run
 from cc_notify_tts.events import EventKind
 from cc_notify_tts.model_wording import ARGUMENT_CHARS, INPUT_CHARS
 from cc_notify_tts.ollama import NUM_CTX, OllamaError
@@ -167,6 +168,26 @@ def test_a_plain_detail_is_not_a_lead_in() -> None:
     assert not s.lead_in
 
 
+def test_a_lead_in_is_counted_even_when_the_guards_reject_the_answer() -> None:
+    answer = (
+        "Here's what was done: renamed the fetchUser helper to loadUser across all of the "
+        "14 files and then updated every single import."
+    )
+    s = score(case("finished-lead-in-inline"), answer)
+    assert not s.spoken and s.reason.endswith("not 2 to 20")
+    assert s.lead_in
+
+
+def test_a_question_that_echoes_its_lead_in_is_flagged() -> None:
+    answer = "Before I continue: should the migration run on deploy or by hand?"
+    assert score(case("question-lead-in"), answer).lead_in
+
+
+def test_an_accurate_answer_naming_the_old_value_isnt_invented() -> None:
+    s = score(case("permission-edit-setting"), "Change DEBUG from True to False in settings.py")
+    assert s.passed
+
+
 def test_the_suffix_for_more_questions_doesnt_count_toward_length() -> None:
     s = score(case("question-two-questions"), "Should dates be ISO 8601 strings or timestamps?")
     assert s.detail is not None and s.detail.endswith("And one more question.")
@@ -294,6 +315,32 @@ def test_a_model_loaded_before_the_run_stays_loaded() -> None:
     assert "unload" not in client.calls
 
 
+def test_a_failed_warm_up_still_unloads_the_model() -> None:
+    client = FakeOllama({"Renamed the settings page": "fail"})
+    with pytest.raises(OllamaError):
+        run_model(client, "tiny:1b", [case("finished-backoff")])
+    assert client.calls == ["load", "chat", "unload"]
+
+
+def test_a_missing_model_is_skipped_and_the_others_are_written(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class Missing(FakeOllama):
+        def load(self, model: str) -> None:
+            if model == "missing:1b":
+                raise OllamaError("model not found")
+            super().load(model)
+
+    def client(endpoint: str) -> Missing:
+        return Missing({})
+
+    monkeypatch.setattr(evals.run, "Ollama", client)
+    monkeypatch.setattr(evals.run, "machine_class", lambda: "Apple M1, 16 GiB, macOS 27.0")
+    assert evals.run.main(["missing:1b", "tiny:1b", "--out", str(tmp_path)]) == 1
+    (written,) = tmp_path.glob("*.json")
+    assert [r.model for r in load_results(written).runs] == ["tiny:1b"]
+
+
 # Results and reports
 
 
@@ -329,7 +376,7 @@ def test_the_report_has_the_table_and_the_failures() -> None:
     text = render(results("Added backoff to the fetcher."))
     assert text.startswith("# Wording eval, 2026-11-18\n")
     assert "Ollama 0.0.1 on Apple M1, 16 GiB, macOS 27.0. 2 cases" in text
-    assert "| `tiny:1b` | 1/2 (50%) | 2/2 (100%) | 1/2 (50%) | 0 | 0 | 0 |" in text
+    assert "| `tiny:1b` | 1/2 (50%) | 2/2 (100%) | 1/2 (50%) | 0 | 0 | 0 | 0 |" in text
     assert "| `tiny:1b` | `abc123` | 2048 | 1.00 GiB | 1.00 GiB | 0 | 2.5 |" in text
     assert "| `question-retries` | missing 'retr*' | Did something. |" in text
 

@@ -12,6 +12,7 @@ Writes `evals/results/<date>.md` and the raw results beside it as `.json`.
 """
 
 import argparse
+import contextlib
 import json
 import os
 import subprocess
@@ -67,35 +68,40 @@ def run_model(
 ) -> ModelRun:
     load = load_average()
     was_loaded = client.running(model) is not None
-    client.load(model)
-    warm_up = request_for(_WARM_UP)
-    if warm_up is None:
-        raise AssertionError("the warm-up notification has no model request")
-    start = clock()
-    client.chat(model, warm_up.system, warm_up.user, timeout=CHAT_TIMEOUT, max_tokens=MAX_TOKENS)
-    warm_up_ms = (clock() - start) * 1000
-
-    latencies: list[float] = []
-    scores: list[Score] = []
-    for case in cases:
+    try:
+        client.load(model)
+        warm_up = request_for(_WARM_UP)
+        if warm_up is None:
+            raise AssertionError("the warm-up notification has no model request")
         start = clock()
-        try:
-            answer = client.chat(
-                model,
-                case.request.system,
-                case.request.user,
-                timeout=CHAT_TIMEOUT,
-                max_tokens=MAX_TOKENS,
-            )
-        except OllamaError as e:
-            scores.append(failed(case, str(e)))
-        else:
-            scores.append(score(case, answer))
-        latencies.append((clock() - start) * 1000)
+        client.chat(
+            model, warm_up.system, warm_up.user, timeout=CHAT_TIMEOUT, max_tokens=MAX_TOKENS
+        )
+        warm_up_ms = (clock() - start) * 1000
 
-    entry = client.running(model) or {}
-    if not was_loaded:
-        client.unload(model)
+        latencies: list[float] = []
+        scores: list[Score] = []
+        for case in cases:
+            start = clock()
+            try:
+                answer = client.chat(
+                    model,
+                    case.request.system,
+                    case.request.user,
+                    timeout=CHAT_TIMEOUT,
+                    max_tokens=MAX_TOKENS,
+                )
+            except OllamaError as e:
+                scores.append(failed(case, str(e)))
+            else:
+                scores.append(score(case, answer))
+            latencies.append((clock() - start) * 1000)
+        entry = client.running(model) or {}
+    finally:
+        # Leave Ollama as it was, even when the run fails part way.
+        if not was_loaded:
+            with contextlib.suppress(OllamaError):
+                client.unload(model)
     return ModelRun(
         model=model,
         digest=_str(entry.get("digest")),
@@ -154,13 +160,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         counts[case.kind.value] = counts.get(case.kind.value, 0) + 1
 
     runs: list[ModelRun] = []
+    failures = 0
     for model in args.models:
         print(f"{model}: {len(cases)} cases…", file=sys.stderr)
         try:
             runs.append(run_model(client, model, cases))
         except OllamaError as e:
-            print(f"{model}: {e}", file=sys.stderr)
-            return 1
+            # Keep the other models' results; this one is left out of the table.
+            print(f"{model}: skipped: {e}", file=sys.stderr)
+            failures += 1
+    if not runs:
+        return 1
     results = Results(
         date=date.today().isoformat(),
         ollama_version=version,
@@ -171,7 +181,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         runs=tuple(runs),
     )
     print(write_results(results, args.out))
-    return 0
+    return 1 if failures else 0
 
 
 def _command(*args: str) -> str:

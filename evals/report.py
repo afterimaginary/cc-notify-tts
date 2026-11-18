@@ -25,15 +25,17 @@ def render(results: Results) -> str:
         "## Results",
         "",
         "| Model | Pass | Spoken | Detail kept | Invented | Over length | Lead-ins spoken "
+        "| Lead-ins rejected "
         f"| p50 ms | p95 ms | Over {BUDGET_MS / 1000:g} s | Resident |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     summaries = [(run, run.summary()) for run in results.runs]
     for run, s in summaries:
         lines.append(
             f"| `{run.model}` | {_share(s.passed, s.cases)} | {_share(s.spoken, s.cases)} "
             f"| {_share(s.kept, s.cases)} | {s.invented} | {s.over_length} "
-            f"| {s.lead_ins_spoken} | {s.p50_ms:.0f} | {s.p95_ms:.0f} | {s.over_budget} "
+            f"| {s.lead_ins_spoken} | {s.lead_ins_rejected} "
+            f"| {s.p50_ms:.0f} | {s.p95_ms:.0f} | {s.over_budget} "
             f"| {_gib(run.resident_bytes)} |"
         )
     words = ", ".join(f"{k} {v}" for k, v in PROMPT_WORDS.items())
@@ -48,8 +50,9 @@ def render(results: Results) -> str:
         "claim, name or number).",
         "- **Over length:** spoken, but longer than the prompt asks.",
         "- **Lead-ins spoken:** spoken details that open by introducing themselves "
-        '("Here\'s what was done: …"). Lead-ins with nothing after them are rejected and '
-        "counted under guard rejections.",
+        '("Here\'s what was done: …"), which is accurate but wordy.',
+        "- **Lead-ins rejected:** answers that open with a lead-in and that the guards "
+        "rejected, for any reason (nothing after it, too long, a pronoun).",
         f"- **Over {BUDGET_MS / 1000:g} s:** requests slower than the daemon's wording "
         "timeout, which would have spoken the template.",
         "",

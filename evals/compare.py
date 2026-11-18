@@ -46,6 +46,7 @@ def _model(a: ModelRun, b: ModelRun) -> list[str]:
         ("Invented", sa.invented, sb.invented),
         ("Over length", sa.over_length, sb.over_length),
         ("Lead-ins spoken", sa.lead_ins_spoken, sb.lead_ins_spoken),
+        ("Lead-ins rejected", sa.lead_ins_rejected, sb.lead_ins_rejected),
     ):
         lines.append(f"| {name} | {x} | {y} | {y - x:+d} |")
     for name, x, y in (

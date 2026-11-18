@@ -21,12 +21,12 @@ The daemon may let a local Ollama model write a notification's detail behind gua
 
 ## Noise band
 
-`llama3.2:3b` (digest `a80c4f17acd5…`), Ollama 0.40.16, Apple M3 Max with 48 GiB, macOS 27.2.1, with other work running (load average 4–5). Four runs of the same 48 prompts, each loading the model afresh: two before the final `required` lists were settled and two after (`evals/results/2026-11-18.md` and `2026-11-18-2.md`). The prompts were the same in all four.
+`llama3.2:3b` (digest `a80c4f17acd5…`), Ollama 0.40.16, Apple M3 Max with 48 GiB, macOS 27.2.1, with other work running (load average 4.5–5.2). Six runs of the same 48 prompts, each loading the model afresh: four while the cases' `required` and `forbidden` lists were still being settled, and the two committed with the final lists (`evals/results/2026-11-18.md` and `2026-11-18-2.md`). The prompts were the same in all six.
 
-| | Spread over four runs |
+| | Spread over six runs |
 | --- | --- |
 | Answers that differ between any two runs | 0 of 48 |
-| Pass, spoken, kept, invented, over length, lead-ins | identical (40, 48, 42, 2, 0, 0 in the last two) |
+| Pass, spoken, kept, invented, over length, lead-ins | identical in runs scored with the same lists (40, 48, 42, 2, 0, 0 in the committed two) |
 | p50 latency | 162–168 ms (±2% around the middle) |
 | p95 latency | 214–218 ms (±1%) |
 | Warm-up | 210–230 ms |
@@ -42,4 +42,4 @@ The daemon may let a local Ollama model write a notification's detail behind gua
 - `make eval MODELS=…` gives #19 a pass rate, failing answers, latency and memory for each candidate, with nothing left to judgement except reading why answers failed.
 - The checks are only as good as the cases' `required` and `forbidden` lists. A first version that accepted any topic word passed 47 of 48 `llama3.2:3b` answers, including "Reset the repository to the last commit three times" for `git reset --hard HEAD~3`. Tightening `required` to the fact that matters brought it to 40, every remaining failure a real one. New cases need the same care.
 - `llama3.2:3b` produced no lead-ins on this set. The count is in every report, so the guard can be tightened if another model does.
-- No request in these runs exceeded the default 1 s wording timeout. The slowest, 0.61 s in both runs, was the final message cut at the 4000-character cap, as ADR-0003 predicted for a 3 B model with long input.
+- No request in these runs exceeded the default 1 s wording timeout. The slowest, 0.61 s in each committed run, was the final message cut at the 4000-character cap, as ADR-0003 predicted for a 3 B model with long input.

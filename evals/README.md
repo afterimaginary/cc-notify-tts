@@ -39,7 +39,7 @@ Every answer goes through the daemon's own guards (`model_wording.guard`, ADR-00
 | Nothing invented | The spoken detail contains none of the case's `forbidden` phrases. The guards already reject names and numbers missing from the input; `forbidden` catches wrong claims they can't see, such as "added Redis" when the input says Redis wasn't used. |
 | Length | The detail (without code's own "And one more question.") is no longer than the prompt asks: 15 words for a finished turn or a question, 10 for a permission. The guards allow a little more. |
 
-An answer **passes** when it's spoken, keeps the detail, invents nothing and fits the length. The report also counts lead-ins ("Here's what was done: …"): spoken details that open by introducing themselves, and answers the guards rejected for being nothing but one.
+An answer **passes** when it's spoken, keeps the detail, invents nothing and fits the length. The report also counts lead-ins ("Here's what was done: …"): answers that open by introducing themselves, both those spoken anyway (accurate but wordy) and those the guards rejected for any reason.
 
 Matching ignores case, curly quotes and hyphens ("force-push" matches `force push`) and works on whole words. A phrase ending in `*` matches any word that starts with it: `retr*` matches "retry" and "retries".
 

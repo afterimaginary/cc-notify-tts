@@ -74,7 +74,7 @@
       }
     },
     "required": [["debug"], ["off", "disabl*", "false"]],
-    "forbidden": ["delete*", "enable debug", "turn on debug", "true"]
+    "forbidden": ["delete*", "enable debug", "turn on debug", "debug on"]
   },
   {
     "id": "permission-web-fetch",

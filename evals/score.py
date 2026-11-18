@@ -19,13 +19,14 @@ from evals.cases import Case
 
 # The length each prompt asks for, in words (the prompts in `model_wording`).
 PROMPT_WORDS = {EventKind.FINISHED: 15, EventKind.QUESTION: 15, EventKind.PERMISSION: 10}
-# A spoken detail that opens by introducing itself ("Here's what was done: …").
-# Accurate, but wordy when spoken. A lead-in with nothing after it is rejected
-# by the guards instead, and counted with the rejections.
+# An answer that opens by introducing itself ("Here's what was done: …"),
+# whether or not anything follows the colon. Spoken, it's accurate but wordy;
+# the guards reject one with nothing after it, or one that's too long.
 _LEAD_IN = re.compile(
     r"^\W*(?:here(?:'s| is| are)|this is|these are|in summary|in short|to recap|summary|"
-    r"overall|so|okay|ok|sure|done|all set|result|changes|update|what was done)\b"
-    r"[^:]{0,40}:\s*\S",
+    r"overall|so|okay|ok|sure|done|all set|result|changes|update|what was done|"
+    r"before i (?:continue|go on|proceed|start)|quick question|one question|first)\b"
+    r"[^:\n]{0,40}:",
     re.IGNORECASE,
 )
 _QUOTES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"'})
@@ -46,6 +47,8 @@ class Score:
     invented: tuple[str, ...] = ()
     # Words in the detail, without code's own suffix ("And one more question.").
     words: int = 0
+    # The answer opens with a lead-in: the spoken detail if the guards passed it,
+    # the raw answer's first line if they didn't.
     lead_in: bool = False
 
     @property
@@ -81,7 +84,9 @@ class Score:
 def score(case: Case, answer: str) -> Score:
     checked = guard(answer, case.request, case.wording, case.project)
     if checked.detail is None:
-        return Score(case.id, case.kind, answer, None, checked.reason)
+        lines = [line for line in answer.splitlines() if line.strip()]
+        lead_in = bool(lines) and _is_lead_in(lines[0])
+        return Score(case.id, case.kind, answer, None, checked.reason, lead_in=lead_in)
     body = checked.detail
     if case.request.suffix:
         body = body.removesuffix(case.request.suffix).strip()
@@ -94,8 +99,12 @@ def score(case: Case, answer: str) -> Score:
         missing=tuple(g[0] for g in case.required if not any(contains(body, a) for a in g)),
         invented=tuple(f for f in case.forbidden if contains(body, f)),
         words=len(body.split()),
-        lead_in=_LEAD_IN.match(body.translate(_QUOTES)) is not None,
+        lead_in=_is_lead_in(body),
     )
+
+
+def _is_lead_in(text: str) -> bool:
+    return _LEAD_IN.match(text.translate(_QUOTES)) is not None
 
 
 def failed(case: Case, error: str) -> Score:
@@ -147,7 +156,7 @@ class Summary:
     kept: int
     invented: int
     over_length: int
-    # Spoken details that open with a lead-in, and answers rejected for being only one.
+    # Answers that open with a lead-in, spoken anyway or rejected by the guards.
     lead_ins_spoken: int
     lead_ins_rejected: int
     p50_ms: float
@@ -173,8 +182,8 @@ def summarize(scores: Sequence[Score], latencies_ms: Sequence[float], budget_ms:
         kept=sum(s.kept for s in scores),
         invented=sum(bool(s.invented) for s in scores),
         over_length=sum(s.spoken and not s.within_length for s in scores),
-        lead_ins_spoken=sum(s.lead_in for s in scores),
-        lead_ins_rejected=rejected["lead-in"],
+        lead_ins_spoken=sum(s.lead_in and s.spoken for s in scores),
+        lead_ins_rejected=sum(s.lead_in and not s.spoken for s in scores),
         p50_ms=percentile(latencies_ms, 50),
         p95_ms=percentile(latencies_ms, 95),
         over_budget=sum(ms > budget_ms for ms in latencies_ms),
