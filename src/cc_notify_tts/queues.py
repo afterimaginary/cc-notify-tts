@@ -37,9 +37,13 @@ class Received:
 
 @dataclass(frozen=True)
 class Heard:
-    """A "still running" or "finished" announcement for this session actually played."""
+    """A "still running" or "finished" announcement for this session has ended.
+
+    `played` is False when it was dropped without playing: replaced, stale or failed.
+    """
 
     session_id: str
+    played: bool = True
 
 
 @dataclass(order=True)

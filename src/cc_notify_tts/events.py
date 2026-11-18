@@ -49,6 +49,9 @@ class Notification:
     background: tuple[BackgroundItem, ...]
     # Bundle id of the app the session runs in, or "" if it's unknown.
     host_app: str = ""
+    # A `background_done` that waits for this session's "still running" or
+    # "finished", still queued or playing, to play first (ADR-0026).
+    after_announcement: bool = False
 
 
 def classify(
@@ -56,11 +59,14 @@ def classify(
     payload: Mapping[str, Any],
     now: float,
     host_app: str | None = None,
+    announcing: bool = False,
 ) -> Notification | None:
     """Apply one hook payload to its session and return the notification, if any.
 
     `host_app` is the session's host app as the hook shim named it, sent with
     the event; when given, it replaces the one on record (ADR-0006).
+    `announcing` says a "still running" or "finished" for this session is
+    queued or playing, so whether it's heard isn't known yet (ADR-0026).
     """
     session_id = _str(payload, "session_id")
     event = _str(payload, "hook_event_name")
@@ -90,7 +96,7 @@ def classify(
     elif event == "UserPromptSubmit":
         _user_prompt(state, payload, now)
     elif event == "Stop":
-        kind, announce = _stop(state, payload)
+        kind, announce = _stop(state, payload, announcing)
     elif event == "StopFailure":
         state.turn_open = False
         kind = EventKind.FAILED
@@ -102,6 +108,7 @@ def classify(
 
     if kind is not None and _is_duplicate(state, kind, now):
         kind = None
+        state.background_done_owed = False
     store.save(state)
     if event == "SessionEnd":
         store.prune(now)
@@ -116,7 +123,32 @@ def classify(
         turn_seconds=None if state.turn_started_at is None else now - state.turn_started_at,
         background=announce,
         host_app=state.host_app,
+        after_announcement=kind is EventKind.BACKGROUND_DONE and state.background_done_owed,
     )
+
+
+def announcement_ended(
+    store: SessionStore, session_id: str, played: bool, more_coming: bool
+) -> bool:
+    """A "still running" or "finished" for the session played, or was dropped unplayed.
+
+    Returns whether the `background_done` a wake-up `Stop` left waiting on it
+    (`Notification.after_announcement`) is now due. When nothing waits, a played
+    announcement is recorded as heard. A dropped one with `more_coming`, another
+    announcement for the session still queued or playing, leaves the wait to that.
+    """
+    state = store.load(session_id)
+    if state is None:
+        return False
+    if not state.background_done_owed:
+        if played:
+            store.mark_still_running_heard(session_id)
+        return False
+    if not played and more_coming:
+        return False
+    state.background_done_owed = False
+    store.save(state)
+    return played
 
 
 def _user_prompt(state: SessionState, payload: Mapping[str, Any], now: float) -> None:
@@ -135,10 +167,11 @@ def _user_prompt(state: SessionState, payload: Mapping[str, Any], now: float) ->
     state.turn_open = True
     # The user is back and typing, so whatever they heard before is moot.
     state.still_running_heard = False
+    state.background_done_owed = False
 
 
 def _stop(
-    state: SessionState, payload: Mapping[str, Any]
+    state: SessionState, payload: Mapping[str, Any], announcing: bool
 ) -> tuple[EventKind | None, tuple[BackgroundItem, ...]]:
     """The Stop's notification, and for STILL_RUNNING the work it announces."""
     live = _live_background(payload)
@@ -150,6 +183,9 @@ def _stop(
         own_turn = state.turn_open
     if _is_stale(state, prompt_id, live_ids, own_turn):
         return None, ()
+    # A newer Stop settles any background done still waiting on an announcement.
+    state.background_done_owed = False
+    had_background = bool(state.background)
 
     # A wake-up turn is known from its prompt, or, if that hasn't arrived yet,
     # from a Stop outside the user's turn while background work was live.
@@ -174,10 +210,16 @@ def _stop(
     if wake_up:
         # A wake-up turn after background work: only the end of all of it matters,
         # and only if the user heard that it was still running.
-        if live or not state.still_running_heard:
+        if live:
             return None, ()
-        state.still_running_heard = False
-        return EventKind.BACKGROUND_DONE, ()
+        if state.still_running_heard:
+            state.still_running_heard = False
+            return EventKind.BACKGROUND_DONE, ()
+        if announcing and had_background:
+            # The announcement may yet be heard: wait for it (ADR-0026).
+            state.background_done_owed = True
+            return EventKind.BACKGROUND_DONE, ()
+        return None, ()
     if unannounced:
         state.announced_background = announced + [item.id for item in unannounced]
         return EventKind.STILL_RUNNING, unannounced

@@ -45,7 +45,7 @@ from typing import Any, Protocol
 
 from cc_notify_tts import __version__, config, fire
 from cc_notify_tts.client import MAX_MESSAGE_BYTES, is_answering, socket_path
-from cc_notify_tts.events import EventKind, Notification, classify
+from cc_notify_tts.events import EventKind, Notification, announcement_ended, classify
 from cc_notify_tts.gate import Decision, MuteState, decide, read_presence
 from cc_notify_tts.model_wording import MODEL_EVENTS, write_detail
 from cc_notify_tts.mute import FILE_NAME as MUTE_FILE_NAME
@@ -72,6 +72,8 @@ CONNECTION_TIMEOUT = 2.0
 LOCK_WAIT_SECONDS = 3.0
 # Decisions kept for `status`.
 RECENT_DECISIONS = 20
+# Utterances whose playing counts as heard for "background done" (ADR-0007).
+ANNOUNCEMENTS = frozenset({EventKind.STILL_RUNNING, EventKind.FINISHED})
 
 
 def default_log_path() -> Path:
@@ -100,6 +102,15 @@ class Paths:
     @classmethod
     def default(cls) -> "Paths":
         return cls(socket_path(), default_state_dir(), config.default_config_path())
+
+
+@dataclass(frozen=True)
+class _Waiting:
+    """A "background done" held until the session's announcement plays (ADR-0026)."""
+
+    note: Notification
+    fired_at: float
+    timeline: Timeline
 
 
 @dataclass(frozen=True)
@@ -148,6 +159,10 @@ class Daemon:
         self._last_event_at = self._started_at
         self._speech = "loading"
         self._recent: deque[_Decided] = deque(maxlen=RECENT_DECISIONS)
+        # Event worker only: per session, announcements queued or playing, and
+        # the "background done" waiting on them.
+        self._announcing: dict[str, int] = {}
+        self._waiting: dict[str, _Waiting] = {}
 
     def stop(self) -> None:
         self._stop.set()
@@ -344,7 +359,7 @@ class Daemon:
                 if isinstance(item, Received):
                     self._handle_event(item)
                 elif isinstance(item, Heard):
-                    self._store.mark_still_running_heard(item.session_id)
+                    self._announcement_ended(item)
                 if isinstance(item, Received) or (
                     self._keep_warm is not None and self._keep_warm.ping_due()
                 ):
@@ -357,13 +372,43 @@ class Daemon:
 
     def _handle_event(self, event: Received) -> None:
         event.timeline.mark("dequeued")
-        note = classify(self._store, event.payload, event.fired_at, event.host_app)
+        session_id = event.payload.get("session_id")
+        announcing = isinstance(session_id, str) and session_id in self._announcing
+        note = classify(self._store, event.payload, event.fired_at, event.host_app, announcing)
         if note is None:
             event.timeline.finish("no notification")
             return
+        if note.after_announcement:
+            log.info(
+                "%s, %s: waiting for the announcement to play", project_name(note.cwd), note.kind
+            )
+            self._waiting[note.session_id] = _Waiting(note, event.fired_at, event.timeline)
+            return
+        self._gate_and_speak(note, event.fired_at, event.timeline)
+
+    def _gate_and_speak(self, note: Notification, fired_at: float, timeline: Timeline) -> None:
         cfg = config.load(self.paths.config).config
         decision = self._decide(note, cfg)
-        self._speak_if_allowed(note, cfg, decision, event.fired_at, event.timeline)
+        text = self._speak_if_allowed(note, cfg, decision, fired_at, timeline)
+        if text is not None and note.kind in ANNOUNCEMENTS:
+            self._announcing[note.session_id] = self._announcing.get(note.session_id, 0) + 1
+
+    def _announcement_ended(self, heard: Heard) -> None:
+        """Count a session's announcement done, and speak a "background done" now due."""
+        session_id = heard.session_id
+        left = self._announcing.pop(session_id, 0) - 1
+        if left > 0:
+            self._announcing[session_id] = left
+        due = announcement_ended(self._store, session_id, heard.played, more_coming=left > 0)
+        if not due and left > 0:
+            return
+        waiting = self._waiting.pop(session_id, None)
+        if waiting is None:
+            return
+        if due:
+            self._gate_and_speak(waiting.note, waiting.fired_at, waiting.timeline)
+        else:
+            waiting.timeline.finish("no longer due")
 
     def _decide(self, note: Notification, cfg: config.Config) -> Decision:
         presence = read_presence(note.host_app, self._read_idle(), self._tracker, time.monotonic())
@@ -407,6 +452,10 @@ class Daemon:
         if replaced is not None:
             log.info("replaced pending %r with a newer message", replaced.text)
             replaced.timeline.finish("replaced")
+            if replaced.kind in ANNOUNCEMENTS:
+                # This may run on a socket thread (`fire`), so the event worker
+                # hears of it through the inbox.
+                self._inbox.put_heard(Heard(replaced.session_id, played=False))
         return utterance.text
 
     def _model_detail(
@@ -464,12 +513,15 @@ class Daemon:
             utterance = self._slot.take(timeout=0.5)
             if utterance is None:
                 continue
+            played = False
             try:
                 played = self._say(speaker, utterance)
             finally:
+                # Before `done`, so the idle check never sees nothing left to do
+                # while this is still on its way to the event worker.
+                if utterance.kind in ANNOUNCEMENTS:
+                    self._inbox.put_heard(Heard(utterance.session_id, played))
                 self._slot.done()
-            if played and utterance.kind in (EventKind.STILL_RUNNING, EventKind.FINISHED):
-                self._inbox.put_heard(Heard(utterance.session_id))
 
     def _say(self, speaker: Speaker | None, utterance: Utterance) -> bool:
         timeline = utterance.timeline
