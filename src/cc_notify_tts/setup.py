@@ -89,6 +89,7 @@ def _fetch_models(dest: Path) -> None:
     try:
         models.fetch_all(dest, say=lambda line: print(f"  {line}"), progress=_progress)
     except models.DownloadError as e:
+        print()  # end a progress line the failure cut short
         raise StepError(f"{e}. Check your connection and run `cc-notify-tts setup` again.") from e
     except OSError as e:
         raise StepError(f"couldn't write to {dest}: {e}") from e

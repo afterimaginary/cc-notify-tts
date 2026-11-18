@@ -7,9 +7,7 @@ and an audio device. Not part of `make ready` or `make verify`.
 
     uv run python spikes/kokoro_listening/listen.py [--voice af_heart]
 
-The fp32 file isn't downloaded by `setup`. If it's missing, fetch it with:
-
-    uv run --script spikes/kokoro_latency/kokoro_latency.py --download
+The fp32 file isn't downloaded by `setup`. ADR-0012 has the command to fetch it.
 """
 
 import argparse
