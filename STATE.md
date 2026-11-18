@@ -16,6 +16,7 @@ The repository is set up: brief, build policy, Python toolchain, `make ready` / 
 
 ## Recently Done
 
+- Spike: a daemon started from a hook outlives its session and runs at foreground priority, so it starts on demand (ADR-0001) (#3)
 - Repository setup
 
 ## Up Next
