@@ -1,5 +1,5 @@
 ---
-description: The finished prompt tells the model to start with "Explained" when nothing was changed and the message only answers a question, and to say so when it stopped partway to ask the user; with granite4:micro, the answer-only eval cases go from 1 of 3 to 2 of 3 passing, both stop-and-ask cases keep the stop, and the pass count goes from 46 to 47 of 60.
+description: The finished prompt tells the model to start with "Explained" when nothing was changed and the message only answers a question, and to say so when it stopped partway to ask the user; with granite4:micro, the answer-only eval cases go from 1 of 3 to 2 of 3 passing, both stop-and-ask cases keep the stop or the question, and the pass count goes from 46 to 47 of 60.
 status: accepted
 ---
 
@@ -49,6 +49,6 @@ The guards (ADR-0015) check names, numbers, length and failing tests (ADR-0021),
 ## Consequences
 
 - With the default model, most answer-only turns are spoken as "Finished up in weather app. Explained …", which says what happened. One whose message talks about how to change something can still be worded as a change.
-- A turn that stops partway to ask the user is spoken with the stop or the question. That's the same as before this change, and two eval cases now require it.
+- A turn that stops partway to ask the user is spoken with the stop or the question, and two eval cases now require one of them. With the question alone ("Explained the issue with the orders table and asked about deletion or backfilling."), the listener hears that Claude is waiting but not that the work started and stopped, which "Stopped database migration…" said before this change.
 - Prompt wording moves a small model's answers on unrelated cases too. A later prompt change needs the same before-and-after run, and its failing answers read, not only the counts.
 - Other models may ignore these sentences, as `llama3.2:3b` does. A user who picks another model gets the same behaviour as before for these turns.

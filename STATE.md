@@ -22,7 +22,7 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured
 
 ## Recently Done
 
-- A turn that only answers a question is no longer worded as work done: the finished prompt asks for "Explained …" when nothing changed and to say so when a turn stopped to ask; four eval cases, `granite4:micro` 46 to 47 of 60, with one answer-only case still worded as a change (ADR-0036) (#63)
+- A turn that only answers a question is no longer worded as work done: the finished prompt asks for "Explained …" when nothing changed and to say so when a turn stops to ask (the stop or the question is kept); four eval cases, `granite4:micro` 46 to 47 of 60, with one answer-only case still worded as a change (ADR-0036) (#63)
 - The failing-tests check reads more phrasings ("the suite still has 2 failures", "still red", "test_a is failing"), ties "still broken" to tests, keeps what failed when it cuts a long sentence, and the guard checks the whole message; three eval cases, `granite4:micro` unchanged at 44 (ADR-0033) (#62)
 - Ollama is asked at `OLLAMA_HOST` when it names this machine; one on another machine is ignored with a log line, and `doctor` shows the address in use (ADR-0029) (#44)
 - A detached tmux session no longer keeps the host app it was last attached from: the shim sends the host as unknown and the daemon clears it, so the gate speaks (ADR-0030) (#47)
