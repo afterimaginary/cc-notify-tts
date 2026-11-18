@@ -58,7 +58,7 @@ _LABEL = re.compile(r"#+\s.*|(\*\*|__)[^*_]+\1:?|.*:")
 # after anything else is content ("Fixed the parser: it dropped tokens", "Test run:
 # 2 failed").
 _LEAD_IN = re.compile(
-    r"(?:here(?:['\u2019]s| is| are)\b[^:]{0,40}"
+    r"(?:here(?:['\u2019]s| is| are)\b[^:]{0,60}"
     r"|in summary|in short|to recap|tl;?dr|what (?:was done|changed|i did)"
     r"|summary|overall|done|all done|all set|results?|changes|update|note"
     r"):\s+",
@@ -235,10 +235,7 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
     """
     message = _text(payload, "last_assistant_message")
     text = plain(_opening(message))
-    sentence = first_sentence(text) if text else ""
-    # Only what an inline lead-in introduces is spoken ("Here's what was done: renamed it.").
-    if lead_in := _LEAD_IN.match(sentence):
-        sentence = capitalize(sentence[lead_in.end() :])
+    sentence = _without_lead_in(first_sentence(text)) if text else ""
     # A lead-in to a list ("Here's what changed:") says nothing on its own.
     detail = (
         end_sentence(_cap_words(sentence, MESSAGE_WORDS))
@@ -249,7 +246,7 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
     if failing is None or (detail is not None and admits_failure(detail)):
         return detail
     # Never repeat what the detail already says.
-    if detail is not None and failing.lower() in detail.lower():
+    if detail is not None and _without_lead_in(failing).lower() in detail.lower():
         return detail
     cut = len(failing.split()) > MESSAGE_WORDS
     failing = end_sentence(_cap_words(failing, MESSAGE_WORDS))
@@ -259,6 +256,12 @@ def _message_detail(payload: Mapping[str, Any]) -> str | None:
     if detail is not None and len(detail.split()) + len(failing.split()) <= MESSAGE_WORDS:
         return f"{detail} {capitalize(failing)}"
     return capitalize(failing)
+
+
+def _without_lead_in(sentence: str) -> str:
+    """Only what an inline lead-in introduces ("Here's what was done: renamed it.")."""
+    lead_in = _LEAD_IN.match(sentence)
+    return capitalize(sentence[lead_in.end() :]) if lead_in else sentence
 
 
 def failing_tests(message: str) -> str | None:

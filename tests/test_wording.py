@@ -11,6 +11,7 @@ from cc_notify_tts.events import EventKind, Notification, classify
 from cc_notify_tts.sessions import BackgroundItem, SessionStore
 from cc_notify_tts.wording import (
     Wording,
+    capitalize,
     describe_action,
     failing_tests,
     first_sentence,
@@ -331,10 +332,22 @@ def test_finished_detail_after_a_lead_in(message: str, detail: str | None) -> No
     assert word(note(EventKind.FINISHED, {"last_assistant_message": message})).detail == detail
 
 
-def test_failing_tests_after_an_inline_lead_in() -> None:
-    assert finished_text("Here's where things stand: 2 tests still fail.") == (
-        "Finished up in weather app. 2 tests still fail."
-    )
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Here's where things stand: 2 tests still fail.",
+        "Summary: 2 failed, 41 passed.",
+        "Here are the results: 2 failed, 41 passed.",
+    ],
+)
+def test_failing_tests_after_an_inline_lead_in_are_spoken_once(message: str) -> None:
+    after = message.partition(": ")[2]
+    assert finished_text(message) == f"Finished up in weather app. {capitalize(after)}"
+
+
+def test_a_long_here_lead_in() -> None:
+    message = "Here's a summary of the changes I made to the auth flow: renamed it."
+    assert finished_text(message) == "Finished up in weather app. Renamed it."
 
 
 def test_finished_without_detail() -> None:
