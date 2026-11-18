@@ -54,6 +54,8 @@ class SessionState:
     # Prompt id of the latest Stop, to ignore a UserPromptSubmit that arrives after it.
     last_stop_prompt_id: str | None = None
     background: list[BackgroundItem] = field(default_factory=list[BackgroundItem])
+    # Prompt ids of recent wake-up prompts (background work reporting back).
+    wake_prompt_ids: list[str] = field(default_factory=list[str])
     # Ids that were live at one Stop and gone at a later one.
     finished_background: list[str] = field(default_factory=list[str])
     still_running_heard: bool = False
@@ -109,8 +111,9 @@ class SessionStore:
                 states.append(state)
         return states
 
-    def open_sessions(self) -> list[SessionState]:
-        return [s for s in self.all() if s.open]
+    def open_sessions(self, now: float) -> list[SessionState]:
+        """Open sessions, leaving out ones silent for so long they're presumed gone."""
+        return [s for s in self.all() if s.open and now - s.last_event_at < STALE_OPEN_SECONDS]
 
     def mark_still_running_heard(self, session_id: str) -> None:
         """Record that a "still running" announcement actually played."""

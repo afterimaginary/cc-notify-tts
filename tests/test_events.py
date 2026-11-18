@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from cc_notify_tts.events import EventKind, Notification, classify
-from cc_notify_tts.sessions import CLOSED_GRACE_SECONDS, SessionStore
+from cc_notify_tts.sessions import CLOSED_GRACE_SECONDS, STALE_OPEN_SECONDS, SessionStore
 
 FIXTURES = Path(__file__).parent / "fixtures" / "hooks"
 SESSION = "5f0c2d1e-8a7b-4c3d-9e2f-1a2b3c4d5e6f"
@@ -146,6 +146,19 @@ def test_user_turn_ending_with_work_still_running(s: Session) -> None:
     assert s.kind("stop_background_running", prompt_id="p2") is EventKind.STILL_RUNNING
 
 
+def test_wake_up_after_work_finished_mid_turn_is_silent(s: Session) -> None:
+    s.send("user_prompt_submit", prompt_id="p1")
+    s.send("stop_background_running", prompt_id="p1")
+    # The user's next turn ends after the background work has already finished.
+    s.send("user_prompt_submit", prompt_id="p2")
+    assert s.kind("stop", prompt_id="p2") is EventKind.FINISHED
+    # The wake-up turns reporting that work aren't announced as finished again.
+    s.send("user_prompt_submit_task_notification", after=10.0, prompt_id="p3")
+    assert s.kind("stop_background_done", prompt_id="p3") is None
+    s.send("user_prompt_submit_agent_message", after=10.0, prompt_id="p4")
+    assert s.kind("stop_background_done", prompt_id="p4") is None
+
+
 def test_out_of_order_background_stops(s: Session) -> None:
     s.send("user_prompt_submit", prompt_id="p1")
     s.send("stop_background_running", prompt_id="p1")
@@ -215,14 +228,20 @@ def test_dedupe_is_per_kind_and_session(s: Session) -> None:
 def test_open_sessions(s: Session) -> None:
     s.send("session_start")
     s.send("session_start", session_id="second")
-    assert sorted(st.session_id for st in s.store.open_sessions()) == [SESSION, "second"]
+    assert sorted(st.session_id for st in s.store.open_sessions(s.now)) == [SESSION, "second"]
     s.send("session_end")
-    assert [st.session_id for st in s.store.open_sessions()] == ["second"]
+    assert [st.session_id for st in s.store.open_sessions(s.now)] == ["second"]
+
+
+def test_sessions_silent_for_a_day_are_not_open(s: Session) -> None:
+    s.send("session_start")
+    s.now += STALE_OPEN_SECONDS
+    assert s.store.open_sessions(s.now) == []
 
 
 def test_event_without_session_start_opens_the_session(s: Session) -> None:
     assert s.kind("stop") is EventKind.FINISHED
-    assert [st.session_id for st in s.store.open_sessions()] == [SESSION]
+    assert [st.session_id for st in s.store.open_sessions(s.now)] == [SESSION]
 
 
 def test_closed_sessions_are_pruned_after_grace(s: Session) -> None:
@@ -230,7 +249,7 @@ def test_closed_sessions_are_pruned_after_grace(s: Session) -> None:
     s.send("session_end")
     # A late async event in the grace period doesn't reopen the session.
     assert s.kind("stop_failure") is EventKind.FAILED
-    assert s.store.open_sessions() == []
+    assert s.store.open_sessions(s.now) == []
     assert s.store.load(SESSION) is not None
 
     # The next SessionEnd anywhere prunes it once the grace period is over.

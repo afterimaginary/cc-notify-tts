@@ -104,9 +104,12 @@ def classify(store: SessionStore, payload: Mapping[str, Any], now: float) -> Not
 
 def _user_prompt(state: SessionState, payload: Mapping[str, Any], now: float) -> None:
     prompt = (_str(payload, "prompt") or "").lstrip()
-    if prompt.startswith(WAKE_UP_PREFIXES):
-        return
     prompt_id = _str(payload, "prompt_id")
+    if prompt.startswith(WAKE_UP_PREFIXES):
+        if prompt_id is not None:
+            ids = [*state.wake_prompt_ids, prompt_id]
+            state.wake_prompt_ids = ids[-FINISHED_MEMORY:]
+        return
     if prompt_id is not None and prompt_id == state.last_stop_prompt_id:
         return  # Arrived after its own Stop.
     state.turn_started_at = now
@@ -127,7 +130,11 @@ def _stop(state: SessionState, payload: Mapping[str, Any]) -> EventKind | None:
         own_turn = prompt_id == state.turn_prompt_id
     else:
         own_turn = state.turn_open
-    had_background = bool(state.background)
+    # A wake-up turn is known from its prompt, or, if that hasn't arrived yet,
+    # from a Stop outside the user's turn while background work was live.
+    wake_up = (prompt_id is not None and prompt_id in state.wake_prompt_ids) or (
+        bool(state.background) and not own_turn
+    )
 
     gone = [item.id for item in state.background if item.id not in live_ids]
     state.finished_background = (state.finished_background + gone)[-FINISHED_MEMORY:]
@@ -136,7 +143,7 @@ def _stop(state: SessionState, payload: Mapping[str, Any]) -> EventKind | None:
     if own_turn:
         state.turn_open = False
 
-    if had_background and not own_turn:
+    if wake_up:
         # A wake-up turn after background work: only the end of all of it matters,
         # and only if the user heard that it was still running.
         if live or not state.still_running_heard:
