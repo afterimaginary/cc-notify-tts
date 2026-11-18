@@ -32,6 +32,8 @@ LOAD_TIMEOUT = 30.0
 # Reading /api/ps takes under 1 ms; anything slower means Ollama is in trouble.
 PS_TIMEOUT = 0.5
 UNLOAD_TIMEOUT = 2.0
+# Listing the pulled models, for `doctor`.
+TAGS_TIMEOUT = 2.0
 
 
 class OllamaError(Exception):
@@ -84,6 +86,19 @@ class Ollama:
         if not isinstance(version, str):
             raise OllamaError("the reply had no version")
         return version
+
+    def installed(self, model: str) -> bool:
+        """Whether `model` has been pulled, for `doctor`."""
+        reply = self._call("GET", "/api/tags", None, TAGS_TIMEOUT)
+        models: Any = reply.get("models")
+        return any(
+            isinstance(entry, dict)
+            and (
+                same_model(entry.get("name"), model)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+                or same_model(entry.get("model"), model)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+            )
+            for entry in (models if isinstance(models, list) else [])  # pyright: ignore[reportUnknownVariableType]
+        )
 
     def chat(self, model: str, system: str, user: str, *, timeout: float, max_tokens: int) -> str:
         body = {

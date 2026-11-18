@@ -9,7 +9,9 @@ import pytest
 from cc_notify_tts import __version__
 from cc_notify_tts.client import MAX_MESSAGE_BYTES
 from cc_notify_tts.daemon import Daemon, Paths
-from cc_notify_tts.queues import Received
+from cc_notify_tts.mute import MuteFile
+from cc_notify_tts.queues import Received, Utterance
+from cc_notify_tts.sessions import SessionState, SessionStore
 
 NOW = 1_000_000.0
 
@@ -149,3 +151,86 @@ def test_model_kept_warm_while_a_session_is_open_and_unloaded_after(tmp_path: Pa
     assert daemon._keep_warm is not None  # pyright: ignore[reportPrivateUsage]
     daemon._keep_warm.close()  # pyright: ignore[reportPrivateUsage]
     assert ollama.calls == [("chat", "tiny:1b"), ("load", "tiny:1b"), ("unload", "tiny:1b")]
+
+
+# --- fire -------------------------------------------------------------------------
+
+
+def pending(daemon: Daemon) -> Utterance | None:
+    return daemon._slot.snapshot()[1]  # pyright: ignore[reportPrivateUsage]
+
+
+def test_fire_always_queues_the_sample_sentence(daemon: Daemon) -> None:
+    reply = send(
+        daemon,
+        {"type": "fire", "event": "permission", "always": True, "cwd": "/src/weather-app"},
+    )
+    assert reply == {
+        "ok": True,
+        "speak": True,
+        "reason": "speaking: fired with --always",
+        "text": "Weather app needs your okay to run npm test.",
+        "speech": "loading",
+    }
+    utterance = pending(daemon)
+    assert utterance is not None
+    assert utterance.text == "Weather app needs your okay to run npm test."
+    assert utterance.fired_at == NOW
+
+
+def test_fire_goes_through_the_gate(tmp_path: Path) -> None:
+    paths = Paths(tmp_path / "d.sock", tmp_path / "state", tmp_path / "config.toml")
+    paths.config.write_text('[events.finished]\nspeak = "never"\n')
+    daemon = Daemon(paths, NoSpeaker, follow_front=False, clock=lambda: NOW)
+    reply = send(daemon, {"type": "fire", "event": "finished", "cwd": "/src/app"})
+    assert reply["speak"] is False
+    assert reply["reason"] == "silent: finished is set to never"
+    assert reply["text"] is None
+    assert pending(daemon) is None
+    recent = daemon.status()["recent"]
+    assert [(r["event"], r["reason"]) for r in recent] == [
+        ("finished", "silent: finished is set to never")
+    ]
+
+
+def test_fire_is_silent_while_the_mute_file_says_so(tmp_path: Path) -> None:
+    paths = Paths(tmp_path / "d.sock", tmp_path / "state", tmp_path / "config.toml")
+    MuteFile(paths.state / "mute").mute(None)
+    daemon = Daemon(paths, NoSpeaker, follow_front=False, clock=lambda: NOW)
+    reply = send(daemon, {"type": "fire", "event": "failed"})
+    assert reply["reason"] == "silent: muted"
+    # --always skips the whole gate, mute included.
+    assert send(daemon, {"type": "fire", "event": "failed", "always": True})["speak"] is True
+
+
+def test_fire_leaves_session_state_alone(daemon: Daemon) -> None:
+    send(daemon, {"type": "fire", "event": "still_running", "always": True})
+    assert not daemon.paths.state.exists() or not list(daemon.paths.state.glob("*.json"))
+    assert daemon.status()["sessions"] == []
+
+
+@pytest.mark.parametrize("event", [None, "shout", 3])
+def test_fire_needs_a_known_event(daemon: Daemon, event: Any) -> None:
+    reply = send(daemon, {"type": "fire", "event": event})
+    assert reply == {"ok": False, "error": f"unknown event: {event!r}"}
+
+
+def cold_fire(tmp_path: Path, session_open: bool) -> list[tuple[str, str]]:
+    """What a cold model is asked to do after a `fire --always finished`."""
+    ollama = FakeOllama("Fixed it.", context=None)
+    paths = Paths(tmp_path / "d.sock", tmp_path / "state", tmp_path / "config.toml")
+    if session_open:
+        SessionStore(paths.state).save(SessionState("s1", last_event_at=NOW))
+    daemon = Daemon(paths, NoSpeaker, follow_front=False, clock=lambda: NOW, ollama=ollama)
+    send(daemon, {"type": "fire", "event": "finished", "always": True})
+    assert daemon._keep_warm is not None  # pyright: ignore[reportPrivateUsage]
+    daemon._keep_warm.close()  # pyright: ignore[reportPrivateUsage]
+    return ollama.calls
+
+
+def test_fire_with_no_session_open_never_loads_the_model(tmp_path: Path) -> None:
+    assert cold_fire(tmp_path, session_open=False) == []
+
+
+def test_fire_with_a_session_open_loads_a_cold_model_for_next_time(tmp_path: Path) -> None:
+    assert ("load", "llama3.2:1b") in cold_fire(tmp_path, session_open=True)

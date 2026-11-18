@@ -18,13 +18,13 @@ from cc_notify_tts.presence import FrontTracker, app_name
 
 
 class MuteState(Protocol):
-    """Whether the user has muted notifications. The CLI's mute command owns it."""
+    """Whether the user has muted notifications. `mute.MuteFile` is the real one."""
 
     def is_muted(self) -> bool: ...
 
 
 class NeverMuted:
-    """Stands in until mute state exists."""
+    """For callers that don't track mute, such as tests."""
 
     def is_muted(self) -> bool:
         return False
