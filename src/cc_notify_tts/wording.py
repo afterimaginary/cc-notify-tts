@@ -88,10 +88,14 @@ _CHECK_WORDS = r"(?:tests?|specs?|suite|ci|build)"
 _CHECKS = rf"(?:{_CHECK_WORDS}|test_\w+|\w+_test)"
 # A test summary with failures: "2 failed, 41 passed" or "41 passed, 2 failed".
 _SUMMARY = r"\b[1-9]\d*\s+failed\W+\d+\s+passed\b|\b\d+\s+passed\W+[1-9]\d*\s+failed\b"
-# Up to six words within one clause, so "now pass but CI is still red" is read clause by clause.
-_SAME_CLAUSE = r"(?:\s+(?!(?:but|although|though|while|whereas)\b)[\w.'/-]+){0,6}?\s+"
 # Words that start a clause about something else ("a test for when login fails").
 _NOT_THE_TEST = r"(?:when|where|if|that|which|so|until|after|before|because)\b"
+# Up to six words of the same clause, about the same thing: "now pass but CI is still
+# red" is read clause by clause, and "a test that the banner is red" isn't a failure.
+_SAME_CLAUSE = (
+    r"(?:\s+(?!(?:but|although|though|while|whereas|checks?|verif\w*|asserts?|expects?"
+    rf"|ensures?|makes?)\b|{_NOT_THE_TEST})[\w.'/-]+){{0,6}}?\s+"
+)
 _TESTS_FAILING = re.compile(
     r"\bstill\s+fail\w*\b"
     # "Broken", "red" and "has N failures" only about tests: "the suite is still red".

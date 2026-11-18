@@ -22,7 +22,7 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); measured
 
 ## Recently Done
 
-- The failing-tests check reads more phrasings ("2 failures", "still red", "test_a is failing"), ties "still broken" to tests, keeps what failed when it cuts a long sentence, and the guard checks the whole message; three eval cases, `granite4:micro` unchanged at 44 (ADR-0033) (#62)
+- The failing-tests check reads more phrasings ("the suite still has 2 failures", "still red", "test_a is failing"), ties "still broken" to tests, keeps what failed when it cuts a long sentence, and the guard checks the whole message; three eval cases, `granite4:micro` unchanged at 44 (ADR-0033) (#62)
 - Ollama is asked at `OLLAMA_HOST` when it names this machine; one on another machine is ignored with a log line, and `doctor` shows the address in use (ADR-0029) (#44)
 - A detached tmux session no longer keeps the host app it was last attached from: the shim sends the host as unknown and the daemon clears it, so the gate speaks (ADR-0030) (#47)
 - Version 0.1.0 with release notes in `CHANGELOG.md`, the run's numbers in the README's "How this was built", and the repo's description, website and topics set; the plugin manifests stay unversioned (ADR-0014) (#23)

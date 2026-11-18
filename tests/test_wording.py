@@ -444,6 +444,9 @@ def test_failing_tests_are_found(message: str) -> None:
         "Added a test for the case where the upload fails.",
         "Made the error banner red.",
         "Added regression tests for the two failures reported in the issue.",
+        "Added a test that the error banner is red.",
+        "The snapshot test now checks the border is red.",
+        "Updated the build so the warning badge is red.",
     ],
 )
 def test_passing_tests_arent_failing(message: str) -> None:
