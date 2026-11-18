@@ -29,7 +29,7 @@ ADR-0021 made sure a turn that ends with failing tests is never spoken as a succ
 
 ## Results
 
-`make eval` with `granite4:micro` over 56 cases, the 53 of ADR-0021 and the three above, on Ollama 0.40.16, Apple M3 Max with 48 GiB, macOS 27.2.1. Before is `main`'s guards with the new cases (`evals/results/2026-11-18-7.md`), after is this change (`2026-11-18-8.md`).
+`make eval` with `granite4:micro` over 56 cases, the 53 of ADR-0021 and the three above, on Ollama 0.40.16, Apple M3 Max with 48 GiB, macOS 27.2.1. Before is `main`'s guards with the new cases (`evals/results/2026-11-18-7.md`), after is this change (`2026-11-18-8.md`). The before column is that run as it was recorded, scored with `main`'s guards at the time. Recorded runs are re-scored with the current guards, so the table on disk for `2026-11-18-7` may match the after run: the model's answers are the same in both.
 
 | | Before | After |
 | --- | --- | --- |
