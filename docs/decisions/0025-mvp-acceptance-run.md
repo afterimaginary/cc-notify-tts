@@ -173,7 +173,7 @@ Not failures: `status` and `doctor` report version 0.0.0 until the release sets 
 
 ## Manual checks not yet run
 
-Items 1–5 are tracked in #91, item 6 in #88, item 7 in #89 and item 8 in #90.
+Items 1–5 are tracked in #91, item 7 in #89 and item 8 in #90. Item 6 passed on 2026-11-19: no difference heard in five of five pairs (ADR-0012).
 
 These need a person, a fresh account or an app the run didn't use.
 

@@ -4,7 +4,7 @@
 
 ## Where We Are
 
-All four milestones are built and v0.1.0 is released. The plugin's hooks reach a local daemon that classifies each event, decides whether to speak from the config and live presence, words it with `granite4:micro` through Ollama (or a template) behind guards, and speaks it with Kokoro. The wording eval has 60 cases, and the default model passes 47 of them (ADR-0036). What's left is the manual checks that need a person (#88, #89, #90, #91) and the launch.
+All four milestones are built and v0.1.0 is released. The plugin's hooks reach a local daemon that classifies each event, decides whether to speak from the config and live presence, words it with `granite4:micro` through Ollama (or a template) behind guards, and speaks it with Kokoro. The wording eval has 60 cases, and the default model passes 47 of them (ADR-0036). What's left is the manual checks that need a person (#89, #90, #91). The int8 speech model passed a blind listening check (ADR-0012).
 
 How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); decisions and measured results are in [docs/decisions/](docs/decisions/).
 
@@ -32,8 +32,7 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); decision
 ## Up Next
 
 1. Run the acceptance checks that need a person (#91)
-2. Listen to int8 against fp32 Kokoro speech (#88)
-3. Check the hooks and daemon in the Claude desktop app (#89)
+2. Check the hooks and daemon in the Claude desktop app (#89)
 
 ## Needs Your Decision
 
