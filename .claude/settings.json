@@ -1,7 +1,4 @@
 {
-  "enabledPlugins": {
-    "orchestral@afterimaginary": true
-  },
   "hooks": {
     "SessionStart": [
       {
