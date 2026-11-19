@@ -1,5 +1,5 @@
 ---
-description: Ship Kokoro's int8 model (kokoro-v1.0.int8.onnx) instead of fp32, for 1.65× faster synthesis, about 300 MB less memory and a quarter of the download, pending a listening check (manual check not yet run, #88).
+description: Ship Kokoro's int8 model (kokoro-v1.0.int8.onnx) instead of fp32, for 1.65× faster synthesis, about 300 MB less memory and a quarter of the download; a blind listening check heard no difference in five of five pairs.
 status: accepted
 ---
 
@@ -28,9 +28,9 @@ ADR-0005 shipped fp32 because int8's speech quality hadn't been judged, and left
 - The daemon holds about 300 MB less while Claude Code runs.
 - `setup` downloads 120 MB instead of 354 MB.
 
-Speech quality is the open risk: nobody has compared the two by ear yet. Quantizing to int8 usually costs little for a model this size, but that's a reason to try it, not evidence. **A listening check confirms or reverses this decision** (#88). Reversing it is one change: `MODEL` in `src/cc_notify_tts/models.py` back to fp32's name, size and hash from ADR-0005.
+Speech quality was the open risk. Quantizing to int8 usually costs little for a model this size, but that's a reason to try it, not evidence, so a blind listening check below decided it. Reversing it is one change: `MODEL` in `src/cc_notify_tts/models.py` back to fp32's name, size and hash from ADR-0005.
 
-## Manual checks not yet run: listening check (#88)
+## Listening check
 
 Needs both model files in `~/Library/Application Support/cc-notify-tts/models/` and speakers or headphones.
 
@@ -46,8 +46,10 @@ Needs both model files in `~/Library/Application Support/cc-notify-tts/models/` 
 3. To hear another voice, add `--voice <name>`, such as `--voice am_adam`.
 4. Keep int8 unless fp32 wins clearly, say three or more of five. Then ship fp32 as described above.
 
+**Result, 2026-11-19:** run once with the default voice. All five pairs were judged `same` (fp32 0, int8 0, same 5), with A and B shuffled each time. int8 stays.
+
 ## Consequences
 
-- Faster speech and a smaller daemon on every Mac, for a quality difference not yet judged by ear (#88).
+- Faster speech and a smaller daemon on every Mac, with no quality difference heard in a blind check.
 - The opt-in test (`uv run pytest -m model`) and the daemon load whatever `MODEL` names, so a reversal touches no other code.
 - The fp16 file (177 MB) is still unmeasured; ADR-0005 explains why it's unlikely to help on the CPU provider.
