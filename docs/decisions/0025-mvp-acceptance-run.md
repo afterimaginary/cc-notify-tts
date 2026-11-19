@@ -1,5 +1,5 @@
 ---
-description: The brief's "Done means" was run on the build Mac from a clean install of this project; the three install commands, the spoken finished turn and permission request, and both hook-cost targets pass, the silent-while-active gate passes with input posted by the run, and `make eval` and template wording without the model pass in part, with the full eval, Ollama stopped, a fresh account and the other checks that need a person listed as manual checks not yet run (#91).
+description: The brief's "Done means" was run on a test Mac from a clean install of this project; the three install commands, the spoken finished turn and permission request, and both hook-cost targets pass, the silent-while-active gate passes with input posted by the run, and `make eval` and template wording without the model pass in part, with the full eval, Ollama stopped, a fresh account and the other checks that need a person listed as manual checks not yet run (#91).
 status: accepted
 ---
 
@@ -11,16 +11,16 @@ The brief's "Done means" lists seven checks, run on a Mac with only Homebrew and
 
 ## Method
 
-Run on 2026-11-18 on the build Mac: Apple M3 Max, 48 GiB, macOS 27.2.1, Claude Code 2.1.327, Ollama 0.40.16 with `granite4:micro` pulled, other Claude Code sessions running.
+Run on 2026-11-18 on a test Mac: Apple M3 Max, 48 GiB, macOS 27.2.1, Claude Code 2.1.327, Ollama 0.40.16 with `granite4:micro` pulled, other Claude Code sessions running.
 
 - **Clean state.** Before the run, the plugin and its marketplace weren't installed, `cc-notify-tts` wasn't a uv tool, and the data and log folders held only earlier files. Both folders were moved aside, so `setup` started from nothing, and were put back afterwards. `~/.local/bin` was already on `PATH`, and uv already had a Python 3.13 of its own.
 - **Fresh clone.** `git clone` of the repository at `a3128f5`, used for `make eval`. The install itself comes from GitHub, as the README says.
-- **Real sessions.** An interactive `claude` (Haiku 5.5) in a detached tmux pane, driven with `tmux send-keys`, in a throwaway two-file project named `weather-app`. With no terminal window attached, the app hosting the session was named through `__CFBundleIdentifier`, which is how a Terminal window names itself to its children: `com.apple.Terminal` for items 2 and 3, and `com.google.Chrome` (the app in front) for item 4. TMUX was cleared for the session, so the shim used that variable rather than tmux's client.
+- **Real sessions.** An interactive `claude` (Haiku 5.5) in a detached tmux pane, with prompts typed in by script, in a throwaway two-file project named `weather-app`. With no terminal window attached, the app hosting the session was named through `__CFBundleIdentifier`, which is how a Terminal window names itself to its children: `com.apple.Terminal` for items 2 and 3, and `com.google.Chrome` (the app in front) for item 4. TMUX was cleared for the session, so the shim used that variable rather than tmux's client.
 - **Away, for real.** Items 2 and 3 ran with Chrome in front and the Terminal-hosted session out of front, as if the user had switched to a browser.
 - **Active input.** Item 4 needs recent keyboard or mouse input. The run posted a mouse-moved event at the pointer's own position every 2 s (`CGEventPost`, nothing moves on screen), which CoreGraphics counts as input, so the idle reading was 0–2 s while the turn ran.
 - **Little sound.** With the plugin installed for the user, every Claude Code session on the Mac reaches the daemon. It was muted between checks and unmuted only while each check ran.
-- **What was spoken.** The daemon logged each gate decision but not the sentence. This PR adds a `queued` line with the text (see Failures), and the run's daemon was installed from that commit so the sentences below come from the log.
-- **Build tested.** `a3128f5` (main before #33's and #42's fixes merged) plus this PR's logging commit, installed with `uv tool install … git+https://github.com/afterimaginary/cc-notify-tts@issue-24` before the branch was rebased onto them. The plugin's hooks were `a3128f5`'s.
+- **What was spoken.** The daemon logged each gate decision but not the sentence. The change that adds a `queued` line with the text (see Failures) was installed for the run, so the sentences below come from the log.
+- **Build tested.** `a3128f5` (before #33's and #42's fixes) plus the logging change, installed with `uv tool install` from GitHub. The plugin's hooks were `a3128f5`'s.
 
 ## Results
 
@@ -105,17 +105,12 @@ Mute      off
 Config    ~/Library/Application Support/cc-notify-tts/config.toml (no file, so every setting is its default)
 Presence  last input 1 s ago (away after 20 s); com.google.Chrome in front
 
-Would it speak now? Sessions in the Claude app: cc notify tts
-  every event      speaking: the Claude app has been out of front for 190 s
-
 Would it speak now? Sessions in com.google.Chrome: weather app
   every event      silent: you were active 1 s ago and com.google.Chrome is in front
 
-Would it speak now? Sessions in an unknown app: cc notify tts
-  every event      speaking: can't tell which app the session runs in
 ```
 
-The other two groups are the other Claude Code sessions running on the Mac. With `[events.finished] speak = "always"` and the same presence, the next turn was spoken:
+With `[events.finished] speak = "always"` and the same presence, the next turn was spoken:
 
 ```
 weather app, finished: speaking: finished is set to always
@@ -126,7 +121,7 @@ The decision is right, but the detail isn't: that turn only described `convert.p
 
 ### 5. Template wording without the model
 
-Quitting the Ollama app wasn't allowed in this run, so the model was made unavailable a different way: `wording.model` was set to a model that isn't pulled, which sends every sentence down the same template path as a stopped Ollama (ADR-0003).
+Ollama kept running for the other sessions on the Mac, so the model was made unavailable a different way: `wording.model` was set to a model that isn't pulled, which sends every sentence down the same template path as a stopped Ollama (ADR-0003).
 
 ```
 weather app, finished: speaking: finished is set to always
@@ -168,7 +163,7 @@ The cold-start hook came in under 100 ms here, against ADR-0014's 116 ms p95 ove
 
 ## Failures
 
-- **The spoken sentence wasn't logged,** so a run couldn't show what was said. Fixed in this PR: the daemon logs `<project>, <event>: queued '<sentence>'` for each sentence it queues (daemon protocol spec, Log).
+- **The spoken sentence wasn't logged,** so a run couldn't show what was said. Fixed alongside this run: the daemon logs `<project>, <event>: queued '<sentence>'` for each sentence it queues (daemon protocol spec, Log).
 - **Model wording turned a description into a claimed action.** "Documented convert.py's three temperature conversion functions" was spoken for a turn that only read and described the file. The guards check names and numbers, not verbs (ADR-0015). Filed as #63.
 - **Reasons name most apps by bundle id.** `status` and the log say `com.google.Chrome` where they say "Terminal" or "the Claude app" for the apps the code knows. Filed as #64.
 - **A phonemizer warning on every sentence.** `WARNING phonemizer: words count mismatch on 100.0% of the lines (1/1)` is logged each time a sentence is synthesized. It's harmless, but it sits in the log `doctor` points to. Filed as #65.

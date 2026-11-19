@@ -83,8 +83,7 @@ On a Mac with only Homebrew, following the README:
    harness and fixtures, a model comparison that picks the default, and
    end-to-end latency instrumentation.
 4. Show and launch: README with a demo video produced by script (real speech
-   output, captions, YouTube-ready), eval and latency tables, "How this was
-   built", v0.1.0.
+   output, captions, YouTube-ready), eval and latency tables, v0.1.0.
 
 ## Non-goals
 

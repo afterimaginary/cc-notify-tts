@@ -67,7 +67,7 @@ uv tool install --managed-python --python 3.13 git+https://github.com/afterimagi
 
 The user's `settings.json` is changed only by Claude Code's own plugin command, as when installing any plugin.
 
-The owner approved this path, including the broader `setup`: it downloads the model, links the interpreters, installs the plugin (printing the `/plugin` commands when `claude` isn't on `PATH`), and runs `uv tool update-shell` when `~/.local/bin` isn't on `PATH`, saying that it changed the shell profile. The brief had `setup` only download the model.
+This path was chosen, including a broader `setup` than first planned: it downloads the model, links the interpreters, installs the plugin (printing the `/plugin` commands when `claude` isn't on `PATH`), and runs `uv tool update-shell` when `~/.local/bin` isn't on `PATH`, saying that it changed the shell profile. The brief had `setup` only download the model; doing the rest too makes install one command.
 
 ### What lives where
 
