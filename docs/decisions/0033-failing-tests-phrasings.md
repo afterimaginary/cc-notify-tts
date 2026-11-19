@@ -7,7 +7,7 @@ status: accepted
 
 ## Context
 
-ADR-0021 made sure a turn that ends with failing tests is never spoken as a success. Its review rounds left a list of phrasings that its rules handled badly. In each, the model guard held, but the template said something odd or missed the failure, or the guard rejected a correct model answer:
+ADR-0021 made sure a turn that ends with failing tests is never spoken as a success. Testing it left a list of phrasings that its rules handled badly. In each, the model guard held, but the template said something odd or missed the failure, or the guard rejected a correct model answer:
 
 - A clause cut from a sentence over 20 words kept its leading "and" ("And the 2 billing tests still fail."), lost the subject of an appositive ("Still fail." for "two tests, test_a and test_b, still fail"), or lost the word "tests" ("The other 2 still fail.").
 - "Still broken" counted as failing tests whatever it was about ("The CSV import is still broken"), so the template added that sentence and the guard rejected model wording that left it out.

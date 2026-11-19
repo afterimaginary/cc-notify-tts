@@ -41,7 +41,7 @@ The probe ran its full 30 rounds every time. claude itself was confirmed dead af
 
 Why it works: the hook exits immediately, so launchd adopts the probe before anything walks the process tree. The new session means no controlling terminal, so closing the window sends it no SIGHUP. Its own process group means a group kill doesn't reach it. And with stdio detached, Claude Code isn't left waiting on its pipes.
 
-**Simulated, not measured:** closing a window of the Claude desktop app wasn't driven, because that would mean scripting the owner's running app. The simulation is the harshest plausible close: SIGKILL to the session's whole process tree. The spike README has the steps to confirm it by hand in a desktop session.
+**Simulated, not measured:** closing a window of the Claude desktop app wasn't driven, because that would mean scripting a running app the developer was using. The simulation is the harshest plausible close: SIGKILL to the session's whole process tree. The spike README has the steps to confirm it by hand in a desktop session.
 
 ### Scheduling
 
