@@ -18,7 +18,7 @@ How each part works is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); decision
 - [x] Shipped default wording model, chosen by the eval
 - [x] Measured end-to-end latency, stage by stage
 - [x] `make demo`: a scripted demo video with real speech, and a silent GIF in the README
-- [x] README with the evidence, "How this was built", limitations and roadmap
+- [x] README with the evidence, limitations and roadmap
 - [x] Version 0.1.0 released with notes in `CHANGELOG.md`
 
 ## Recently Done

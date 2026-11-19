@@ -9,7 +9,7 @@ Configurable, summarized voice notifications for Claude Code on macOS: a Claude 
 
 ## Project notes
 
-- **Merging:** the orchestrator's supervisor merges PRs once `verify` passes at the PR head. Workers open PRs, get them through review and `verify`, then stop.
+- **Merging:** a PR merges once `verify` passes at its head.
 - **Toolchain:** Python 3.13 via `uv` (`uv sync` once). `ruff`, `pyright` (strict) and `pytest`. Run tools through `uv run`.
 - **Git hooks:** a new clone runs `make hooks` once so `make ready` runs before every push.
 - **macOS only.** Tests that need a model, Ollama or an audio device stay out of `ready` and `verify`.

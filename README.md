@@ -160,25 +160,6 @@ With only the desktop app, run the first two as `/plugin uninstall cc-notify-tts
 
 Claude Code's hooks hand each event to a small local daemon over a Unix socket. The daemon works out which of the seven events it is, checks whether to speak, writes the sentence and speaks it with [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and the decisions in [docs/decisions/](docs/decisions/).
 
-## How this was built
-
-Built with Claude Code (Claude Opus 5.5), with work planned and run by Orchestral. I wrote the brief and made the design calls; a separate agent reviewed every PR, and each merged once CI passed.
-
-The work started from a short [brief](docs/brief.md) and ran in four milestones. The first proved the risky parts before any product code: which hook events fire and with what fields, whether a daemon started from a hook survives its session at full speed, how fast Kokoro and Ollama are, and whether a hook can tell which app the session runs in. Each spike's result is a decision record. The second built a version that works on templates alone, the third added model wording, the eval and the latency measurements, and the fourth made the demo and this README.
-
-Orchestral turned the brief into GitHub issues and ran up to three Claude Code workers at once, each on its own branch and worktree. Every PR was checked against its issue's acceptance criteria by a reviewer agent that hadn't written it, and had to pass `make verify` (ruff, strict pyright, and the unit and end-to-end tests) in CI before it merged. Every measured result and design choice is recorded in [docs/decisions/](docs/decisions/).
-
-The run up to the v0.1.0 release, not counting the release's own issue and pull request:
-
-| | |
-| --- | --- |
-| Issues | 38 filed, 27 closed as done: 24 planned from the brief, the rest raised by reviews and the acceptance run |
-| Pull requests | 27 merged, each reviewed by a separate agent and merged once `verify` passed |
-| Days | 1 |
-| Workers | Up to 3 at once, one Claude Code session per issue |
-| Tokens | About 15 M, Orchestral's estimate |
-| Decisions | 23 ADRs |
-
 ## Limitations
 
 - **macOS only.** Presence comes from CoreGraphics and `lsappinfo`, and playback from `afplay`.
@@ -194,7 +175,8 @@ The run up to the v0.1.0 release, not counting the release's own issue and pull 
 
 In no particular order, and without dates:
 
-- Drop lead-ins like "Here's what was done:" from template wording ([#50](https://github.com/afterimaginary/cc-notify-tts/issues/50)).
+- Word an answer that explains how to make a change without claiming the change was made ([#82](https://github.com/afterimaginary/cc-notify-tts/issues/82)).
+- One general rule for option lists in template wording, in place of a rule per layout ([#86](https://github.com/afterimaginary/cc-notify-tts/issues/86)).
 - Try an in-process MLX model for wording, compared with the same eval.
 
 ## Contributing
