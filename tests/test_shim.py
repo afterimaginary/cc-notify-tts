@@ -27,7 +27,7 @@ SHIM_FILES = [REPO / "hooks" / "shim.py"] + [
     PACKAGE / ("__init__.py" if m == "cc_notify_tts" else m.split(".")[1] + ".py")
     for m in SHIM_MODULES
 ]
-# The hook list the owner approved (ADR-0001).
+# The hook list chosen in ADR-0001.
 APPROVED_HOOKS = {
     "SessionStart",
     "SessionEnd",

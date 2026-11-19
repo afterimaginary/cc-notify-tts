@@ -170,7 +170,7 @@ def test_project_name_starts_a_sentence_capitalized() -> None:
         ("Skill", {"skill": "code-review"}, "use the code review skill"),
         ("Skill", {"skill": "tools:deploy"}, "use the tools deploy skill"),
         ("mcp__github__create_issue", {}, "use create issue from github"),
-        ("mcp__vault", {}, "use vault"),
+        ("mcp__notes", {}, "use notes"),
         ("mcp__plugin_docs_docs__query_docs", {}, "use query docs from docs"),
         ("mcp__plugin_kit_search__find", {}, "use find from kit search"),
         ("TodoWrite", {}, "use todo write"),

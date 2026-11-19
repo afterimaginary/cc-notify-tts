@@ -36,7 +36,7 @@ The first release: Claude Code speaks one sentence about what it finished or wha
 - **CLI:** `setup`, `status`, `fire`, `mute`/`unmute` and `doctor` (ADR-0011, ADR-0017).
 - **`make eval`:** a reproducible eval of local wording models over 53 hand-written cases, with ten models compared on the first 48 (ADR-0016, ADR-0018).
 - **Measured latency:** a `timing` line per event in `daemon.log` and `bench.latency`. The first sound comes 0.74 s after the hook with templates and 0.99 s with `granite4:micro` (p95), and hooks other than the one that starts the daemon stay under 60 ms p95 (ADR-0019, ADR-0022).
-- **`make demo`:** a scripted demo video with real speech, rebuilt from scratch; the full cut is attached to this release (ADR-0020).
+- **`make demo`:** a scripted demo video with real speech, built by script from a clean state; the full cut is attached to this release (ADR-0020).
 
 ### Versioning
 
