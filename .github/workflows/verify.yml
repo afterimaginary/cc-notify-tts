@@ -1,9 +1,12 @@
-# Runs the project's verify suite on a GitHub-hosted macOS runner for every PR head.
+# Runs the project's verify suite on a GitHub-hosted macOS runner for every PR head
+# and every push to main, so main shows whether it still passes.
 # The merge step requires this job to pass at the PR head.
 name: verify
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
